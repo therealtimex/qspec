@@ -1,0 +1,16 @@
+# Portfolio Index for one selection round. Schema: QSPEC-CORE.md section 11. Check: qspec index this-file.yaml --specs <dir>
+index_schema: QSPEC-INDEX/1.0
+round: ""
+date: YYYY-MM-DD
+decision_maker: ""
+entries:
+  - id: Q-000
+    instance_version: 1
+    domain: social            # social | natural | engineering
+    claim_20_words: ""
+    family: ""
+    blocking: false
+    recommended_action: freeze   # freeze | backup | not_now | kill
+    rank: 1
+frozen: []
+exception: null

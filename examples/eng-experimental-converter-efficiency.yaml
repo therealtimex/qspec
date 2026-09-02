@@ -1,0 +1,88 @@
+# Illustrative instance. Citations are placeholders, not real references.
+spec_schema: QSPEC/1.0
+domain: engineering
+id: Q-301
+title: Converter topology A versus B under a drive cycle at fixed magnetics volume
+status: selectable
+instance_version: 1
+date: 2026-09-02
+owner: J. Owner
+reviewers: [K. Reviewer]
+changelog:
+  - version: 1
+    date: 2026-09-02
+    change: "created"
+
+claim:
+  one_sentence: "Under the named drive cycle and ambient window, topology A reaches at least the stated efficiency at rated power with lower peak switch stress than topology B, when magnetics volume is held equal."
+  comparative: true
+  system: "Traction DC-DC converter for a stated vehicle class"
+  artifact_or_process: "Two converter topologies built on the same switch and magnetics platform"
+  operating_regime: "Named standard drive cycle; ambient from -10 C to 45 C; rated power and 20 percent overload"
+  metric: "Cycle-weighted efficiency and peak switch voltage stress at equal magnetics volume"
+  why_it_matters: "The efficiency-versus-stress tradeoff decides device rating and cooling for a whole class of traction converters, not only this prototype."
+
+question_type:
+  method_family: experimental
+  knowledge_goal: tradeoff
+  secondary_method: computational
+  rescue_rule: "A loss model may explain the measured gap but may not replace a hardware baseline of topology B measured on the same bench under the same cycle."
+
+increment:
+  closest_work:
+    - cite: "[Illustrative work 1: simulation comparison of topologies A and B at a single operating point]"
+      settled: "A has lower switching loss at one operating point in simulation."
+      still_open: "No drive-cycle weighting; no hardware; magnetics volume not held equal."
+    - cite: "[Illustrative work 2: hardware paper on topology B at rated power]"
+      settled: "Measured efficiency of B at rated power on a reference bench."
+      still_open: "No head-to-head against A on the same platform."
+  increment_if_this_works: "A same-bench, same-volume, drive-cycle-weighted comparison with switch-stress measurement, which neither closest work provides."
+  vehicle_is_not_the_contribution: "The prototype is the vehicle; the contribution is the measured tradeoff under a fixed-volume constraint."
+
+materials:
+  in_hand: ["Bench with drive-cycle emulation", "Calibrated power analyser", "Switch modules for both topologies"]
+  blocking: ["Magnetics for A and B designed to equal volume"]
+  obtainable:
+    - item: "Custom magnetics pair at equal volume"
+      source: "In-house winding shop"
+      horizon: "6 weeks"
+      probability: high
+  access_risk: low
+
+success_and_failure:
+  support_would_look_like: "Cycle-weighted efficiency of A at or above the stated value and above B by more than the measurement uncertainty, with lower peak switch stress across the cycle."
+  failure_would_look_like: "Efficiencies within measurement uncertainty of each other, or A better on efficiency but worse on stress."
+  uninteresting_even_if_true: "A gain smaller than the part-to-part variation of the switch modules."
+  kill_condition: "Magnetics volume cannot be matched within 5 percent, or loss-measurement uncertainty spans the claimed efficiency gap."
+
+constraints:
+  safety_or_ethics: [hazardous_operation]
+  sensitivity: ""
+  independence_limits: "Switch modules supplied under NDA; part numbers cannot be published."
+  standards_or_codes: "Efficiency measured per the named converter test standard"
+
+ask:
+  time: "4 months"
+  people: "one engineer, one technician for magnetics"
+  access: "bench time under the module NDA"
+  hardware_or_compute: "drive-cycle bench, power analyser, custom magnetics pair"
+
+hints:
+  ceiling: broad
+  build_risk: medium
+  scale: subsystem
+
+profile:
+  name: experimental
+  intervention_or_design_under_test: "Topology A on the shared platform"
+  baseline: "Topology B on the same platform, same switches, equal-volume magnetics"
+  workload_or_excitation: "Named drive cycle replayed by the bench emulator at three ambient set points"
+  metrics: ["Cycle-weighted efficiency", "Peak switch voltage stress", "Case temperature rise"]
+  measurement_chain: "Power analyser at input and output; differential probes on switch nodes; thermocouples on cases"
+  controls_and_repeats: "Three cycle repeats per ambient; bench calibration run before each session"
+  main_artifact_or_confound: "Thermal history between runs biasing loss; randomise topology order"
+  precommitted_checks: ["Analyser uncertainty budget below half the claimed gap", "Magnetics volume verified by measurement"]
+
+handoff:
+  first_check: "Compute the analyser uncertainty budget at rated power; if it exceeds half the claimed gap, kill or narrow the claim."
+  notes_for_next_stage: "Write the test protocol citing Q-301@1."

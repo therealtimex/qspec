@@ -1,0 +1,86 @@
+# Question Spec instance. Core: QSPEC-CORE.md. Overlay: QSPEC-ENG.md.
+# Lint: qspec lint this-file.yaml   Sign: qspec sign this-file.yaml --by <reviewer>
+spec_schema: QSPEC/1.0
+domain: engineering
+id: Q-000
+title: ""
+status: draft
+instance_version: 1
+date: YYYY-MM-DD
+owner: ""
+reviewers: []
+changelog:
+  - version: 1
+    date: YYYY-MM-DD
+    change: "created"
+
+claim:
+  one_sentence: ""
+  comparative: false
+  system: ""
+  artifact_or_process: ""
+  operating_regime: ""
+  metric: ""             # required unless method_family is theoretical
+  why_it_matters: ""
+
+question_type:
+  method_family: ""      # experimental | observational_or_field | computational | design_and_analysis | measurement | theoretical
+  knowledge_goal: ""     # performance | tradeoff | reliability_or_safety | mechanism_of_failure | feasibility | prediction | measurement
+  secondary_method: null
+  rescue_rule: null
+
+increment:
+  closest_work:
+    - cite: ""
+      settled: ""
+      still_open: ""
+    - cite: ""
+      settled: ""
+      still_open: ""
+  increment_if_this_works: ""
+  vehicle_is_not_the_contribution: ""
+
+materials:
+  in_hand: []
+  blocking: []
+  obtainable: []
+  access_risk: low
+
+success_and_failure:
+  support_would_look_like: ""
+  failure_would_look_like: ""
+  uninteresting_even_if_true: ""
+  kill_condition: ""
+
+constraints:
+  safety_or_ethics: []   # human_users | animals | hazardous_operation | dual_use | field_deployment | export_control
+  sensitivity: ""
+  independence_limits: ""
+  standards_or_codes: ""
+
+ask:                   # shown on the selection sheet; a hole is reported, never filled
+  time: ""
+  people: ""
+  access: ""
+  hardware_or_compute: ""
+
+hints:
+  ceiling: unclear
+  build_risk: medium
+  scale: system
+
+# Replace with the profile for your method_family. See QSPEC-ENG.md section 4.
+profile:
+  name: experimental
+  intervention_or_design_under_test: ""
+  baseline: ""
+  workload_or_excitation: ""
+  metrics: []
+  measurement_chain: ""
+  controls_and_repeats: ""
+  main_artifact_or_confound: ""
+  precommitted_checks: []
+
+handoff:
+  first_check: ""
+  notes_for_next_stage: ""

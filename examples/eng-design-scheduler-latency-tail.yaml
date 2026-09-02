@@ -1,0 +1,86 @@
+# Illustrative instance. Citations are placeholders, not real references.
+spec_schema: QSPEC/1.0
+domain: engineering
+id: Q-302
+title: Scheduling policy latency tail at bounded energy overhead
+status: specified
+instance_version: 1
+date: 2026-09-02
+owner: L. Owner
+reviewers: [M. Reviewer]
+changelog:
+  - version: 1
+    date: 2026-09-02
+    change: "created"
+
+claim:
+  one_sentence: "On the named workload suite at the stated load, the proposed scheduling policy meets the stated 99th-percentile latency bound with no more than the stated energy overhead relative to the standard baseline scheduler on the same stack."
+  comparative: true
+  system: "Multi-tenant request-serving cluster of a stated node class"
+  artifact_or_process: "A scheduling policy implemented as a replaceable module in the named runtime"
+  operating_regime: "Stated load as a fraction of capacity; named workload suite; homogeneous nodes"
+  metric: "99th-percentile request latency and energy per request"
+  why_it_matters: "Tail latency at bounded energy is the binding constraint for a class of serving systems; a policy that meets both moves the frontier rather than trading one for the other."
+
+question_type:
+  method_family: design_and_analysis
+  knowledge_goal: tradeoff
+  secondary_method: experimental
+  rescue_rule: "A benchmark run may confirm the analysis but may not replace the constraint analysis; if the analysis does not bound the tail, a favourable run is not evidence for the claim."
+
+increment:
+  closest_work:
+    - cite: "[Illustrative work 1: tail-latency-aware scheduler with unreported energy cost]"
+      settled: "Tail latency can be bounded by admission control."
+      still_open: "Energy overhead not measured."
+    - cite: "[Illustrative work 2: energy-proportional scheduler evaluated on a different suite]"
+      settled: "Energy per request can be reduced under low load."
+      still_open: "Tail latency degrades at the load studied here."
+  increment_if_this_works: "A policy with an analytic tail bound and a measured energy overhead on the same suite and stack, which neither closest work provides."
+  vehicle_is_not_the_contribution: "The runtime and suite are vehicles; the contribution is the policy plus the bound plus the joint constraint satisfaction."
+
+materials:
+  in_hand: ["Cluster access", "Baseline scheduler source", "Workload suite"]
+  blocking: []
+  obtainable:
+    - item: "Per-node power telemetry at 1 Hz"
+      source: "Facility operations team"
+      horizon: "1 month"
+      probability: high
+  access_risk: low
+
+success_and_failure:
+  support_would_look_like: "The analysis bounds the tail under the stated load model, and measured p99 and energy per request both fall within the stated limits across all suite members."
+  failure_would_look_like: "The bound holds analytically but a suite member exceeds either limit, or the bound requires a load model the suite violates."
+  uninteresting_even_if_true: "Both limits are met only at loads where the baseline also meets them."
+  kill_condition: "The suite is shown not to represent the stated regime, or the baseline cannot be run on the same stack with the same telemetry."
+
+constraints:
+  safety_or_ethics: []
+  sensitivity: ""
+  independence_limits: "Cluster is shared; runs may be preempted."
+  standards_or_codes: ""
+
+ask:
+  time: "5 months"
+  people: "two engineers"
+  access: "cluster reservation and power telemetry"
+  hardware_or_compute: "cluster nodes; 1 Hz power telemetry"
+
+hints:
+  ceiling: specialist
+  build_risk: medium
+  scale: system
+
+profile:
+  name: design_and_analysis
+  design_object: "Admission-and-placement scheduling policy"
+  requirements_or_constraints: "p99 latency at or below the stated bound; energy per request at most the stated overhead above baseline; no change to the request API"
+  decision_variables: "Admission threshold; placement rule; batching window"
+  analysis_method: "Queueing bound on the tail under the stated arrival model; energy model calibrated on the baseline"
+  comparator_designs: ["Standard baseline scheduler", "Tail-aware scheduler from closest work 1"]
+  acceptance_criterion: "Both constraints satisfied on every suite member at the stated load, with the bound holding analytically"
+
+handoff:
+  first_check: "Run the baseline on the suite with telemetry to confirm the regime is reachable and the energy baseline is measurable."
+  notes_for_next_stage: "Freeze the suite version and load model before the policy is tuned."

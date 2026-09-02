@@ -1,0 +1,42 @@
+# Negative example: uses the 0.1.0 'mixed' family and the old profile. Must fail lint.
+spec_schema: QSPEC/1.0
+domain: natural
+id: Q-900
+title: Old-style mixed spec
+status: draft
+instance_version: 1
+date: 2026-09-02
+owner: N. Owner
+reviewers: [O. Reviewer]
+changelog: [{ version: 1, date: 2026-09-02, change: created }]
+claim:
+  one_sentence: "Simulation plus experiment shows the effect."
+  comparative: false
+  system: "A system"
+  object: "An effect"
+  scope: "A regime"
+  why_it_matters: "It matters."
+question_type:
+  method_family: mixed
+  knowledge_goal: effect
+  secondary_method: null
+  rescue_rule: null
+increment:
+  closest_work:
+    - { cite: "[P1]", settled: "x", still_open: "y" }
+    - { cite: "[P2]", settled: "x", still_open: "y" }
+  increment_if_this_works: "Something."
+  vehicle_is_not_the_contribution: "The rig is a means."
+materials: { in_hand: [], blocking: [], obtainable: [], access_risk: low }
+success_and_failure:
+  support_would_look_like: "a"
+  failure_would_look_like: "b"
+  uninteresting_even_if_true: "c"
+  kill_condition: "d"
+constraints: { safety_or_ethics: [], sensitivity: "", independence_limits: "" }
+profile:
+  name: mixed
+  primary_claim_family: experimental
+  secondary_role: "simulation"
+  rescue_rule: "none"
+handoff: { first_check: "", notes_for_next_stage: "" }

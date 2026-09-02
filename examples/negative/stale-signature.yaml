@@ -1,0 +1,80 @@
+# Negative example: the claim was edited after a reviewer signed. Must fail lint with stale-signature.
+spec_schema: QSPEC/1.0
+domain: natural
+id: Q-202
+title: Threshold coupling for a mean-field instability absent from the textbook limit
+status: specified
+instance_version: 1
+date: 2026-09-02
+owner: H. Owner
+reviewers: [I. Reviewer]
+changelog:
+  - version: 1
+    date: 2026-09-02
+    change: "created"
+
+claim:
+  one_sentence: "Within the stated mean-field treatment of the named lattice model, the instability appears at every coupling, and that threshold vanishes in the textbook weak-coupling limit."
+  comparative: true
+  system: "The named two-band lattice model under a stated mean-field decoupling"
+  object: "Existence and location of a threshold coupling for the instability"
+  scope: "Weak to intermediate coupling; zero temperature; two spatial dimensions"
+  why_it_matters: "If a threshold exists, the textbook prediction of an instability at any coupling is an artifact of the limit, which changes how experiments at intermediate coupling should be read."
+
+question_type:
+  method_family: theoretical
+  knowledge_goal: existence
+  secondary_method: null
+  rescue_rule: null
+
+increment:
+  closest_work:
+    - cite: "[Illustrative work 1: textbook weak-coupling treatment of the instability]"
+      settled: "Instability at arbitrarily weak coupling in the strict limit."
+      still_open: "Behaviour when the neglected band is retained."
+    - cite: "[Illustrative work 2: numerical study of the same model at intermediate coupling]"
+      settled: "Instability observed above some coupling numerically."
+      still_open: "No analytic statement of whether a threshold exists or is a finite-size effect."
+  increment_if_this_works: "An analytic threshold condition with an explicit reduction to the textbook limit, which neither the textbook nor the numerics provides."
+  vehicle_is_not_the_contribution: "The model is standard; the contribution is the threshold proposition and its reduction."
+
+materials:
+  in_hand: ["Model definition", "Mean-field equations from the closest work"]
+  blocking: []
+  obtainable: []
+  access_risk: low
+
+success_and_failure:
+  support_would_look_like: "A closed-form or implicit threshold condition that is positive for finite interband coupling and goes to zero as that coupling is removed."
+  failure_would_look_like: "The threshold condition is identically zero once the second band is retained consistently, or the threshold is an artifact of the decoupling choice."
+  uninteresting_even_if_true: "A threshold that is nonzero only in a regime where the mean-field treatment is already invalid."
+  kill_condition: "A named paper already removes the approximation and shows the threshold vanishes, or a counterexample coupling below the derived threshold exhibits the instability within the same treatment."
+
+constraints:
+  safety_or_ethics: []
+  sensitivity: ""
+  independence_limits: ""
+
+ask:
+  time: "3 months"
+  people: "one theorist half-time"
+  access: "none"
+  hardware_or_compute: "none"
+
+hints:
+  ceiling: specialist
+  build_risk: low
+
+profile:
+  name: theoretical
+  primitives_or_postulates: "Two-band lattice Hamiltonian; stated mean-field decoupling; zero temperature"
+  proposition: "There exists a coupling g* > 0 such that the instability has no self-consistent solution for g < g*, and g* tends to zero as the interband term is removed."
+  regime_of_validity: "Weak to intermediate coupling where the decoupling is controlled"
+  relation_to_named_theory: "Reduces to the textbook result in the single-band limit"
+  assumed_not_tested: "Mean-field decoupling remains valid up to g*"
+  counterexample_or_reduction_that_kills: "A self-consistent solution at g < g*, or a reduction showing g* is fixed by the decoupling rather than the model"
+  empirics_role: later_test
+
+handoff:
+  first_check: "Search the literature for a treatment that already retains the second band consistently; if found and it shows g* = 0, kill."
+  notes_for_next_stage: "Specify the later experimental test before any comparison with data is claimed."

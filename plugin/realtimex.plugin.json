@@ -1,0 +1,19 @@
+{
+  "id": "ai.realtimex.qspec",
+  "name": "qspec",
+  "displayName": "QSPEC Question Specs",
+  "version": "1.1.0",
+  "description": "Write, check, sign, select, and freeze research questions as Question Specs: a claim that can fail, a method family, materials, increment over named work, and a kill condition. Bundles the qspec tool and the core and domain schemas. It measures and records; it never writes a field or judges whether a question is good.",
+  "author": "RealTimeX",
+  "license": "UNLICENSED",
+  "capabilities": {
+    "skills": [
+      {
+        "name": "qspec",
+        "displayName": "QSPEC Question Specs",
+        "description": "Turn a research topic into a Question Spec that can be linted, signed, selected, frozen, or killed, and hand the frozen question to Paperforge. Does not author the question.",
+        "directory": "skills/qspec"
+      }
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+# Portfolio Index for one selection round. Illustrative.
+index_schema: QSPEC-INDEX/1.0
+round: "2026-09"
+date: 2026-09-01
+decision_maker: "Group lead"
+entries:
+  - id: Q-201
+    instance_version: 1
+    domain: natural
+    claim_20_words: "Raising apical oxygen height at fixed doping lowers the cuprate dome maximum."
+    family: experimental
+    blocking: true
+    recommended_action: freeze
+    rank: 1
+  - id: Q-101
+    instance_version: 2
+    domain: social
+    claim_20_words: "Below the small-firm reservation cutoff, small-firm win rates rise and unit prices do not."
+    family: empirical_causal
+    blocking: false
+    recommended_action: backup
+    rank: 2
+  - id: Q-301
+    instance_version: 1
+    domain: engineering
+    claim_20_words: "Topology A beats B on cycle efficiency and switch stress at equal magnetics volume."
+    family: experimental
+    blocking: true
+    recommended_action: not_now
+    rank: 3
+frozen: [Q-201]
+exception: null

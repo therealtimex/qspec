@@ -1,0 +1,23 @@
+record_schema: QSPEC-DR/1.0
+spec_id: Q-202
+entries:
+  - date: '2026-09-02'
+    instance_version: 1
+    actor: I. Reviewer
+    role: reviewer
+    from: draft
+    to: specified
+    reason: judged invariants reread and signed
+    signed_invariants:
+      - J1
+      - J2
+      - J3
+      - J4
+      - J5
+      - J6
+      - J7
+    spec_fingerprint: sha256:303823ac0d21e735d240bc4a62018288b0fcb2384611d27f198983fa516d0875
+    cited_invariant: null
+    revisit_by: null
+    successor: null
+    dissent: []

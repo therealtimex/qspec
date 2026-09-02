@@ -1,0 +1,36 @@
+record_schema: QSPEC-DR/1.0
+spec_id: Q-301
+entries:
+  - date: '2026-08-30'
+    instance_version: 1
+    actor: K. Reviewer
+    role: reviewer
+    from: draft
+    to: specified
+    reason: judged invariants reread and signed
+    signed_invariants:
+      - J1
+      - J2
+      - J3
+      - J4
+      - J5
+      - J6
+      - J7
+    spec_fingerprint: sha256:9cd939cb77148e69d82c6611f1fe9603eab3620fa9a455d96beec4d96bb335d1
+    cited_invariant: null
+    revisit_by: null
+    successor: null
+    dissent: []
+  - date: '2026-09-01'
+    instance_version: 1
+    actor: J. Owner
+    role: owner
+    from: specified
+    to: selectable
+    reason: ''
+    signed_invariants: null
+    spec_fingerprint: null
+    cited_invariant: null
+    revisit_by: null
+    successor: null
+    dissent: []

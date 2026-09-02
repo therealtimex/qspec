@@ -1,0 +1,19 @@
+# Decision Record. One per spec, append-only, tool-written. Schema: QSPEC-CORE.md section 9.
+# Do not write entries by hand: `qspec sign` and `qspec transition` append them and
+# stamp the fingerprint. Lives beside the spec as <spec>.record.yaml.
+record_schema: QSPEC-DR/1.0
+spec_id: Q-000
+entries:
+  - date: YYYY-MM-DD
+    instance_version: 1
+    actor: ""
+    role: reviewer                 # owner | reviewer | decision_maker
+    from: draft
+    to: specified
+    reason: ""
+    signed_invariants: [J1, J2, J3, J4, J5, J6, J7]
+    spec_fingerprint: "sha256:..." # of the spec as signed; lint reports stale-signature if the spec moves
+    cited_invariant: null          # e.g. M6 or J3; required when to: draft
+    revisit_by: null               # YYYY-MM-DD; required when to: deferred
+    successor: null                # id@instance_version; required when to: superseded
+    dissent: []                    # [{reviewer, point, unresolved}] carried verbatim onto the sheet

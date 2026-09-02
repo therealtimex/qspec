@@ -1,0 +1,33 @@
+name: release
+on:
+  push:
+    tags: ["v*.*.*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: tag matches the manifest
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          m=$(node -p "require('./plugin/realtimex.plugin.json').version")
+          [ "$v" = "$m" ] || { echo "tag $v but manifest says $m"; exit 1; }
+      - run: sh scripts/test.sh
+      - run: node scripts/plugin.mjs --check
+      - run: node scripts/plugin.mjs --package dist
+      - name: the packaged bundle runs
+        run: |
+          mkdir -p /tmp/unpacked && unzip -q dist/qspec-*.zip -d /tmp/unpacked
+          node /tmp/unpacked/skills/qspec/tool/bin/qspec.js lint examples/ns-experimental-apical-oxygen.yaml
+      - run: shasum -a 256 dist/qspec-*.zip > dist/SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/qspec-*.zip
+            dist/SHA256SUMS
+          generate_release_notes: true

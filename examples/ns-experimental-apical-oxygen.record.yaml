@@ -1,0 +1,49 @@
+record_schema: QSPEC-DR/1.0
+spec_id: Q-201
+entries:
+  - date: '2026-08-25'
+    instance_version: 1
+    actor: G. Reviewer
+    role: reviewer
+    from: draft
+    to: specified
+    reason: judged invariants reread and signed
+    signed_invariants:
+      - J1
+      - J2
+      - J3
+      - J4
+      - J5
+      - J6
+      - J7
+    spec_fingerprint: sha256:8ac1037eb1c002aac9dd981a8aaa8127e8ec439f5e8e6772435c3b4bbf4a8c29
+    cited_invariant: null
+    revisit_by: null
+    successor: null
+    dissent: []
+  - date: '2026-08-27'
+    instance_version: 1
+    actor: F. Owner
+    role: owner
+    from: specified
+    to: selectable
+    reason: ''
+    signed_invariants: null
+    spec_fingerprint: null
+    cited_invariant: null
+    revisit_by: null
+    successor: null
+    dissent: []
+  - date: '2026-09-01'
+    instance_version: 1
+    actor: Group lead
+    role: decision_maker
+    from: selectable
+    to: frozen
+    reason: chosen in round 2026-09; first check is the Hall-number doping series
+    signed_invariants: null
+    spec_fingerprint: null
+    cited_invariant: null
+    revisit_by: null
+    successor: null
+    dissent: []

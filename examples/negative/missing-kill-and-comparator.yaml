@@ -1,0 +1,46 @@
+# Negative example: comparative claim with empty baseline, empty kill condition, owner listed as reviewer. Must fail lint.
+spec_schema: QSPEC/1.0
+domain: engineering
+id: Q-901
+title: Comparative claim without baseline
+status: frozen
+instance_version: 2
+date: 2026-09-02
+owner: P. Owner
+reviewers: [P. Owner]
+changelog: [{ version: 1, date: 2026-09-02, change: created }]
+claim:
+  one_sentence: "Our scheduler is better."
+  comparative: true
+  system: "A cluster"
+  artifact_or_process: "A scheduler"
+  operating_regime: "Some load"
+  metric: "Latency"
+  why_it_matters: "Faster."
+question_type:
+  method_family: experimental
+  knowledge_goal: performance
+  secondary_method: null
+  rescue_rule: null
+increment:
+  closest_work:
+    - { cite: "[P1]", settled: "x", still_open: "y" }
+  increment_if_this_works: "New prototype."
+  vehicle_is_not_the_contribution: ""
+materials: { in_hand: [], blocking: [], obtainable: [], access_risk: low }
+success_and_failure:
+  support_would_look_like: "Lower latency."
+  failure_would_look_like: "Higher latency."
+  uninteresting_even_if_true: ""
+  kill_condition: ""
+constraints: { safety_or_ethics: [], sensitivity: "", independence_limits: "", standards_or_codes: "" }
+profile:
+  name: experimental
+  intervention_or_design_under_test: "New scheduler"
+  baseline: ""
+  workload_or_excitation: "Suite"
+  metrics: []
+  measurement_chain: "Timers"
+  controls_and_repeats: "3 runs"
+  main_artifact_or_confound: "Cache warmth"
+handoff: { first_check: "", notes_for_next_stage: "" }

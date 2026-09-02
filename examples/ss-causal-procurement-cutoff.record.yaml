@@ -1,0 +1,39 @@
+record_schema: QSPEC-DR/1.0
+spec_id: Q-101
+entries:
+  - date: '2026-08-28'
+    instance_version: 2
+    actor: B. Reviewer
+    role: reviewer
+    from: draft
+    to: specified
+    reason: J1-J7 reread against version 2
+    signed_invariants:
+      - J1
+      - J2
+      - J3
+      - J4
+      - J5
+      - J6
+      - J7
+    spec_fingerprint: sha256:1ef922706579c8cd239425aecbf583aca812c1fb82c54a29a07fca06dc639b3f
+    cited_invariant: null
+    revisit_by: null
+    successor: null
+    dissent:
+      - reviewer: B. Reviewer
+        point: Unit prices may not be comparable across goods categories even after the restriction; the design_risk line understates this.
+        unresolved: true
+  - date: '2026-09-01'
+    instance_version: 2
+    actor: A. Owner
+    role: owner
+    from: specified
+    to: selectable
+    reason: offered in round 2026-09
+    signed_invariants: null
+    spec_fingerprint: null
+    cited_invariant: null
+    revisit_by: null
+    successor: null
+    dissent: []

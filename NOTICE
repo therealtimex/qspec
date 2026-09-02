@@ -1,0 +1,13 @@
+Third-party components
+======================
+
+QSPEC itself is source-available with all rights reserved — see LICENSE. The
+components below are used under their own terms, which are unaffected by that
+licence.
+
+js-yaml
+-------
+MIT licensed; full text at lib/vendor/js-yaml/LICENSE, version in
+lib/vendor/js-yaml/VERSION. Vendored as a single ES module so the tool runs
+with no npm install, inside a RealTimeX skill bundle or a bare checkout.
+Nothing from it is embedded in a rendered sheet, index, or request.

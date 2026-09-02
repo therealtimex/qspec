@@ -1,0 +1,140 @@
+{
+  "schema": "QSPEC/1.0",
+  "core": {
+    "states": ["draft", "specified", "selectable", "deferred", "frozen", "superseded", "killed"],
+    "levels": ["low", "medium", "high"],
+    "ceiling": ["specialist", "broad", "unclear"],
+    "actions": ["freeze", "backup", "not_now", "kill"]
+  },
+  "domains": {
+    "social": {
+      "overlay": "QSPEC-SS.md",
+      "claim_required": ["object", "scope"],
+      "claim_conditional": [],
+      "families": ["empirical_causal", "empirical_descriptive", "measurement", "interpretive", "ethnographic", "historical", "theoretical", "formal_theory"],
+      "goals": ["effect", "mechanism", "description", "measurement", "interpretation", "explanation", "prediction", "normative_map"],
+      "safety": ["human_subjects", "vulnerable_population", "deception", "sensitive_data", "political_risk", "partner_dependency"],
+      "hints_extra": {},
+      "profiles": {
+        "empirical_causal": {
+          "required": ["treatment", "assignment_process", "comparison", "estimand", "identifying_assumption", "main_alternative_explanation", "primary_outcome", "design_risk"],
+          "optional": ["mechanism_outcomes", "precommitted_checks"],
+          "comparator": "comparison"
+        },
+        "empirical_descriptive": {
+          "required": ["object_described", "unit_of_observation", "variation_shown", "why_not_trivial", "what_description_cannot_claim"],
+          "optional": ["comparison_or_benchmark"],
+          "comparator": "comparison_or_benchmark"
+        },
+        "measurement": {
+          "required": ["construct", "operationalization", "validation", "error_concerns", "why_the_measure_is_the_contribution"],
+          "optional": ["prior_measure"],
+          "comparator": "prior_measure"
+        },
+        "interpretive": { "$ref": "interpretive_set" },
+        "ethnographic": { "$ref": "interpretive_set" },
+        "historical": { "$ref": "interpretive_set" },
+        "theoretical": { "$ref": "theory_set" },
+        "formal_theory": { "$ref": "theory_set" }
+      },
+      "profile_sets": {
+        "interpretive_set": {
+          "required": ["site_or_corpus", "access", "unit_of_observation", "contrast", "source_limits", "positionality", "overturning_observation"],
+          "optional": [],
+          "comparator": "contrast"
+        },
+        "theory_set": {
+          "required": ["primitives", "proposition", "relation_to_named_model", "assumed_not_tested", "counterexample_that_kills", "empirics_role"],
+          "optional": [],
+          "comparator": "relation_to_named_model",
+          "enums": { "empirics_role": ["none", "illustration", "test"] }
+        }
+      }
+    },
+    "natural": {
+      "overlay": "QSPEC-NS.md",
+      "claim_required": ["system", "object", "scope"],
+      "claim_conditional": [],
+      "families": ["experimental", "observational", "measurement", "computational", "theoretical"],
+      "goals": ["mechanism", "effect", "existence", "structure", "measurement", "prediction", "explanation"],
+      "safety": ["animals", "humans", "biosafety", "radiation", "dual_use", "fieldwork_permit", "hazardous_materials"],
+      "hints_extra": {},
+      "profiles": {
+        "experimental": {
+          "required": ["intervention", "control_or_baseline", "independent_variables", "dependent_quantities", "measurement_chain", "positive_or_negative_controls", "replication_unit", "main_artifact_or_confound"],
+          "optional": ["precommitted_checks"],
+          "comparator": "control_or_baseline",
+          "min_list": { "independent_variables": 1, "dependent_quantities": 1 }
+        },
+        "observational": {
+          "required": ["observing_system", "target_process", "comparison_or_contrast", "sampling_design", "coverage_and_bias", "quantity_inferred", "main_confound_or_aliasing"],
+          "optional": [],
+          "comparator": "comparison_or_contrast"
+        },
+        "measurement": {
+          "required": ["measurand", "operational_definition", "calibration_or_standard", "uncertainty_budget_sketch", "validation", "why_the_measure_is_the_contribution"],
+          "optional": ["prior_method"],
+          "comparator": "prior_method"
+        },
+        "computational": {
+          "required": ["computation_mode", "model_or_code", "governing_equations_or_algorithm", "input_data_or_parameters", "resolution_or_convergence", "verification_and_validation", "baseline_model", "what_computation_cannot_claim"],
+          "optional": [],
+          "comparator": "baseline_model",
+          "enums": { "computation_mode": ["numerical_experiment", "inference_on_data"] }
+        },
+        "theoretical": {
+          "required": ["primitives_or_postulates", "proposition", "regime_of_validity", "relation_to_named_theory", "assumed_not_tested", "counterexample_or_reduction_that_kills", "empirics_role"],
+          "optional": [],
+          "comparator": "relation_to_named_theory",
+          "enums": { "empirics_role": ["none", "illustration", "later_test"] }
+        }
+      },
+      "profile_sets": {}
+    },
+    "engineering": {
+      "overlay": "QSPEC-ENG.md",
+      "claim_required": ["system", "artifact_or_process", "operating_regime"],
+      "claim_conditional": [{ "field": "metric", "unless_family": ["theoretical"] }],
+      "families": ["experimental", "observational_or_field", "computational", "design_and_analysis", "measurement", "theoretical"],
+      "goals": ["performance", "tradeoff", "reliability_or_safety", "mechanism_of_failure", "feasibility", "prediction", "measurement"],
+      "safety": ["human_users", "animals", "hazardous_operation", "dual_use", "field_deployment", "export_control"],
+      "constraints_extra": ["standards_or_codes"],
+      "hints_extra": { "scale": ["component", "subsystem", "system"] },
+      "profiles": {
+        "experimental": {
+          "required": ["intervention_or_design_under_test", "baseline", "workload_or_excitation", "metrics", "measurement_chain", "controls_and_repeats", "main_artifact_or_confound"],
+          "optional": ["precommitted_checks"],
+          "comparator": "baseline",
+          "min_list": { "metrics": 1 }
+        },
+        "observational_or_field": {
+          "required": ["deployed_context", "quantity_inferred", "sampling_or_logging_design", "coverage_and_bias", "main_confound", "what_field_data_cannot_claim"],
+          "optional": ["comparison_period_or_fleet"],
+          "comparator": "comparison_period_or_fleet"
+        },
+        "computational": {
+          "required": ["model_or_code", "governing_model", "inputs_and_boundary_conditions", "verification", "validation_against", "baseline_model", "what_computation_cannot_claim"],
+          "optional": [],
+          "comparator": "baseline_model"
+        },
+        "design_and_analysis": {
+          "required": ["design_object", "requirements_or_constraints", "decision_variables", "analysis_method", "acceptance_criterion"],
+          "optional": ["comparator_designs"],
+          "comparator": "comparator_designs"
+        },
+        "measurement": {
+          "required": ["measurand", "operational_definition", "calibration_or_reference", "uncertainty_sketch", "why_the_measure_is_the_contribution"],
+          "optional": ["prior_method"],
+          "comparator": "prior_method"
+        },
+        "theoretical": {
+          "required": ["primitives", "proposition", "regime_of_validity", "relation_to_named_result", "counterexample_or_reduction_that_kills", "empirics_role"],
+          "optional": [],
+          "comparator": "relation_to_named_result",
+          "enums": { "empirics_role": ["none", "illustration", "later_test"] }
+        }
+      },
+      "profile_sets": {}
+    }
+  }
+}

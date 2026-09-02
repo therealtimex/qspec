@@ -1,0 +1,84 @@
+# Question Spec instance. Core: QSPEC-CORE.md. Overlay: QSPEC-NS.md.
+# Lint: qspec lint this-file.yaml   Sign: qspec sign this-file.yaml --by <reviewer>
+spec_schema: QSPEC/1.0
+domain: natural
+id: Q-000
+title: ""
+status: draft
+instance_version: 1
+date: YYYY-MM-DD
+owner: ""
+reviewers: []
+changelog:
+  - version: 1
+    date: YYYY-MM-DD
+    change: "created"
+
+claim:
+  one_sentence: ""
+  comparative: false
+  system: ""
+  object: ""
+  scope: ""
+  why_it_matters: ""
+
+question_type:
+  method_family: ""      # experimental | observational | measurement | computational | theoretical
+  knowledge_goal: ""     # mechanism | effect | existence | structure | measurement | prediction | explanation
+  secondary_method: null
+  rescue_rule: null
+
+increment:
+  closest_work:
+    - cite: ""
+      settled: ""
+      still_open: ""
+    - cite: ""
+      settled: ""
+      still_open: ""
+  increment_if_this_works: ""
+  vehicle_is_not_the_contribution: ""
+
+materials:
+  in_hand: []
+  blocking: []
+  obtainable: []
+  access_risk: low
+
+success_and_failure:
+  support_would_look_like: ""
+  failure_would_look_like: ""
+  uninteresting_even_if_true: ""
+  kill_condition: ""
+
+constraints:
+  safety_or_ethics: []   # animals | humans | biosafety | radiation | dual_use | fieldwork_permit | hazardous_materials
+  sensitivity: ""
+  independence_limits: ""
+
+ask:                   # shown on the selection sheet; a hole is reported, never filled
+  time: ""
+  people: ""
+  access: ""
+  hardware_or_compute: ""
+
+hints:
+  ceiling: unclear
+  build_risk: medium
+
+# Replace with the profile for your method_family. See QSPEC-NS.md section 4.
+profile:
+  name: experimental
+  intervention: ""
+  control_or_baseline: ""
+  independent_variables: []
+  dependent_quantities: []
+  measurement_chain: ""
+  positive_or_negative_controls: ""
+  replication_unit: ""
+  main_artifact_or_confound: ""
+  precommitted_checks: []
+
+handoff:
+  first_check: ""
+  notes_for_next_stage: ""

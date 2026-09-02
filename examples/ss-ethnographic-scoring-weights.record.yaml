@@ -1,0 +1,23 @@
+record_schema: QSPEC-DR/1.0
+spec_id: Q-102
+entries:
+  - date: '2026-09-02'
+    instance_version: 1
+    actor: D. Reviewer
+    role: reviewer
+    from: draft
+    to: specified
+    reason: judged invariants reread and signed
+    signed_invariants:
+      - J1
+      - J2
+      - J3
+      - J4
+      - J5
+      - J6
+      - J7
+    spec_fingerprint: sha256:ebd0f6a9b1b7dd50f2beacb7edeb1183be772388d5db423b8d2adac1d5dc48e4
+    cited_invariant: null
+    revisit_by: null
+    successor: null
+    dissent: []

@@ -1,0 +1,111 @@
+# QSPEC: Question Spec
+
+A Question Spec is a short contract that turns a research topic, technique, or platform into a claim that can be wrong, so that questions from different methods and domains can be compared, selected, frozen, or killed on the same terms.
+
+Version 1.1.0, released 2026-09-02. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
+
+The tool renders and checks; it does not author. A field is written by a person, a judgment is signed by a person, and the tool notices when a signature no longer covers the text. It pairs with [Paperforge](docs/paperforge-integration.md) downstream, which applies the same rule to the documents that answer the question.
+
+## Files
+
+| Path | What it is |
+|---|---|
+| `QSPEC-CORE.md` | The shared core: object model, life cycle, roles, fields, invariants, Decision Record, Selection Sheet, Index, downstream contact points, tooling. Read this first. |
+| `QSPEC-SS.md`, `QSPEC-NS.md`, `QSPEC-ENG.md` | Domain overlays for social sciences, natural sciences, and engineering: claim fields, catalogs, method profiles. Software is in scope for engineering. |
+| `schema/catalogs.json` | Machine-readable catalogs and profile field lists. The single source of truth for the tool. |
+| `bin/qspec.js` | The tool. `qspec help` lists commands. No dependencies; js-yaml is vendored under `lib/vendor/`. |
+| `lib/` | `lint` (M invariants), `record` (fingerprint, transitions, acts), `render` (sheet, index, request), `paper` (gist check). |
+| `templates/` | Empty instances per domain, plus Decision Record and Index templates. |
+| `examples/` | Two complete instances per domain with their Decision Records, one Index, one downstream paper. Citations are illustrative, not real. |
+| `examples/negative/` | Instances that must block, including a stale signature. |
+| `docs/paperforge-integration.md` | The file contract with Paperforge. |
+| `plugin/` | The RealTimeX declarative skill plugin. `tool/` and `references/` are generated from the repo by `scripts/plugin.mjs`; `SKILL.md` and the manifest are authored there. |
+| `scripts/` | `test.sh` runs every command over the examples; `plugin.mjs` syncs, checks, and packages the bundle. |
+| `archive/` | The 0.1.0 drafts, for reference. Do not use them. |
+| `CHANGELOG.md` | What changed and why. |
+
+## Quick start
+
+No install: the tool runs on Node 22 with no dependencies.
+
+```sh
+cp templates/qspec-natural.yaml specs/Q-014_apical-oxygen.yaml
+# fill it in; profile field lists are in the overlay's section 4
+node bin/qspec.js lint specs/Q-014_apical-oxygen.yaml
+```
+
+When lint reports no `block`, a reviewer who is not the owner rereads the spec and signs:
+
+```sh
+node bin/qspec.js sign specs/Q-014_apical-oxygen.yaml --by "G. Reviewer"
+```
+
+That appends a draft-to-specified entry with a fingerprint of the spec to `specs/Q-014_apical-oxygen.record.yaml` and sets `status: specified`. Edit the claim afterwards and `lint` reports `stale-signature` until the reviewer signs again.
+
+The owner offers it, the decision-maker chooses:
+
+```sh
+node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to selectable --by "F. Owner" --role owner
+node bin/qspec.js sheet specs/Q-014_apical-oxygen.yaml --index round.yaml --out sheets/Q-014.md
+node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to frozen --by "Group lead" --role decision_maker --reason "chosen in round 2026-09"
+node bin/qspec.js request specs/Q-014_apical-oxygen.yaml --out requests/Q-014.md
+```
+
+## Commands
+
+```text
+qspec lint <spec>...                  M1 to M16, record checks, signature staleness; exit 1 on block
+     [--record path] [--json] [--expect-fail]
+qspec fingerprint <spec>              what a signature is taken over
+qspec sign <spec> --by <reviewer>     draft -> specified; refuses while any M invariant fails
+qspec transition <spec> --to <state> --by <actor> --role <owner|reviewer|decision_maker>
+     [--reason] [--cite Jn] [--revisit-by date] [--successor id@ver] [--date date]
+qspec sheet <spec> [--index <index>] [--out file]      selectable, deferred, or frozen only
+qspec index <index> --specs <dir> [--out file]         checks, then renders
+qspec request <spec> [--out file]                      frozen only
+qspec paper <spec> <document.md>                       the document carries the frozen claim as a gist
+```
+
+Findings use four severities: `block`, `manual` (with the act that settles it), `warn`, `skip`. Only `block` sets the exit code. Judged invariants J1 to J7 are never evaluated by the tool.
+
+`npm test` runs every command over the examples, the negatives, and the templates, then checks the plugin bundle for drift.
+
+## Installing as a plugin
+
+`plugin/` is a RealTimeX declarative skill plugin: no entry point, the skill carries the tool. `npm run plugin` re-syncs the bundle from the repo; `node scripts/plugin.mjs --check` fails if it has drifted, so a stale plugin is a visible failure.
+
+```sh
+realtimex-pp-cli install-plugin --path "$PWD/plugin" --agent
+```
+
+Or download `qspec-<version>.zip` from a GitHub release and upload it under Settings, Plugins, Install Plugin.
+
+## Releasing
+
+Tag `vX.Y.Z`. The release workflow refuses the tag unless it matches the version in `plugin/realtimex.plugin.json`, re-runs every check, packages the bundle, lints an example from the unpacked zip, and publishes the release with a checksum. `npm run package` writes the same zip locally.
+
+## Versioning
+
+- Instances declare `spec_schema: QSPEC/1.0` and a `domain`. All 1.x core releases accept that string.
+- Schema documents carry their version in the header, not the filename.
+- A field removal, rename, or tightened M invariant on instance fields is a major release with a new `spec_schema` string.
+
+## Migrating a 0.1.0 draft instance
+
+| 0.1.0 | 1.x |
+|---|---|
+| no `spec_schema`, or `QSPEC-NS/0.1`, `QSPEC-ENG/0.1` | `spec_schema: QSPEC/1.0` plus `domain: social`, `natural`, or `engineering` |
+| `version` | `instance_version` plus a `changelog` entry |
+| `setting_is_not_the_contribution`, `system_or_method_is_not_the_contribution`, `artifact_is_not_the_contribution` | `vehicle_is_not_the_contribution` |
+| `method_family: mixed` with a `mixed` profile | primary family plus `secondary_method` and `rescue_rule`; profile is the primary family's |
+| `ethics_and_constraints.human_subjects: yes` | `constraints.safety_or_ethics: [human_subjects]` |
+| `safety_or_ethics: <single value>` | a list, using the overlay catalog |
+| `hints.ceiling: field / general_interest` | `specialist / broad`; ENG `component / system` moves to `hints.scale` |
+| `dissent` block in the spec | `dissent` entries in the Decision Record |
+| `handoff.profile: <name>` | `profile.name` inline with the profile fields |
+| Question Brief | Selection Sheet, rendered by `qspec sheet` |
+| (none) | `claim.comparative`, `ask`, `handoff.first_check`, `reviewers` with at least one non-owner, a tool-written Decision Record |
+
+## Licence
+
+Source available, all rights reserved to RealTimeX; see [LICENSE](LICENSE). The source is published for reference; it is not open source. js-yaml is vendored under MIT; see [NOTICE](NOTICE).

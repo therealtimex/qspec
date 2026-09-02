@@ -1,0 +1,79 @@
+# Illustrative instance. Citations are placeholders, not real references.
+spec_schema: QSPEC/1.0
+domain: social
+id: Q-102
+title: Scoring weights as professional craft in procurement offices
+status: specified
+instance_version: 1
+date: 2026-09-02
+owner: C. Owner
+reviewers: [D. Reviewer, E. Reviewer]
+changelog:
+  - version: 1
+    date: 2026-09-02
+    change: "created"
+
+claim:
+  one_sentence: "Procurement officers in the studied offices set quality-scoring weights primarily as a craft for managing delivery risk, and rent-seeking accounts of weight-setting do not describe the routine case."
+  comparative: true
+  object: "Procurement officers and the practice of setting tender scoring weights"
+  scope: "Three municipal procurement offices in one country over twelve months of fieldwork"
+  why_it_matters: "Anti-corruption reform treats discretionary weights as a leak to be closed; if weights are mostly a risk-management craft, closing the leak removes the craft."
+
+question_type:
+  method_family: ethnographic
+  knowledge_goal: interpretation
+  secondary_method: empirical_descriptive
+  rescue_rule: "Descriptive statistics on weight distributions may situate the offices but may not substitute for observed weight-setting meetings as evidence for the claim."
+
+increment:
+  closest_work:
+    - cite: "[Illustrative work 1: quantitative study linking discretionary weights to single-bid outcomes]"
+      settled: "Discretion correlates with single-bid tenders."
+      still_open: "What officers are doing when they set weights."
+    - cite: "[Illustrative work 2: ethnography of street-level bureaucrats and rule discretion]"
+      settled: "Discretion is exercised as professional judgment under constraint."
+      still_open: "No procurement setting; no scoring-weight practice observed."
+  increment_if_this_works: "A first-hand account of how weights are argued, set, and defended, with a contrast between routine and contested tenders."
+  vehicle_is_not_the_contribution: "The three offices are a site; the contribution is the interpretation of weight-setting as craft versus rent, with an overturning observation specified in advance."
+
+materials:
+  in_hand: ["Written access agreement with one office", "Public tender documents for all three"]
+  blocking: ["Attendance at weight-setting meetings in at least two offices"]
+  obtainable:
+    - item: "Meeting access in offices two and three"
+      source: "Head of procurement, each municipality"
+      horizon: "2 months"
+      probability: medium
+  access_risk: high
+
+success_and_failure:
+  support_would_look_like: "Weight-setting discussions are organised around delivery-risk vocabulary and past failures, with rent-related talk absent or marked as deviant."
+  failure_would_look_like: "Weight-setting discussions routinely reference preferred suppliers or are conducted outside the observable meeting."
+  uninteresting_even_if_true: "Officers describe craft in interviews but the observed meetings are pro forma and weights are copied from templates."
+  kill_condition: "Meeting access is not granted in at least two offices within the horizon, or meetings are observed to be ceremonial with weights fixed elsewhere."
+
+constraints:
+  safety_or_ethics: [human_subjects, sensitive_data, political_risk]
+  sensitivity: "Officers may be identifiable; corruption framing carries reputational risk for the offices."
+  independence_limits: "Municipalities have review rights on identifying detail, not on interpretation."
+
+ask:
+  time: "12 months of fieldwork plus 3 months of writing"
+  people: "one researcher full-time"
+  access: "meeting access in two further offices"
+  hardware_or_compute: "audio recorder; transcription budget"
+
+profile:
+  name: ethnographic
+  site_or_corpus: "Three municipal procurement offices; weight-setting meetings, tender files, and follow-up interviews"
+  access: "One written agreement in hand; two pending"
+  unit_of_observation: "A weight-setting episode for one tender"
+  contrast: "Routine tenders versus tenders later flagged by audit; officers' own account versus the rent-seeking account in the closest work"
+  source_limits: "Cannot observe informal contact with suppliers outside the office"
+  positionality: "Researcher introduced by the national procurement agency, which may shape what officers perform"
+  overturning_observation: "Repeated observed episodes where weights are adjusted after reference to a specific bidder's likely score"
+
+handoff:
+  first_check: "Secure meeting access in a second office; without it the spec is killed."
+  notes_for_next_stage: "Draft an ethics protocol that covers audio recording of meetings."

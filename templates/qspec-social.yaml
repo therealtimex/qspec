@@ -1,0 +1,84 @@
+# Question Spec instance. Core: QSPEC-CORE.md. Overlay: QSPEC-SS.md.
+# Lint: qspec lint this-file.yaml   Sign: qspec sign this-file.yaml --by <reviewer>
+spec_schema: QSPEC/1.0
+domain: social
+id: Q-000
+title: ""
+status: draft
+instance_version: 1
+date: YYYY-MM-DD
+owner: ""
+reviewers: []
+changelog:
+  - version: 1
+    date: YYYY-MM-DD
+    change: "created"
+
+claim:
+  one_sentence: ""
+  comparative: false
+  object: ""
+  scope: ""
+  why_it_matters: ""
+
+question_type:
+  method_family: ""      # empirical_causal | empirical_descriptive | measurement | interpretive | ethnographic | historical | theoretical | formal_theory
+  knowledge_goal: ""     # effect | mechanism | description | measurement | interpretation | explanation | prediction | normative_map
+  secondary_method: null
+  rescue_rule: null
+
+increment:
+  closest_work:
+    - cite: ""
+      settled: ""
+      still_open: ""
+    - cite: ""
+      settled: ""
+      still_open: ""
+  increment_if_this_works: ""
+  vehicle_is_not_the_contribution: ""
+
+materials:
+  in_hand: []
+  blocking: []
+  obtainable: []
+  access_risk: low
+
+success_and_failure:
+  support_would_look_like: ""
+  failure_would_look_like: ""
+  uninteresting_even_if_true: ""
+  kill_condition: ""
+
+constraints:
+  safety_or_ethics: []   # human_subjects | vulnerable_population | deception | sensitive_data | political_risk | partner_dependency
+  sensitivity: ""
+  independence_limits: ""
+
+ask:                   # shown on the selection sheet; a hole is reported, never filled
+  time: ""
+  people: ""
+  access: ""
+  hardware_or_compute: ""
+
+hints:
+  ceiling: unclear
+  build_risk: medium
+
+# Replace with the profile for your method_family. See QSPEC-SS.md section 4.
+profile:
+  name: empirical_causal
+  treatment: ""
+  assignment_process: ""
+  comparison: ""
+  estimand: ""
+  identifying_assumption: ""
+  main_alternative_explanation: ""
+  primary_outcome: ""
+  mechanism_outcomes: []
+  precommitted_checks: []
+  design_risk: ""
+
+handoff:
+  first_check: ""
+  notes_for_next_stage: ""

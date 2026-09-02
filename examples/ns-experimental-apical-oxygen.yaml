@@ -1,0 +1,86 @@
+# Illustrative instance. Citations are placeholders, not real references.
+spec_schema: QSPEC/1.0
+domain: natural
+id: Q-201
+title: Apical oxygen height and the superconducting dome in a cuprate family
+status: frozen
+instance_version: 1
+date: 2026-09-02
+owner: F. Owner
+reviewers: [G. Reviewer]
+changelog:
+  - version: 1
+    date: 2026-09-02
+    change: "created"
+
+claim:
+  one_sentence: "In the studied cuprate family, increasing apical oxygen height by the stated amount at fixed hole doping lowers the maximum critical temperature of the superconducting dome."
+  comparative: true
+  system: "Single-crystal thin films of one cuprate family grown under controlled strain"
+  object: "Maximum critical temperature as a function of apical oxygen height"
+  scope: "Hole doping held within a stated window; strain range accessible on two substrates; temperatures from 4 K to 300 K"
+  why_it_matters: "Whether apical oxygen height is a control parameter for the dome maximum bears on which structural motifs matter for pairing, beyond this family."
+
+question_type:
+  method_family: experimental
+  knowledge_goal: effect
+  secondary_method: computational
+  rescue_rule: "A band-structure calculation may interpret the trend but may not replace a failed doping control or a structural proxy that does not track apical height."
+
+increment:
+  closest_work:
+    - cite: "[Illustrative work 1: cross-family correlation of apical distance with maximum Tc]"
+      settled: "Across families, apical distance correlates with dome maximum."
+      still_open: "Correlation is across families with doping uncontrolled."
+    - cite: "[Illustrative work 2: strain-tuning study of Tc in one cuprate film]"
+      settled: "Epitaxial strain shifts Tc."
+      still_open: "Strain changes several structural parameters at once; apical height not isolated."
+  increment_if_this_works: "A within-family, fixed-doping test that isolates apical height from the other strain-coupled parameters."
+  vehicle_is_not_the_contribution: "The film growth platform is the vehicle; the contribution is the isolated apical-height dependence at fixed doping."
+
+materials:
+  in_hand: ["Growth chamber and two substrate types", "Transport and magnetisation measurement", "Lab x-ray diffraction"]
+  blocking: ["A structural probe that resolves apical oxygen position"]
+  obtainable:
+    - item: "Synchrotron beamtime for apical-position refinement"
+      source: "National light source proposal round"
+      horizon: "6 months"
+      probability: medium
+  access_risk: medium
+
+success_and_failure:
+  support_would_look_like: "Monotonic decrease of dome maximum with refined apical height across at least four strain states at fixed doping, larger than the doping-uncertainty envelope."
+  failure_would_look_like: "No trend, or a trend fully explained by residual doping variation."
+  uninteresting_even_if_true: "A shift smaller than the sample-to-sample scatter at a single strain state."
+  kill_condition: "Hole doping cannot be held within the stated window across the strain series, or the structural proxy used before beamtime does not track refined apical height."
+
+constraints:
+  safety_or_ethics: [hazardous_materials]
+  sensitivity: ""
+  independence_limits: "Beamtime allocation is outside the group's control."
+
+ask:
+  time: "9 months including one beamtime cycle"
+  people: "one postdoc, one student, growth-chamber time"
+  access: "synchrotron beamtime via the national proposal round"
+  hardware_or_compute: "growth chamber, transport rig, lab diffractometer"
+
+hints:
+  ceiling: broad
+  build_risk: medium
+
+profile:
+  name: experimental
+  intervention: "Epitaxial strain from two substrates and buffer layers to vary apical height"
+  control_or_baseline: "Unstrained film of the same composition and doping grown in the same run"
+  independent_variables: ["Apical oxygen height via strain state", "Hole doping held fixed"]
+  dependent_quantities: ["Maximum critical temperature from transport", "Refined apical position"]
+  measurement_chain: "Resistivity onset and magnetisation midpoint for Tc; lab diffraction for c-axis proxy; synchrotron refinement for apical position"
+  positive_or_negative_controls: "Positive: known doping series reproduces the published dome. Negative: a film with strain but a substrate that does not change apical height."
+  replication_unit: "One growth run producing a strain series; three independent runs"
+  main_artifact_or_confound: "Oxygen stoichiometry drifting with strain, shifting doping"
+  precommitted_checks: ["Hall-number doping check per film", "c-axis proxy versus refined apical position on the first four films"]
+
+handoff:
+  first_check: "Grow the first strain series and confirm Hall-number doping stays within the window."
+  notes_for_next_stage: "Write the beamtime proposal from this spec; cite Q-201@1."

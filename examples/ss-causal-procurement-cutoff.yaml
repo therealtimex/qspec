@@ -1,0 +1,89 @@
+# Illustrative instance. Citations are placeholders, not real references.
+spec_schema: QSPEC/1.0
+domain: social
+id: Q-101
+title: Small-contract reservation thresholds and small-firm win rates
+status: selectable
+instance_version: 2
+date: 2026-09-02
+owner: A. Owner
+reviewers: [B. Reviewer]
+changelog:
+  - version: 1
+    date: 2026-08-20
+    change: "created"
+  - version: 2
+    date: 2026-09-02
+    change: "kill_condition now includes buyer-characteristic jump at the cutoff"
+
+claim:
+  one_sentence: "Below the legal value cutoff that reserves contracts for small firms, small-firm win rates are higher than just above it, and prices paid per unit are not higher."
+  comparative: true
+  object: "Public procurement contracts and the firms that bid on them"
+  scope: "One national procurement system, contracts within a stated band around the cutoff, five fiscal years"
+  why_it_matters: "Set-aside rules exist in many procurement systems and the price cost of favouring small firms is disputed; the claim bears on whether the rule is redistribution with or without a price penalty."
+
+question_type:
+  method_family: empirical_causal
+  knowledge_goal: effect
+  secondary_method: null
+  rescue_rule: null
+
+increment:
+  closest_work:
+    - cite: "[Illustrative work 1: regression-discontinuity study of a set-aside threshold in another country]"
+      settled: "Small-firm participation rises at the cutoff."
+      still_open: "Whether prices paid change, and whether buyers sort around the cutoff."
+    - cite: "[Illustrative work 2: cross-country descriptive study of set-aside prevalence]"
+      settled: "Set-asides are common and heterogeneous in design."
+      still_open: "No causal estimate of price effects."
+  increment_if_this_works: "A joint estimate of the win-rate and price-paid discontinuities at one cutoff, with a manipulation test, which neither closest work provides."
+  vehicle_is_not_the_contribution: "The national dataset is a vehicle; the contribution is the joint win-rate and price estimand under a tested no-sorting assumption."
+
+materials:
+  in_hand: ["Contract-level award data with value, winner, and unit-price fields", "Firm size register"]
+  blocking: []
+  obtainable:
+    - item: "Bidder lists per contract, not only winners"
+      source: "Procurement agency data request"
+      horizon: "3 months"
+      probability: medium
+  access_risk: medium
+
+success_and_failure:
+  support_would_look_like: "A positive discontinuity in small-firm win rate at the cutoff with a flat unit-price series, and a smooth contract-value density."
+  failure_would_look_like: "No win-rate discontinuity, or a price-paid discontinuity of the same sign and comparable size."
+  uninteresting_even_if_true: "A win-rate jump so small that no policy choice would change, given the estimated precision."
+  kill_condition: "The contract-value density fails a manipulation test at the cutoff, or buyer characteristics also jump at the cutoff."
+
+constraints:
+  safety_or_ethics: [sensitive_data]
+  sensitivity: "Firm-level award data under a data-use agreement."
+  independence_limits: "Agency may review but not veto publication."
+
+ask:
+  time: "6 months to a first estimate"
+  people: "one researcher half-time, one research assistant"
+  access: "bidder lists from the procurement agency"
+  hardware_or_compute: "none beyond a workstation"
+
+hints:
+  ceiling: broad
+  build_risk: low
+
+profile:
+  name: empirical_causal
+  treatment: "Contract value below the reservation cutoff"
+  assignment_process: "Contract value is set by the buyer before tendering; the cutoff is fixed by statute"
+  comparison: "Contracts just above the cutoff in the same procedure type and year"
+  estimand: "Local average effect at the cutoff on small-firm win probability and on log unit price"
+  identifying_assumption: "Buyers do not manipulate contract value around the cutoff and buyer characteristics are continuous through it"
+  main_alternative_explanation: "Buyers split or inflate contracts to land on the preferred side of the cutoff"
+  primary_outcome: "Small-firm win indicator; log unit price as co-primary"
+  mechanism_outcomes: ["Number of bidders", "Share of bids from small firms"]
+  precommitted_checks: ["Density test at cutoff", "Covariate continuity for buyer type and region", "Bandwidth sensitivity"]
+  design_risk: "Unit prices are not comparable across goods categories; restrict to categories with a standard unit"
+
+handoff:
+  first_check: "Run the density and covariate-continuity tests on the in-hand award data before requesting bidder lists."
+  notes_for_next_stage: "Pre-register bandwidths and the goods-category restriction."
