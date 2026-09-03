@@ -17,18 +17,20 @@ jobs:
           v="${GITHUB_REF_NAME#v}"
           m=$(node -p "require('./plugin/realtimex.plugin.json').version")
           [ "$v" = "$m" ] || { echo "tag $v but manifest says $m"; exit 1; }
-          echo "ZIP=dist/qspec-$v.zip" >> "$GITHUB_ENV"
+          # Not ZIP or ZIPOPT: Info-ZIP reads both and prepends them to its own
+          # argv, which makes `zip` write to whatever they name.
+          echo "BUNDLE=dist/qspec-$v.zip" >> "$GITHUB_ENV"
       - run: sh scripts/test.sh
       - run: node scripts/plugin.mjs --check
       - run: node scripts/plugin.mjs --package dist
       - name: the packaged bundle runs
         run: |
-          mkdir -p /tmp/unpacked && unzip -q "$ZIP" -d /tmp/unpacked
+          mkdir -p /tmp/unpacked && unzip -q "$BUNDLE" -d /tmp/unpacked
           node /tmp/unpacked/skills/qspec/tool/bin/qspec.js lint examples/ns-experimental-apical-oxygen.yaml
-      - run: shasum -a 256 "$ZIP" > dist/SHA256SUMS
+      - run: shasum -a 256 "$BUNDLE" > dist/SHA256SUMS
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            ${{ env.ZIP }}
+            ${{ env.BUNDLE }}
             dist/SHA256SUMS
           generate_release_notes: true

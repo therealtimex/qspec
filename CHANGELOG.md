@@ -42,7 +42,7 @@ Six gaps found by reading 1.1.0 against what the tool actually does. All additiv
 - New findings: `unbound-decision`, `overlay-drift`, `J7-unrecorded`, `index-committee`, `index-frozen-drift`, `index-withdrawn`, `round-withdrawal`. Core section 8.4 lists the findings that are not invariants.
 - The skill's own run instructions pointed at `tool/bin/qspec.mjs`, which does not exist. Fixed to `qspec.js`.
 - Example Decision Records were replayed through the tool so they carry `round` and `judged_rules`.
-- Built bundles are no longer committed. `dist/` was tracked from the first commit, and the release workflow's `dist/qspec-*.zip` glob assumes one zip: with two in the tree it handed `unzip` a second filename and the v1.2.0 release failed. `dist/` is now ignored, the workflow names the zip for the tag it is building rather than globbing, and `pack()` anchors its output directory to the repository instead of the caller's working directory, which it had to be once `dist/` stopped existing in a fresh checkout.
+- Built bundles are no longer committed. `dist/` was tracked from the first commit while the workflow builds its own zip and globs `dist/qspec-*.zip`; with two versions in the tree the glob matched twice and the release failed. `dist/` is now ignored and the workflow names the zip for the tag it is building. Two latent bugs surfaced once `dist/` stopped existing in a checkout: `pack()` created its output directory relative to the caller's working directory while `zip` runs with its cwd in `plugin/`, and the workflow's variable for the built zip was named `ZIP`, which Info-ZIP reads and prepends to its own argv.
 
 ## 1.1.0 (2026-09-02)
 
