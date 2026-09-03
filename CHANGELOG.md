@@ -42,6 +42,7 @@ Six gaps found by reading 1.1.0 against what the tool actually does. All additiv
 - New findings: `unbound-decision`, `overlay-drift`, `J7-unrecorded`, `index-committee`, `index-frozen-drift`, `index-withdrawn`, `round-withdrawal`. Core section 8.4 lists the findings that are not invariants.
 - The skill's own run instructions pointed at `tool/bin/qspec.mjs`, which does not exist. Fixed to `qspec.js`.
 - Example Decision Records were replayed through the tool so they carry `round` and `judged_rules`.
+- Built bundles are no longer committed. `dist/` was tracked from the first commit, and the release workflow's `dist/qspec-*.zip` glob assumes one zip: with two in the tree it handed `unzip` a second filename and the v1.2.0 release failed. `dist/` is now ignored, and the workflow names the zip for the tag it is building rather than globbing.
 
 ## 1.1.0 (2026-09-02)
 
