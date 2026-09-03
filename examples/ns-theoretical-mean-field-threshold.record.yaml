@@ -8,6 +8,7 @@ entries:
     from: draft
     to: specified
     reason: judged invariants reread and signed
+    round: null
     signed_invariants:
       - J1
       - J2
@@ -17,6 +18,11 @@ entries:
       - J6
       - J7
     spec_fingerprint: sha256:303823ac0d21e735d240bc4a62018288b0fcb2384611d27f198983fa516d0875
+    judged_rules:
+      J7: >-
+        the kill condition is a counterexample, a reduction to a known result, or a broken regime,
+        not "the experiment disagreed" unless `empirics_role` is `later_test` and the test is
+        specified.
     cited_invariant: null
     revisit_by: null
     successor: null

@@ -1,10 +1,10 @@
-# QSPEC-ENG 1.1.0
+# QSPEC-ENG 1.2.0
 # Question Spec overlay for engineering
 
 **Spec-ID:** QSPEC-ENG
-**Schema-Version:** 1.1.0
-**Targets core:** QSPEC-CORE 1.1.0
-**Date:** 2026-09-02
+**Schema-Version:** 1.2.0
+**Targets core:** QSPEC-CORE 1.2.0
+**Date:** 2026-09-03
 **Status:** released
 **Instance header:** `spec_schema: QSPEC/1.0` and `domain: engineering`
 
@@ -63,6 +63,8 @@ Adjectives such as better, robust, or scalable are invalid in `one_sentence` unt
 `performance`, `tradeoff`, `reliability_or_safety`, `mechanism_of_failure`, `feasibility`, `prediction`, `measurement`
 
 `feasibility` is kept. It is disciplined by the `design_and_analysis` profile rule that the feasibility bar is numeric or pass/fail.
+
+**Exploratory goals:** `feasibility`, `measurement`. Core section 6.3 refuses to exempt exploratory work from having a spec, and these are the goals it is written under in this domain. `feasibility` exists only in this catalog; the social and natural overlays name their own. The kill condition is about the bar, not about enthusiasm: "the prototype does not reach the stated efficiency at the stated volume" is a kill condition, "it is harder than we thought" is not.
 
 ### 3.3 `safety_or_ethics`
 
@@ -170,6 +172,7 @@ profile:
 ```
 
 Required: all except `prior_method`. Comparator field: `prior_method`.
+Judged (J7): `calibration_or_reference` names a reference the measurement could fail against, and the measurand is distinct from the instrument's raw reading.
 
 ### 4.6 `theoretical`
 

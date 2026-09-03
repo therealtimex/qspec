@@ -22,6 +22,26 @@ $Q paper examples/ns-experimental-apical-oxygen.yaml examples/paper/Q-201-report
 echo "== paper with a drifted gist is refused"
 sed 's/lowers the maximum critical temperature/raises the maximum critical temperature/' examples/paper/Q-201-report.md > /tmp/qspec-drift.md
 if $Q paper examples/ns-experimental-apical-oxygen.yaml /tmp/qspec-drift.md >/dev/null 2>&1; then echo "UNEXPECTED: drifted gist passed"; exit 1; fi
+echo "== the catalog and the overlays state the same J7 rules"
+node scripts/check-judged.mjs
+echo "== sign prints the seven rules it is about to assert, and --show signs nothing"
+$Q sign examples/ss-ethnographic-scoring-weights.yaml --by "D. Reviewer" --show | grep -q "overturning_observation" || { echo "UNEXPECTED: --show did not print this profile's J7 rule"; exit 1; }
+grep -q "judged_rules" examples/ss-ethnographic-scoring-weights.record.yaml || { echo "UNEXPECTED: the signature did not record the J7 rule"; exit 1; }
+echo "== a round refuses an act by someone it does not name as decision-maker"
+if $Q index examples/negative/round/index-round-2026-09.yaml --specs examples/negative/round >/dev/null 2>&1; then echo "UNEXPECTED: a freeze by an unnamed decision-maker passed its round"; exit 1; fi
+echo "== the acts a round can refuse, on a scratch copy"
+rm -rf /tmp/qspec-acts && cp -r examples /tmp/qspec-acts
+IDX="--index /tmp/qspec-acts/index-round-2026-09.yaml"
+if $Q transition /tmp/qspec-acts/ss-causal-procurement-cutoff.yaml --to frozen --by "Nobody" --role decision_maker $IDX --reason x >/dev/null 2>&1; then echo "UNEXPECTED: an unnamed decision-maker froze a spec"; exit 1; fi
+if $Q transition /tmp/qspec-acts/ss-causal-procurement-cutoff.yaml --to frozen --by "Group lead" --role decision_maker $IDX --specs /tmp/qspec-acts --reason x >/dev/null 2>&1; then echo "UNEXPECTED: a second freeze in one round passed the cap"; exit 1; fi
+echo "== an owner withdraws from a round instead of killing, and can re-offer"
+$Q transition /tmp/qspec-acts/ss-causal-procurement-cutoff.yaml --to specified --by "A. Owner" --role owner $IDX --reason "held back for the next round" >/dev/null
+$Q index /tmp/qspec-acts/index-round-2026-09.yaml --specs /tmp/qspec-acts >/dev/null
+$Q transition /tmp/qspec-acts/ss-causal-procurement-cutoff.yaml --to selectable --by "A. Owner" --role owner $IDX >/dev/null
+echo "== a round survives its own outcome: a listed spec killed, and a freeze superseded"
+$Q transition /tmp/qspec-acts/eng-experimental-converter-efficiency.yaml --to killed --by "J. Owner" --role owner $IDX --reason "vendor part removed the question" >/dev/null
+$Q transition /tmp/qspec-acts/ns-experimental-apical-oxygen.yaml --to superseded --by "F. Owner" --role owner --successor "Q-202@1" --reason "claim narrowed" >/dev/null
+$Q index /tmp/qspec-acts/index-round-2026-09.yaml --specs /tmp/qspec-acts >/dev/null
 echo "== renderings carry nothing Paperforge lint would block"
 if grep -qiE '\b(TODO|TBD|FIXME|XXX|PLACEHOLDER)\b' /tmp/qspec-index.md /tmp/qspec-sheet.md /tmp/qspec-request.md; then echo "UNEXPECTED: a blocked marker reached a rendering"; exit 1; fi
 echo "all checks passed"

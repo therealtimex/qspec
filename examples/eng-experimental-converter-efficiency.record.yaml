@@ -8,6 +8,7 @@ entries:
     from: draft
     to: specified
     reason: judged invariants reread and signed
+    round: null
     signed_invariants:
       - J1
       - J2
@@ -17,6 +18,10 @@ entries:
       - J6
       - J7
     spec_fingerprint: sha256:9cd939cb77148e69d82c6611f1fe9603eab3620fa9a455d96beec4d96bb335d1
+    judged_rules:
+      J7: >-
+        the kill condition refers to an unusable measurement, an unreachable regime, or a failed
+        control, not only to "no improvement."
     cited_invariant: null
     revisit_by: null
     successor: null
@@ -28,8 +33,10 @@ entries:
     from: specified
     to: selectable
     reason: ''
+    round: 2026-09
     signed_invariants: null
     spec_fingerprint: null
+    judged_rules: null
     cited_invariant: null
     revisit_by: null
     successor: null

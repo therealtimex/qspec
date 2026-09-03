@@ -1,5 +1,5 @@
 record_schema: QSPEC-DR/1.0
-spec_id: Q-201
+spec_id: Q-901
 entries:
   - date: '2026-08-25'
     instance_version: 1
@@ -34,7 +34,7 @@ entries:
     from: specified
     to: selectable
     reason: ''
-    round: 2026-09
+    round: null
     signed_invariants: null
     spec_fingerprint: null
     judged_rules: null
@@ -44,11 +44,11 @@ entries:
     dissent: []
   - date: '2026-09-01'
     instance_version: 1
-    actor: Group lead
+    actor: Nobody In Particular
     role: decision_maker
     from: selectable
     to: frozen
-    reason: chosen in round 2026-09; first check is the Hall-number doping series
+    reason: frozen without the round's committee
     round: 2026-09
     signed_invariants: null
     spec_fingerprint: null

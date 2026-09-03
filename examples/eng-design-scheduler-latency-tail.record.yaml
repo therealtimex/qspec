@@ -8,6 +8,7 @@ entries:
     from: draft
     to: specified
     reason: judged invariants reread and signed
+    round: null
     signed_invariants:
       - J1
       - J2
@@ -17,6 +18,10 @@ entries:
       - J6
       - J7
     spec_fingerprint: sha256:ee570dddc790ff11abf8166df3f53b443267e564239e947d77076cd3d6182650
+    judged_rules:
+      J7: >-
+        if `knowledge_goal` is `feasibility`, `acceptance_criterion` is numeric or pass/fail, not
+        "novel"; otherwise at least one comparator design is listed.
     cited_invariant: null
     revisit_by: null
     successor: null

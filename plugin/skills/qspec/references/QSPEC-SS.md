@@ -1,10 +1,10 @@
-# QSPEC-SS 1.1.0
+# QSPEC-SS 1.2.0
 # Question Spec overlay for the social sciences
 
 **Spec-ID:** QSPEC-SS
-**Schema-Version:** 1.1.0
-**Targets core:** QSPEC-CORE 1.1.0
-**Date:** 2026-09-02
+**Schema-Version:** 1.2.0
+**Targets core:** QSPEC-CORE 1.2.0
+**Date:** 2026-09-03
 **Status:** released
 **Instance header:** `spec_schema: QSPEC/1.0` and `domain: social`
 
@@ -57,6 +57,8 @@ Core invariant M13 requires `object` and `scope` to be non-empty.
 `effect`, `mechanism`, `description`, `measurement`, `interpretation`, `explanation`, `prediction`, `normative_map`
 
 `normative_map` is kept for work whose claim is that a normative position implies or forbids specific institutional arrangements. It attaches to `theoretical` or `formal_theory`.
+
+**Exploratory goals:** `measurement`, `description`, `interpretation`. Core section 6.3 refuses to exempt exploratory work from having a spec, and these are the goals it is written under in this domain. There is no `feasibility` value here; that is an engineering word. Building or validating an instrument is `measurement`; going to a site or a corpus without knowing what is there is `description` or `interpretation`. In every case the kill condition is about the measure, the site, or the corpus, not about the world: "the sampling frame cannot be reconstructed" is a kill condition, "we did not find much" is not.
 
 ### 3.3 `safety_or_ethics`
 
@@ -124,6 +126,7 @@ profile:
 ```
 
 Required: all except `prior_measure`. Comparator field: `prior_measure`.
+Judged (J7): `validation` names evidence the measure could fail against, and the kill condition refers to a validation failure, not to a disappointing correlation.
 
 ### 4.4 `interpretive`, `ethnographic`, `historical`
 

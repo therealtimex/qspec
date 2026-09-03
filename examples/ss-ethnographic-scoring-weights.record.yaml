@@ -8,6 +8,7 @@ entries:
     from: draft
     to: specified
     reason: judged invariants reread and signed
+    round: null
     signed_invariants:
       - J1
       - J2
@@ -17,6 +18,10 @@ entries:
       - J6
       - J7
     spec_fingerprint: sha256:ebd0f6a9b1b7dd50f2beacb7edeb1183be772388d5db423b8d2adac1d5dc48e4
+    judged_rules:
+      J7: >-
+        `overturning_observation` is a kind of evidence that would force revision, not "more time in
+        the field."
     cited_invariant: null
     revisit_by: null
     successor: null

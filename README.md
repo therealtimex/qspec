@@ -2,7 +2,7 @@
 
 A Question Spec is a short contract that turns a research topic, technique, or platform into a claim that can be wrong, so that questions from different methods and domains can be compared, selected, frozen, or killed on the same terms.
 
-Version 1.1.0, released 2026-09-02. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
+Version 1.2.0, released 2026-09-03. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
 
 The tool renders and checks; it does not author. A field is written by a person, a judgment is signed by a person, and the tool notices when a signature no longer covers the text. It pairs with [Paperforge](docs/paperforge-integration.md) downstream, which applies the same rule to the documents that answer the question.
 
@@ -17,10 +17,10 @@ The tool renders and checks; it does not author. A field is written by a person,
 | `lib/` | `lint` (M invariants), `record` (fingerprint, transitions, acts), `render` (sheet, index, request), `paper` (gist check). |
 | `templates/` | Empty instances per domain, plus Decision Record and Index templates. |
 | `examples/` | Two complete instances per domain with their Decision Records, one Index, one downstream paper. Citations are illustrative, not real. |
-| `examples/negative/` | Instances that must block, including a stale signature. |
+| `examples/negative/` | Instances that must block, including a stale signature. `round/` holds a freeze taken by someone the round does not name: the spec lints clean, and its round refuses it. |
 | `docs/paperforge-integration.md` | The file contract with Paperforge. |
 | `plugin/` | The RealTimeX declarative skill plugin. `tool/` and `references/` are generated from the repo by `scripts/plugin.mjs`; `SKILL.md` and the manifest are authored there. |
-| `scripts/` | `test.sh` runs every command over the examples; `plugin.mjs` syncs, checks, and packages the bundle. |
+| `scripts/` | `test.sh` runs every command over the examples; `check-judged.mjs` holds the J7 rules in the catalog and the overlays to the same text; `plugin.mjs` syncs, checks, and packages the bundle. |
 | `archive/` | The 0.1.0 drafts, for reference. Do not use them. |
 | `CHANGELOG.md` | What changed and why. |
 
@@ -37,18 +37,25 @@ node bin/qspec.js lint specs/Q-014_apical-oxygen.yaml
 When lint reports no `block`, a reviewer who is not the owner rereads the spec and signs:
 
 ```sh
+node bin/qspec.js sign specs/Q-014_apical-oxygen.yaml --by "G. Reviewer" --show   # read the seven
 node bin/qspec.js sign specs/Q-014_apical-oxygen.yaml --by "G. Reviewer"
 ```
 
-That appends a draft-to-specified entry with a fingerprint of the spec to `specs/Q-014_apical-oxygen.record.yaml` and sets `status: specified`. Edit the claim afterwards and `lint` reports `stale-signature` until the reviewer signs again.
+`--show` prints J1 to J7 with J7 resolved to this profile's rule from the overlay, and signs nothing. Signing appends a draft-to-specified entry to `specs/Q-014_apical-oxygen.record.yaml` carrying a fingerprint of the spec and the J7 rule verbatim, and sets `status: specified`. Edit the claim afterwards and `lint` reports `stale-signature` until the reviewer signs again; reword the overlay's J7 rule and `lint` reports `overlay-drift`.
 
-The owner offers it, the decision-maker chooses:
+The owner offers it, the decision-maker chooses. `--index` names the round, which is the only thing that can check a decision-maker against a committee and hold the one-freeze-per-round cap:
 
 ```sh
-node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to selectable --by "F. Owner" --role owner
+node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to selectable --by "F. Owner" --role owner --index round.yaml
 node bin/qspec.js sheet specs/Q-014_apical-oxygen.yaml --index round.yaml --out sheets/Q-014.md
-node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to frozen --by "Group lead" --role decision_maker --reason "chosen in round 2026-09"
+node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to frozen --by "Group lead" --role decision_maker --index round.yaml --specs specs --reason "chosen in round 2026-09"
 node bin/qspec.js request specs/Q-014_apical-oxygen.yaml --out requests/Q-014.md
+```
+
+To pull a spec out of a round without ending it, the owner withdraws it rather than killing it:
+
+```sh
+node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to specified --by "F. Owner" --role owner --reason "partner access lapsed"
 ```
 
 ## Commands
@@ -58,15 +65,19 @@ qspec lint <spec>...                  M1 to M16, record checks, signature stalen
      [--record path] [--json] [--expect-fail]
 qspec fingerprint <spec>              what a signature is taken over
 qspec sign <spec> --by <reviewer>     draft -> specified; refuses while any M invariant fails
+     [--show] [--dissent "<who>: <point>"]   --show prints J1 to J7 and signs nothing
 qspec transition <spec> --to <state> --by <actor> --role <owner|reviewer|decision_maker>
-     [--reason] [--cite Jn] [--revisit-by date] [--successor id@ver] [--date date]
+     [--index round.yaml] [--specs dir] [--reason] [--cite Jn] [--revisit-by date]
+     [--successor id@ver] [--date date] [--dissent "<who>: <point>"]
 qspec sheet <spec> [--index <index>] [--out file]      selectable, deferred, or frozen only
 qspec index <index> --specs <dir> [--out file]         checks, then renders
 qspec request <spec> [--out file]                      frozen only
 qspec paper <spec> <document.md>                       the document carries the frozen claim as a gist
 ```
 
-Findings use four severities: `block`, `manual` (with the act that settles it), `warn`, `skip`. Only `block` sets the exit code. Judged invariants J1 to J7 are never evaluated by the tool.
+Findings use four severities: `block`, `manual` (with the act that settles it), `warn`, `skip`. Only `block` sets the exit code. Judged invariants J1 to J7 are never evaluated by the tool; it prints them, records what was signed, and reports when the overlay's wording has moved since.
+
+Nothing here authenticates anyone. `owner` and `reviewer` are checked against fields of the spec, `decision_maker` against the round's Index when one is given. A signature establishes that a name was written beside an act and that the text has not moved since; it does not establish that the person acted or consented.
 
 `npm test` runs every command over the examples, the negatives, and the templates, then checks the plugin bundle for drift.
 
@@ -89,6 +100,7 @@ Tag `vX.Y.Z`. The release workflow refuses the tag unless it matches the version
 - Instances declare `spec_schema: QSPEC/1.0` and a `domain`. All 1.x core releases accept that string.
 - Schema documents carry their version in the header, not the filename.
 - A field removal, rename, or tightened M invariant on instance fields is a major release with a new `spec_schema` string.
+- Every 1.1.0 instance and record is valid under 1.2.0. A record written before 1.2.0 reports `J7-unrecorded` as `skip`, and a decision-maker act in one reports `unbound-decision` as `warn`; neither blocks, and re-signing or re-freezing with `--index` clears them.
 
 ## Migrating a 0.1.0 draft instance
 

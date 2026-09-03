@@ -3,7 +3,7 @@
 // Nothing here composes: every line is a field, and an empty field is reported
 // as a hole rather than filled.
 const { catalogs, resolveProfile } = require("./catalogs.js");
-const { signingEntry } = require("./record.js");
+const { frozenInRound, signingEntry } = require("./record.js");
 
 const s = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
 const hole = "(not stated)";
@@ -60,34 +60,68 @@ function sheet(spec, { record = null, index = null } = {}) {
 }
 
 // The portfolio index as a table, with its own mechanical checks.
-function index(idx, specsById = null) {
+//
+// An Index is the record of one selection round, not a live view of the
+// portfolio: obeying it changes the statuses it lists. So a listed spec that has
+// since been killed, superseded, or withdrawn is reported as the round's outcome
+// rather than as a failure of the round. Only `draft` is refused, because a spec
+// that cannot leave draft was never offerable.
+const INDEX_STATES = ["specified", "selectable", "deferred", "frozen", "killed", "superseded"];
+
+function index(idx, specsById = null, recordsById = null) {
   const findings = [];
   const f = (severity, rule, message, act) => findings.push({ severity, rule, message, act });
   if (idx.index_schema !== "QSPEC-INDEX/1.0") f("block", "index-schema", "index_schema must be QSPEC-INDEX/1.0");
   const entries = Array.isArray(idx.entries) ? idx.entries : [];
   const ranks = new Set();
+  const outcomes = [];
   for (const e of entries) {
     if (!catalogs.core.actions.includes(e.recommended_action)) f("block", "index-action", `${e.id}: recommended_action must be one of ${catalogs.core.actions.join(", ")}`);
     if (!Number.isInteger(e.rank) || ranks.has(e.rank)) f("block", "index-rank", `${e.id}: rank must be a unique integer`);
     ranks.add(e.rank);
     const words = (e.claim_20_words ?? "").trim().split(/\s+/).filter(Boolean).length;
     if (words === 0 || words > 20) f("block", "index-claim", `${e.id}: claim_20_words has ${words} words`);
-    if (specsById) {
-      const sp = specsById[e.id];
-      if (!sp) f("block", "index-resolve", `${e.id}: no spec with that id in the given directory`);
-      else if (!["selectable", "deferred", "frozen"].includes(sp.status)) f("block", "index-state", `${e.id}: spec status is '${sp.status}', not selectable`);
-      else if (sp.instance_version !== e.instance_version) f("block", "index-version", `${e.id}: index says @${e.instance_version}, spec is @${sp.instance_version}`);
+    if (!specsById) continue;
+    const sp = specsById[e.id];
+    if (!sp) { f("block", "index-resolve", `${e.id}: no spec with that id in the given directory`); continue; }
+    outcomes.push([e.id, sp.status]);
+    if (sp.status === "draft") f("block", "index-state", `${e.id}: spec status is 'draft', so it was never offerable in a round`);
+    else if (!INDEX_STATES.includes(sp.status)) f("block", "index-state", `${e.id}: spec status '${sp.status}' is not a listed state`);
+    else if (sp.status === "specified") f("warn", "index-withdrawn", `${e.id}: listed in this round but its status is 'specified', so it is not currently offered`);
+    // A round records the version it saw. The spec moving ahead is the normal
+    // consequence of a later revision; the Index citing a version that does not
+    // exist yet is a mistake in the Index.
+    if (sp.instance_version < e.instance_version) f("block", "index-version", `${e.id}: index says @${e.instance_version} but the spec is only at @${sp.instance_version}`);
+    else if (sp.instance_version > e.instance_version) f("warn", "index-version", `${e.id}: this round saw @${e.instance_version}; the spec has since moved to @${sp.instance_version}`);
+    const rec = recordsById?.[e.id] ?? null;
+    for (const [i, en] of (rec?.entries ?? []).entries()) {
+      // The committee is named by the round, so this is the one place a
+      // decision_maker's authority can be checked against anything at all.
+      if (en.role === "decision_maker" && en.round && en.round === idx.round && en.actor !== String(idx.decision_maker ?? "").trim()) {
+        f("block", "index-committee", `${e.id}: record entries[${i}] acts as decision_maker for round ${idx.round} as '${en.actor}', but this round's decision-maker is '${idx.decision_maker}'`);
+      }
+      // Legal, and the reason is on the record; it stops being silent here.
+      if (en.to === "killed" && en.role === "owner") f("warn", "round-withdrawal", `${e.id}: listed in this round and killed by its owner on ${en.date}: ${s(en.reason) ?? "(no reason recorded)"}`);
+      if (en.to === "specified" && en.from === "selectable") f("warn", "round-withdrawal", `${e.id}: withdrawn from selection by its owner on ${en.date}: ${s(en.reason) ?? "(no reason recorded)"}`);
     }
   }
-  const frozen = Array.isArray(idx.frozen) ? idx.frozen : [];
-  if (frozen.length > 1 && !s(idx.exception)) f("block", "index-freeze", `${frozen.length} specs frozen in one round with no written exception`);
-  for (const id of frozen) if (!entries.some((e) => e.id === id)) f("block", "index-frozen-id", `${id} is listed as frozen but has no entry`);
+  // The cap is over what actually froze, not over the hand-written list.
+  const declared = Array.isArray(idx.frozen) ? idx.frozen : [];
+  const resolved = frozenInRound(idx, specsById);
+  const frozen = resolved ?? declared;
+  if (frozen.length > 1 && !s(idx.exception)) f("block", "index-freeze", `${frozen.length} specs frozen in one round (${frozen.join(", ")}) with no written exception`);
+  for (const id of declared) if (!entries.some((e) => e.id === id)) f("block", "index-frozen-id", `${id} is listed as frozen but has no entry`);
+  if (resolved) {
+    for (const id of resolved) if (!declared.includes(id)) f("block", "index-frozen-drift", `${id} is frozen but the index does not list it under frozen`);
+    for (const id of declared) if (!resolved.includes(id) && specsById[id]) f("block", "index-frozen-drift", `${id} is listed under frozen but its status is '${specsById[id].status}', which is not a freeze`);
+  }
   const rows = [...entries].sort((a, b) => a.rank - b.rank).map((e) => `| ${e.rank} | ${e.id}@${e.instance_version} | ${e.domain} | ${e.family} | ${e.claim_20_words} | ${e.blocking ? "yes" : "no"} | ${e.recommended_action} |`);
   const md = [
     "# PORTFOLIO INDEX", `## Selection round: ${idx.round}`, `**Date:** ${idx.date}`, `**Decision-maker:** ${idx.decision_maker}`, "", "---", "", "",
     "| Rank | Question | Domain | Family | Claim | Blocking | Action |", "|---|---|---|---|---|---|---|", ...rows, "",
     "### Frozen this round", "", frozen.length ? frozen.map((id) => `- ${id}`).join("\n") : "- none", "",
     ...(s(idx.exception) ? ["### Exception", "", idx.exception, ""] : []),
+    ...(outcomes.length ? ["### Where each question stands now", "", ...outcomes.map(([id, st]) => `- ${id}: ${st}`), ""] : []),
   ].join("\n");
   return { md, findings };
 }

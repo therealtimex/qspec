@@ -13,23 +13,27 @@
       "claim_conditional": [],
       "families": ["empirical_causal", "empirical_descriptive", "measurement", "interpretive", "ethnographic", "historical", "theoretical", "formal_theory"],
       "goals": ["effect", "mechanism", "description", "measurement", "interpretation", "explanation", "prediction", "normative_map"],
+      "exploratory_goals": ["measurement", "description", "interpretation"],
       "safety": ["human_subjects", "vulnerable_population", "deception", "sensitive_data", "political_risk", "partner_dependency"],
       "hints_extra": {},
       "profiles": {
         "empirical_causal": {
           "required": ["treatment", "assignment_process", "comparison", "estimand", "identifying_assumption", "main_alternative_explanation", "primary_outcome", "design_risk"],
           "optional": ["mechanism_outcomes", "precommitted_checks"],
-          "comparator": "comparison"
+          "comparator": "comparison",
+          "judged": "the kill condition refers to a failed identifying or design check, not to an inconvenient estimate."
         },
         "empirical_descriptive": {
           "required": ["object_described", "unit_of_observation", "variation_shown", "why_not_trivial", "what_description_cannot_claim"],
           "optional": ["comparison_or_benchmark"],
-          "comparator": "comparison_or_benchmark"
+          "comparator": "comparison_or_benchmark",
+          "judged": "`one_sentence` uses no causal verbs."
         },
         "measurement": {
           "required": ["construct", "operationalization", "validation", "error_concerns", "why_the_measure_is_the_contribution"],
           "optional": ["prior_measure"],
-          "comparator": "prior_measure"
+          "comparator": "prior_measure",
+          "judged": "`validation` names evidence the measure could fail against, and the kill condition refers to a validation failure, not to a disappointing correlation."
         },
         "interpretive": { "$ref": "interpretive_set" },
         "ethnographic": { "$ref": "interpretive_set" },
@@ -41,13 +45,15 @@
         "interpretive_set": {
           "required": ["site_or_corpus", "access", "unit_of_observation", "contrast", "source_limits", "positionality", "overturning_observation"],
           "optional": [],
-          "comparator": "contrast"
+          "comparator": "contrast",
+          "judged": "`overturning_observation` is a kind of evidence that would force revision, not \"more time in the field.\""
         },
         "theory_set": {
           "required": ["primitives", "proposition", "relation_to_named_model", "assumed_not_tested", "counterexample_that_kills", "empirics_role"],
           "optional": [],
           "comparator": "relation_to_named_model",
-          "enums": { "empirics_role": ["none", "illustration", "test"] }
+          "enums": { "empirics_role": ["none", "illustration", "test"] },
+          "judged": "the kill condition is a counterexample or a nesting in a named model under weaker assumptions, not \"the data disagreed\" unless `empirics_role` is `test` and the test is specified."
         }
       }
     },
@@ -57,6 +63,7 @@
       "claim_conditional": [],
       "families": ["experimental", "observational", "measurement", "computational", "theoretical"],
       "goals": ["mechanism", "effect", "existence", "structure", "measurement", "prediction", "explanation"],
+      "exploratory_goals": ["measurement", "existence"],
       "safety": ["animals", "humans", "biosafety", "radiation", "dual_use", "fieldwork_permit", "hazardous_materials"],
       "hints_extra": {},
       "profiles": {
@@ -64,29 +71,34 @@
           "required": ["intervention", "control_or_baseline", "independent_variables", "dependent_quantities", "measurement_chain", "positive_or_negative_controls", "replication_unit", "main_artifact_or_confound"],
           "optional": ["precommitted_checks"],
           "comparator": "control_or_baseline",
-          "min_list": { "independent_variables": 1, "dependent_quantities": 1 }
+          "min_list": { "independent_variables": 1, "dependent_quantities": 1 },
+          "judged": "`positive_or_negative_controls` names a control or states why one is impossible; the kill condition refers to a failed control, an unusable measurement, or an inaccessible system, not only to a null result."
         },
         "observational": {
           "required": ["observing_system", "target_process", "comparison_or_contrast", "sampling_design", "coverage_and_bias", "quantity_inferred", "main_confound_or_aliasing"],
           "optional": [],
-          "comparator": "comparison_or_contrast"
+          "comparator": "comparison_or_contrast",
+          "judged": "the confound or alias named could actually mimic the claim; the kill condition refers to coverage, irrecoverable bias, or calibration failure."
         },
         "measurement": {
           "required": ["measurand", "operational_definition", "calibration_or_standard", "uncertainty_budget_sketch", "validation", "why_the_measure_is_the_contribution"],
           "optional": ["prior_method"],
-          "comparator": "prior_method"
+          "comparator": "prior_method",
+          "judged": "the measurand is distinct from the raw signal."
         },
         "computational": {
           "required": ["computation_mode", "model_or_code", "governing_equations_or_algorithm", "input_data_or_parameters", "resolution_or_convergence", "verification_and_validation", "baseline_model", "what_computation_cannot_claim"],
           "optional": [],
           "comparator": "baseline_model",
-          "enums": { "computation_mode": ["numerical_experiment", "inference_on_data"] }
+          "enums": { "computation_mode": ["numerical_experiment", "inference_on_data"] },
+          "judged": "`what_computation_cannot_claim` forbids treating a fit as a unique mechanism without extra structure; the kill condition includes a convergence or verification failure."
         },
         "theoretical": {
           "required": ["primitives_or_postulates", "proposition", "regime_of_validity", "relation_to_named_theory", "assumed_not_tested", "counterexample_or_reduction_that_kills", "empirics_role"],
           "optional": [],
           "comparator": "relation_to_named_theory",
-          "enums": { "empirics_role": ["none", "illustration", "later_test"] }
+          "enums": { "empirics_role": ["none", "illustration", "later_test"] },
+          "judged": "the kill condition is a counterexample, a reduction to a known result, or a broken regime, not \"the experiment disagreed\" unless `empirics_role` is `later_test` and the test is specified."
         }
       },
       "profile_sets": {}
@@ -97,6 +109,7 @@
       "claim_conditional": [{ "field": "metric", "unless_family": ["theoretical"] }],
       "families": ["experimental", "observational_or_field", "computational", "design_and_analysis", "measurement", "theoretical"],
       "goals": ["performance", "tradeoff", "reliability_or_safety", "mechanism_of_failure", "feasibility", "prediction", "measurement"],
+      "exploratory_goals": ["feasibility", "measurement"],
       "safety": ["human_users", "animals", "hazardous_operation", "dual_use", "field_deployment", "export_control"],
       "constraints_extra": ["standards_or_codes"],
       "hints_extra": { "scale": ["component", "subsystem", "system"] },
@@ -105,33 +118,39 @@
           "required": ["intervention_or_design_under_test", "baseline", "workload_or_excitation", "metrics", "measurement_chain", "controls_and_repeats", "main_artifact_or_confound"],
           "optional": ["precommitted_checks"],
           "comparator": "baseline",
-          "min_list": { "metrics": 1 }
+          "min_list": { "metrics": 1 },
+          "judged": "the kill condition refers to an unusable measurement, an unreachable regime, or a failed control, not only to \"no improvement.\""
         },
         "observational_or_field": {
           "required": ["deployed_context", "quantity_inferred", "sampling_or_logging_design", "coverage_and_bias", "main_confound", "what_field_data_cannot_claim"],
           "optional": ["comparison_period_or_fleet"],
-          "comparator": "comparison_period_or_fleet"
+          "comparator": "comparison_period_or_fleet",
+          "judged": "`main_confound` names something that could mimic the claim, such as operator behavior, mix shift, or an instrumentation change."
         },
         "computational": {
           "required": ["model_or_code", "governing_model", "inputs_and_boundary_conditions", "verification", "validation_against", "baseline_model", "what_computation_cannot_claim"],
           "optional": [],
-          "comparator": "baseline_model"
+          "comparator": "baseline_model",
+          "judged": "if `validation_against` is `none`, the claim is narrowed to a computational statement and does not assert a physical mechanism."
         },
         "design_and_analysis": {
           "required": ["design_object", "requirements_or_constraints", "decision_variables", "analysis_method", "acceptance_criterion"],
           "optional": ["comparator_designs"],
-          "comparator": "comparator_designs"
+          "comparator": "comparator_designs",
+          "judged": "if `knowledge_goal` is `feasibility`, `acceptance_criterion` is numeric or pass/fail, not \"novel\"; otherwise at least one comparator design is listed."
         },
         "measurement": {
           "required": ["measurand", "operational_definition", "calibration_or_reference", "uncertainty_sketch", "why_the_measure_is_the_contribution"],
           "optional": ["prior_method"],
-          "comparator": "prior_method"
+          "comparator": "prior_method",
+          "judged": "`calibration_or_reference` names a reference the measurement could fail against, and the measurand is distinct from the instrument's raw reading."
         },
         "theoretical": {
           "required": ["primitives", "proposition", "regime_of_validity", "relation_to_named_result", "counterexample_or_reduction_that_kills", "empirics_role"],
           "optional": [],
           "comparator": "relation_to_named_result",
-          "enums": { "empirics_role": ["none", "illustration", "later_test"] }
+          "enums": { "empirics_role": ["none", "illustration", "later_test"] },
+          "judged": "the kill condition is a counterexample, a reduction to a known result, or a broken regime."
         }
       },
       "profile_sets": {}

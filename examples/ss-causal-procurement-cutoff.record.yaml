@@ -8,6 +8,7 @@ entries:
     from: draft
     to: specified
     reason: J1-J7 reread against version 2
+    round: null
     signed_invariants:
       - J1
       - J2
@@ -17,12 +18,18 @@ entries:
       - J6
       - J7
     spec_fingerprint: sha256:1ef922706579c8cd239425aecbf583aca812c1fb82c54a29a07fca06dc639b3f
+    judged_rules:
+      J7: >-
+        the kill condition refers to a failed identifying or design check, not to an inconvenient
+        estimate.
     cited_invariant: null
     revisit_by: null
     successor: null
     dissent:
       - reviewer: B. Reviewer
-        point: Unit prices may not be comparable across goods categories even after the restriction; the design_risk line understates this.
+        point: >-
+          Unit prices may not be comparable across goods categories even after the restriction; the
+          design_risk line understates this.
         unresolved: true
   - date: '2026-09-01'
     instance_version: 2
@@ -31,8 +38,10 @@ entries:
     from: specified
     to: selectable
     reason: offered in round 2026-09
+    round: 2026-09
     signed_invariants: null
     spec_fingerprint: null
+    judged_rules: null
     cited_invariant: null
     revisit_by: null
     successor: null

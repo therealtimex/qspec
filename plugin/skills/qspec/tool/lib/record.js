@@ -9,7 +9,7 @@ const { createHash } = require("node:crypto");
 const { existsSync, readFileSync, writeFileSync } = require("node:fs");
 const { basename, dirname, join } = require("node:path");
 const yaml = require("./vendor/js-yaml/js-yaml.js");
-const { J_INVARIANTS, catalogs } = require("./catalogs.js");
+const { J_INVARIANTS, catalogs, judgedRule } = require("./catalogs.js");
 
 // Sections whose change invalidates a signature. `handoff` is excluded because
 // `first_check` is filled between signing and freeze by design; `hints` because
@@ -37,6 +37,9 @@ function fingerprint(spec) {
 const TRANSITIONS = [
   { from: ["draft"], to: "specified", roles: ["reviewer"], needs: ["signed_invariants", "spec_fingerprint"] },
   { from: ["specified"], to: "selectable", roles: ["owner"], needs: [] },
+  // Withdrawal. Before 1.2 the owner's only exit from `selectable` was `killed`,
+  // so pulling a spec out of a round meant ending it.
+  { from: ["selectable"], to: "specified", roles: ["owner"], needs: ["reason"] },
   { from: ["selectable"], to: "frozen", roles: ["decision_maker"], needs: [] },
   { from: ["selectable"], to: "deferred", roles: ["decision_maker"], needs: ["revisit_by"] },
   { from: ["deferred"], to: "selectable", roles: ["owner"], needs: [] },
@@ -47,6 +50,30 @@ const TRANSITIONS = [
 
 function allowed(from, to, role) {
   return TRANSITIONS.find((t) => t.from.includes(from) && t.to === to && t.roles.includes(role)) ?? null;
+}
+
+// `owner` and `reviewer` are checked against fields of the spec. `decision_maker`
+// is named by no field of a spec: the committee running a round is named by the
+// round's Index. So the binding exists only when an Index is in hand, and when it
+// is not, the act says so rather than implying an authority it did not check.
+// None of this authenticates anyone; see QSPEC-CORE section 3.
+function bindDecisionMaker(entry, index) {
+  if (entry.role !== "decision_maker" || !index) return null;
+  const named = String(index.decision_maker ?? "").trim();
+  if (!named) return `the index for round ${index.round ?? "(unnamed)"} names no decision_maker`;
+  if (entry.actor !== named) return `'${entry.actor}' is not the decision-maker for round ${index.round ?? "(unnamed)"} (${named})`;
+  return null;
+}
+
+// The ids an Index lists whose specs actually reached a freeze. Ground truth for
+// the one-freeze-per-round cap: a status is set only by a recorded act, while
+// the Index's own `frozen` list is written by hand. `superseded` counts, because
+// it is a freeze that has since been replaced, not a freeze that never happened.
+const FROZE = ["frozen", "superseded"];
+
+function frozenInRound(index, specsById) {
+  if (!specsById) return null;
+  return (index?.entries ?? []).map((e) => e.id).filter((id) => FROZE.includes(specsById[id]?.status));
 }
 
 // Where a spec's record lives: beside it as <name>.record.yaml, or under
@@ -103,6 +130,7 @@ function checkRecord(spec, record, recordFile) {
       if (!ok) f("block", "DR-requirement", `${at}: ${e.from} -> ${e.to} requires ${k}`);
     }
     if (e.role === "owner" && e.actor !== spec.owner) f("block", "DR-owner", `${at}: role owner but actor '${e.actor}' is not the spec owner`);
+    if (e.role === "decision_maker" && !nonEmpty(String(e.round ?? ""))) f("warn", "unbound-decision", `${at}: ${e.to} by '${e.actor}' as decision_maker names no round, so the role was claimed and checked against nothing`, "re-run the act with --index <round.yaml>, or record the round in the Index");
     if (e.role === "reviewer" && !(spec.reviewers ?? []).includes(e.actor)) f("block", "DR-reviewer", `${at}: role reviewer but actor '${e.actor}' is not in reviewers`);
     if (e.role === "reviewer" && e.actor === spec.owner) f("block", "DR-reviewer", `${at}: the owner may not sign as reviewer`);
     if (Number.isInteger(e.instance_version) && e.instance_version > spec.instance_version) f("block", "DR-version", `${at}: instance_version ${e.instance_version} is ahead of the spec`);
@@ -130,11 +158,19 @@ function checkSignature(spec, record, specFile) {
   if (missing.length) f("block", "J-incomplete", `signature covers ${[...signed].join(", ") || "nothing"}; missing ${missing.join(", ")}`, signAct);
   if (!s.spec_fingerprint) f("manual", "J-unfingerprinted", "signature carries no spec_fingerprint, so staleness cannot be checked", signAct);
   else if (s.spec_fingerprint !== fingerprint(spec)) f("block", "stale-signature", `the spec changed after ${s.actor} signed on ${s.date}; the signature no longer covers this text`, `reread and re-sign: ${signAct}`);
+  // J7 is whatever the overlay says for this profile, so a signature is only
+  // meaningful against a stated rule. Drift is a warning, not a block: an
+  // overlay wording fix should not invalidate a portfolio.
+  const rule = judgedRule(spec);
+  const signedRule = s.judged_rules?.J7 ?? null;
+  if (signedRule == null) f("skip", "J7-unrecorded", `signed before the overlay's J7 rule was recorded, so drift cannot be checked${rule ? `; the rule now reads: ${rule}` : ""}`, signAct);
+  else if (rule == null) f("warn", "overlay-drift", `the signature records a J7 rule but the overlay states none for profile '${spec.question_type?.method_family}'`, signAct);
+  else if (rule !== signedRule) f("warn", "overlay-drift", `the overlay's J7 rule changed since ${s.actor} signed on ${s.date}; signed: ${signedRule} | now: ${rule}`, `reread J7 and re-sign: ${signAct}`);
   return out;
 }
 
 // Acts. Each appends one entry and returns it; the caller saves.
-function appendEntry(record, spec, entry) {
+function appendEntry(record, spec, entry, opts = {}) {
   record.entries = record.entries ?? [];
   const state = record.entries.length ? record.entries[record.entries.length - 1].to : "draft";
   if (entry.from == null) entry.from = state;
@@ -149,10 +185,14 @@ function appendEntry(record, spec, entry) {
   if (entry.role === "owner" && entry.actor !== spec.owner) throw new Error(`'${entry.actor}' is not the owner (${spec.owner})`);
   if (entry.role === "reviewer" && !(spec.reviewers ?? []).includes(entry.actor)) throw new Error(`'${entry.actor}' is not in reviewers (${(spec.reviewers ?? []).join(", ")})`);
   if (entry.role === "reviewer" && entry.actor === spec.owner) throw new Error("the owner may not act as reviewer");
+  const unbound = bindDecisionMaker(entry, opts.index);
+  if (unbound) throw new Error(unbound);
   const full = {
     date: entry.date, instance_version: spec.instance_version, actor: entry.actor, role: entry.role,
     from: entry.from, to: entry.to, reason: entry.reason ?? "",
+    round: entry.round ?? opts.index?.round ?? null,
     signed_invariants: entry.signed_invariants ?? null, spec_fingerprint: entry.spec_fingerprint ?? null,
+    judged_rules: entry.judged_rules ?? null,
     cited_invariant: entry.cited_invariant ?? null, revisit_by: entry.revisit_by ?? null,
     successor: entry.successor ?? null, dissent: entry.dissent ?? [],
   };
@@ -174,4 +214,4 @@ function setStatus(specFile, to) {
   writeFileSync(specFile, text.replace(re, `status: ${to}`));
 }
 
-module.exports = { FINGERPRINTED, fingerprint, TRANSITIONS, allowed, recordPath, loadRecord, saveRecord, signingEntry, checkRecord, checkSignature, appendEntry, newRecord, setStatus };
+module.exports = { FINGERPRINTED, FROZE, fingerprint, TRANSITIONS, allowed, bindDecisionMaker, frozenInRound, recordPath, loadRecord, saveRecord, signingEntry, checkRecord, checkSignature, appendEntry, newRecord, setStatus };

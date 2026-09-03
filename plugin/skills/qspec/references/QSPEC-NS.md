@@ -1,10 +1,10 @@
-# QSPEC-NS 1.1.0
+# QSPEC-NS 1.2.0
 # Question Spec overlay for the natural sciences
 
 **Spec-ID:** QSPEC-NS
-**Schema-Version:** 1.1.0
-**Targets core:** QSPEC-CORE 1.1.0
-**Date:** 2026-09-02
+**Schema-Version:** 1.2.0
+**Targets core:** QSPEC-CORE 1.2.0
+**Date:** 2026-09-03
 **Status:** released
 **Instance header:** `spec_schema: QSPEC/1.0` and `domain: natural`
 
@@ -55,6 +55,8 @@ Core invariant M13 requires `system`, `object`, and `scope` to be non-empty. `sy
 `mechanism`, `effect`, `existence`, `structure`, `measurement`, `prediction`, `explanation`
 
 `existence` is kept for particles, phases, species, solutions, and objects.
+
+**Exploratory goals:** `measurement`, `existence`. Core section 6.3 refuses to exempt exploratory work from having a spec, and these are the goals it is written under in this domain. There is no `feasibility` value here; that is an engineering word. Developing an instrument, a probe, or a technique is `measurement`; searching for an object or a phase is `existence`. In both cases the kill condition is about the method or the search, not about the world: "the calibration cannot be transferred to the field instrument" is a kill condition, "we saw nothing" is not, unless the spec states the sensitivity at which seeing nothing settles it.
 
 ### 3.3 `safety_or_ethics`
 
