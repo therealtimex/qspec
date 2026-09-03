@@ -55,10 +55,16 @@ function check() {
   return problems;
 }
 
+// The output directory is anchored to the repository, not to the caller's
+// working directory: `zip` runs with its cwd in plugin/, so a relative --package
+// argument would be created in one place and written in another. This was
+// invisible while a built zip was committed and dist/ always existed.
 function pack(dir) {
-  mkdirSync(dir, { recursive: true });
+  const outDir = resolve(ROOT, dir);
+  mkdirSync(outDir, { recursive: true });
+  if (!existsSync(outDir)) throw new Error(`could not create the output directory ${outDir}`);
   const manifest = JSON.parse(readFileSync(join(ROOT, "plugin", "realtimex.plugin.json"), "utf8"));
-  const out = resolve(dir, `qspec-${manifest.version}.zip`);
+  const out = join(outDir, `qspec-${manifest.version}.zip`);
   rmSync(out, { force: true });
   execFileSync("zip", ["-r", "-q", "-X", out, ".", "-x", ".gitignore"], { cwd: join(ROOT, "plugin") });
   return out;
