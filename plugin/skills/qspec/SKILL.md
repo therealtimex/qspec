@@ -4,7 +4,7 @@ description: Write, lint, sign, select, freeze, or kill a research question as a
 allowed-tools: Read, Write, Edit, Bash
 license: UNLICENSED
 metadata:
-  version: "1.5.0"
+  version: "1.6.0"
 ---
 
 # QSPEC Question Specs
@@ -25,7 +25,7 @@ A Question Spec is a YAML contract for one research question. The tool ships bes
 | Write an engineering or software-systems spec | [references/QSPEC-ENG.md](references/QSPEC-ENG.md) |
 | Hand a frozen question to a Paperforge project | [references/paperforge-integration.md](references/paperforge-integration.md) |
 | Start a project directory, or check one | `qspec init`, then `qspec doctor` (below) |
-| See what a check saw earlier, compare two versions, recover an overwritten draft, or note a workaround | [references/runs.md](references/runs.md) |
+| See what a check saw earlier, compare two versions, recover an overwritten draft, keep a handoff beside its run, or note a workaround | [references/runs.md](references/runs.md) |
 | Start from an empty instance | `qspec new <Q-id> --domain <d>`, which copies `tool/templates/qspec-social.yaml`, `qspec-natural.yaml`, or `qspec-engineering.yaml` with the id set |
 
 ## Running it
@@ -44,13 +44,18 @@ qspec new <Q-id> --domain <d>         an empty spec from the domain template, id
      [--slug] [--title] [--owner] [--specs dir]
 qspec init --refresh --into <dir>     rewrite only the QSPEC block in AGENTS.md and re-stamp; what doctor asks for on STALE
 qspec doctor [--project dir]          is this project's guidance what init would write now; runs since the last act
-qspec runs [--diff <a>,<b> [--sources]]   every lint and index run recorded here; what changed between two
+qspec runs [--diff <a>,<b> [--sources]]   every recorded run here; what changed between two
+qspec runs show <run>                 one run, its findings, and every note as written
+qspec attach <run> <file> --by <actor> --role <role> --kind handoff|review|decision|note
+                                      keep what you concluded beside the run it is about; copied whole
 qspec report "<what happened>"        a friction note; --issue prints the latest for a tracker, files nothing
 qspec lint <spec>...                  M1 to M16, record checks, signature staleness; exit 1 on block; records a run
 qspec fingerprint <spec>              what a signature is taken over
 qspec sign <spec> --by <reviewer>     draft -> specified; refuses while any M invariant fails
      [--show]                         print J1 to J7 for this profile and sign nothing
+     [--run <name>]                   cite the run whose text is signed; refused if the text moved since
 qspec transition <spec> --to <state> --by <actor> --role <owner|reviewer|decision_maker>
+     [--run <name>]                   cite the run whose text is acted on
      [--index <round> | --unbound]    a decision_maker act must declare one of the two
      [--specs <dir>]                  where the round's other specs live, for the freeze cap
      [--dissent "<who>: <point>"]     record a dissenting point with the act
@@ -66,8 +71,8 @@ Findings are `block`, `manual` (with the act that settles it), `warn`, or `skip`
 
 0. **Prepare the directory once.** If there is no `.qspec/scaffold.json` here or above, ask for the title, the round, the decision-maker, and where the research request is, then run `init`. It writes `AGENTS.md` for every agent that works here and refuses to overwrite one it did not write; in a RealTimeX loops workspace pass `--append` so the loops shim stays. When a project misbehaves, run `doctor` before anything else: it says whether the guidance is stale and what is in `specs/`.
 1. **Interview before writing.** Get the claim sentence, the domain, the primary method family, at least two named closest works, the blocking materials, and the kill condition from the user. If any is missing, leave the field empty and say so; an empty field is a `block` the author can see, a plausible invention is not.
-2. **`qspec new <Q-id> --domain <d> --slug <short-name>`** copies the template with the id and date set; fill it and run `lint` until nothing blocks. Each `lint` inside a project records a run with the spec as it stood; before a review round, `--label` it, and when handing findings back, cite the run name and say `qspec runs --diff <before>,<after>` so the next role sees what changed rather than a paraphrase. Profile field lists are in the overlay's section 4.
-3. **Signing is a person's act.** When lint is clean, run `qspec sign --show` and put the seven rules in front of the reviewer: J7 is the overlay's rule for this profile, and it is the one nobody remembers. Then tell the user which reviewer must reread the spec and run `qspec sign --by <reviewer>`. Do not sign as the reviewer yourself unless the user, acting as that reviewer, says the invariants hold.
+2. **`qspec new <Q-id> --domain <d> --slug <short-name>`** copies the template with the id and date set; fill it and run `lint` until nothing blocks. Each `lint` inside a project records a run with the spec as it stood; before a review round, `--label` it. When handing findings back, cite the run name, say `qspec runs --diff <before>,<after>` so the next role sees what changed rather than a paraphrase, and `qspec attach <run> <handoff.md> --by <you> --role <role> --kind handoff` so what you concluded stays beside the text it was about. Do not summarise a note for the tool; it copies the file whole. Profile field lists are in the overlay's section 4.
+3. **Signing is a person's act.** When lint is clean, run `qspec sign --show` and put the seven rules in front of the reviewer: J7 is the overlay's rule for this profile, and it is the one nobody remembers. Then tell the user which reviewer must reread the spec and run `qspec sign --by <reviewer> --run <the run they read>`; the tool refuses a run whose text has moved since. A note attached to a run is not an act: `lint` reports `notes-without-act` until a person signs or transitions, and an agent review loop that closes as "approved" has changed nothing in the record. Do not sign as the reviewer yourself unless the user, acting as that reviewer, says the invariants hold.
 4. **Offer, choose, freeze** with `transition`, and render the Selection Sheet for the decision-maker. A decision-maker act must declare `--index <round>`, which checks the actor against the committee that round names and holds the one-freeze-per-round cap, or `--unbound`, which records that nothing checked it and leaves `unbound-decision` on the record for good. Reach for `--index`; offer `--unbound` only when the user says there is no round, which for a single candidate is normal.
 5. **Withdraw, do not kill, to pull a spec out of a round.** `--to specified --role owner --reason "..."` keeps the signature and allows a later re-offer. Killing is terminal and, when the round listed the spec, the Index reports it.
 6. **Hand off** with `request`. Point the Paperforge project's `request` key at the exported file and put `**Question:** Q-014@1` in the document head.

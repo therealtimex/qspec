@@ -123,8 +123,38 @@ if $Q report --project /tmp/qspec-runs >/dev/null 2>&1; then echo "UNEXPECTED: r
 echo "== doctor counts runs since the last act and sees the friction note"
 $Q doctor --project /tmp/qspec-runs | grep -q "runs       3 .*3 since the last recorded act" || { echo "UNEXPECTED: doctor did not report three runs since no act"; exit 1; }
 $Q doctor --project /tmp/qspec-runs | grep -q "friction   1" || { echo "UNEXPECTED: doctor did not see the friction note"; exit 1; }
+echo "== attach keeps a note beside its run, runs show prints it, and lint says a note is not an act"
+rm -rf /tmp/qspec-notes && $Q init --into /tmp/qspec-notes --title "Notes Probe" --round 2026-09 --decision-maker "Group lead" --no-git >/dev/null
+cp examples/ss-causal-procurement-cutoff.yaml examples/ss-causal-procurement-cutoff.record.yaml examples/index-round-2026-09.yaml /tmp/qspec-notes/specs/
+$Q lint /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml --label baseline >/dev/null
+printf '# Review round 1\n\nFinding 1: citation wording.\n' > /tmp/qspec-notes/handoff.md
+$Q attach baseline /tmp/qspec-notes/handoff.md --by "D. Reviewer" --role reviewer --kind review --project /tmp/qspec-notes >/dev/null
+test -f /tmp/qspec-notes/.qspec/runs/*-baseline/notes/*-review-d-reviewer.md || { echo "UNEXPECTED: attach did not copy the note beside the run"; exit 1; }
+$Q runs show baseline --project /tmp/qspec-notes | grep -q "Finding 1: citation wording" || { echo "UNEXPECTED: runs show did not print the note as written"; exit 1; }
+$Q runs --project /tmp/qspec-notes | grep -q "1 note(s)" || { echo "UNEXPECTED: runs did not count the note"; exit 1; }
+$Q lint /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml | grep -q "notes-without-act" || { echo "UNEXPECTED: lint did not warn that a note is not an act"; exit 1; }
+if $Q attach nonesuch /tmp/qspec-notes/handoff.md --by X --role reviewer --project /tmp/qspec-notes >/dev/null 2>&1; then echo "UNEXPECTED: attach accepted a run that does not exist"; exit 1; fi
+if $Q attach baseline /tmp/qspec-notes/handoff.md --by X --role reviewer --kind verdict --project /tmp/qspec-notes >/dev/null 2>&1; then echo "UNEXPECTED: attach accepted an unlisted kind"; exit 1; fi
+echo "== sign --show, sheet, and request record runs; the sheet keeps what was rendered"
+$Q sign /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml --by "D. Reviewer" --show >/dev/null
+$Q sheet /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml --index /tmp/qspec-notes/specs/index-round-2026-09.yaml --out /tmp/qspec-notes/sheets/Q-101.md >/dev/null
+$Q runs --project /tmp/qspec-notes | grep -q "sign --show" && $Q runs --project /tmp/qspec-notes | grep -q " sheet " || { echo "UNEXPECTED: sign --show or sheet left no run"; exit 1; }
+ls /tmp/qspec-notes/.qspec/runs/*/rendered/*.md >/dev/null 2>&1 || { echo "UNEXPECTED: the sheet run kept no rendering"; exit 1; }
+echo "== an act cites the run whose text it acts on, and refuses a run whose text has moved"
+$Q lint /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml --label before-withdraw >/dev/null
+$Q transition /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml --to specified --by "A. Owner" --role owner --reason "held back" --run before-withdraw >/dev/null
+grep -q "run: .*before-withdraw" /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.record.yaml || { echo "UNEXPECTED: the act did not record the run it cited"; exit 1; }
+$Q runs --project /tmp/qspec-notes | grep -q "transition" || { echo "UNEXPECTED: the transition left no run"; exit 1; }
+if $Q lint /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml | grep -q "notes-without-act"; then echo "UNEXPECTED: lint still warns about the note after an act"; exit 1; fi
+sed -i.bak 's/^  one_sentence: .*/  one_sentence: "Below the cutoff, small-firm win rates rise and prices do not fall."/' /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml && rm -f /tmp/qspec-notes/specs/*.bak
+if $Q transition /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml --to killed --by "A. Owner" --role owner --reason x --run before-withdraw >/dev/null 2>&1; then echo "UNEXPECTED: an act cited a run whose text has since moved"; exit 1; fi
+echo "== paper keeps a document from outside the project inside the run"
+cp examples/ns-experimental-apical-oxygen.yaml examples/ns-experimental-apical-oxygen.record.yaml /tmp/qspec-notes/specs/
+cp examples/paper/Q-201-report.md /tmp/qspec-external-paper.md
+$Q paper /tmp/qspec-notes/specs/ns-experimental-apical-oxygen.yaml /tmp/qspec-external-paper.md >/dev/null
+ls /tmp/qspec-notes/.qspec/runs/*/sources/external/qspec-external-paper.md >/dev/null 2>&1 || { echo "UNEXPECTED: the paper run did not keep the external document"; exit 1; }
 echo "== the commands the guidance names are the commands help lists"
 for c in $(node -e 'console.log(require("./lib/scaffold.js").COMMANDS.join(" "))'); do $Q help | grep -q "^  $c " || { echo "UNEXPECTED: guidance names '$c' but help does not list it"; exit 1; }; done
 echo "== renderings carry nothing Paperforge lint would block"
-if grep -qiE '\b(TODO|TBD|FIXME|XXX|PLACEHOLDER)\b' /tmp/qspec-index.md /tmp/qspec-sheet.md /tmp/qspec-request.md /tmp/qspec-init-round.md /tmp/qspec-init/AGENTS.md /tmp/qspec-runs/AGENTS.md; then echo "UNEXPECTED: a blocked marker reached a rendering"; exit 1; fi
+if grep -qiE '\b(TODO|TBD|FIXME|XXX|PLACEHOLDER)\b' /tmp/qspec-index.md /tmp/qspec-sheet.md /tmp/qspec-request.md /tmp/qspec-init-round.md /tmp/qspec-init/AGENTS.md /tmp/qspec-runs/AGENTS.md /tmp/qspec-notes/AGENTS.md; then echo "UNEXPECTED: a blocked marker reached a rendering"; exit 1; fi
 echo "all checks passed"

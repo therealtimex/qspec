@@ -1,9 +1,10 @@
-# Run records and friction notes
+# Run records, notes, and friction notes
 
-Every `qspec lint` and `qspec index` run inside a project writes a record of
-what it saw to `.qspec/runs/`, whether the run passed or failed. Nothing has to
-be remembered for this to happen. A project is a directory `qspec init`
-prepared; outside one, nothing is written.
+Every command that reads a spec inside a project writes a record of what it saw
+to `.qspec/runs/`, whether the run passed or failed: `lint`, `index`, `sign`,
+`transition`, `sheet`, `request`, and `paper`. Nothing has to be remembered for
+this to happen. A project is a directory `qspec init` prepared; outside one,
+nothing is written.
 
 ```bash
 qspec lint specs/Q-014_apical-oxygen.yaml --label "after reviewer round 1"
@@ -31,9 +32,16 @@ looking.
 ```
 .qspec/runs/20260904T192935Z-after-reviewer-round-1/
   record.json      label, timestamp, tool version, command, and per file: id,
-                   instance_version, status, fingerprint, sha256, verdict, findings
-  sources/         the spec, its Decision Record if any, or the Index, as they stood
+                   instance_version, status, fingerprint, sha256, verdict, findings;
+                   plus the notes attached, with actor, role, kind, and hash
+  sources/         the spec, its Decision Record if any, or the Index, as they stood;
+                   a document checked from outside the project sits under external/
+  rendered/        the Selection Sheet or request markdown, when the run produced one
+  notes/           what a role said about this run, copied whole
 ```
+
+A `sign --show` run keeps the seven judged rules as they were printed; a
+`transition` run keeps the record after the act.
 
 The files are kept, not only their hashes. What is wanted afterwards is the
 lost draft, and a fingerprint would not return it. A spec is one small YAML, so
@@ -62,6 +70,42 @@ were written, not the order their names sort in.
 `reworded` against `rewritten` is the distinction a changelog line cannot make.
 It is the same one `lint` reports as `stale-signature`, read across two runs
 instead of against one signature.
+
+## Notes: what a role concluded, beside what it saw
+
+A run answers "what changed". Only a handoff answers "why". On the first
+project to use runs, seven runs sat in the project while the reviewer's findings
+and the approver's conditions sat in a loop's handoff files outside it, keyed by
+a loop id nobody would search for in a month.
+
+```bash
+qspec attach <run> handoff.md --by "D. Reviewer" --role reviewer --kind review
+qspec runs show <run>                       # the run, its findings, and every note as written
+```
+
+The note is copied into `notes/` under the run and listed in `record.json`
+with actor, role, kind, and hash. The tool never summarises or edits it. Facts
+stay in `files`; judgments live in `notes`, beside them, with the name of
+whoever made them. Kinds are `handoff`, `review`, `decision`, and `note`.
+
+**A note is not an act.** The Decision Record stays the only home for
+signing, offering, freezing, killing, and dissent. While notes are attached to
+a spec's runs and nobody has acted since, `lint` reports `notes-without-act` as
+a warning naming the notes and the act that would settle it. A stack of notes
+and no act is the shape of a review that happened only in prose.
+
+## An act cites the run it read
+
+```bash
+qspec sign specs/Q-014.yaml --by "G. Reviewer" --run after-reviewer-round-3
+qspec transition specs/Q-014.yaml --to frozen --by "Group lead" --role decision_maker --index round.yaml --run after-reviewer-round-3
+```
+
+`--run` writes the run's name into the Decision Record entry. The tool refuses
+when the run's recorded fingerprint for the spec is not the spec's fingerprint
+now: the actor read one text and would be acting on another. Lint again, cite
+the new run. With the name on the act, what the signer read and the notes
+beside it are one `runs show` away.
 
 ## What it cannot tell you
 

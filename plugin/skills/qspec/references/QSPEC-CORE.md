@@ -1,8 +1,8 @@
-# QSPEC-CORE 1.5.0
+# QSPEC-CORE 1.6.0
 # Question Spec: shared core for all research domains
 
 **Spec-ID:** QSPEC-CORE
-**Schema-Version:** 1.5.0
+**Schema-Version:** 1.6.0
 **Date:** 2026-09-04
 **Status:** released
 **Instance format:** `spec_schema: QSPEC/1.0` plus a `domain` key
@@ -360,6 +360,7 @@ entries:
       - reviewer: ""
         point: ""
         unresolved: true
+    run: null                                          # the recorded run the actor read, when they named one
 ```
 
 ### 9.2 The fingerprint
@@ -381,6 +382,7 @@ Rewrapping lines or fixing spacing does not move the fingerprint. Changing a wor
 - `judged_rules` records the overlay's J7 rule as it read when the reviewer signed. It is evidence of what was signed, not a second fingerprint: a reworded rule is a `warn`, not a stale signature.
 - A demotion to `draft` must cite the failing invariant by number.
 - Unresolved dissent is carried onto the Selection Sheet verbatim.
+- `run` names the recorded run the actor read, given with `--run`. The tool refuses the act when that run's recorded fingerprint for the spec is not the spec's fingerprint now: the actor read one text and would be acting on another. A run is the audit trail for looking, and a note attached to it is a judgment nobody has acted on; neither is an act, and `lint` reports `notes-without-act` until someone takes one.
 
 ---
 
@@ -470,6 +472,7 @@ Question development is finished when:
 - Overlays version with the core and declare the core version they target.
 - A change that removes a field, renames a field, or tightens an M invariant on the instance fields is a major release and a new `spec_schema` string.
 - 1.1.0 added M16, which tightens what leaving `draft` requires. That was taken as a minor release because no 1.0.0 instance existed outside this repository. It is the last time that exception applies.
+- 1.6.0 adds `run` as an optional field on Decision Record entries, notes attached to runs, and run records for every checking command. No instance field or M invariant changed; `notes-without-act` is a `warn`. Every 1.5.0 project, spec, record, and Index is a valid 1.6.0 one.
 - 1.5.0 adds run records: inside a project, `lint` and `index` write what they saw and the files as they stood under `.qspec/runs/`, `runs --diff` reads two of them, and `report` writes a friction note. No instance field, M invariant, record, or Index changed. Every 1.4.0 project, spec, record, and Index is a valid 1.5.0 one.
 - 1.4.0 adds `init`, `new`, and `doctor`. They write project files and empty templates: a directory layout, an empty Index, agent guidance, a stamp of what wrote them, and a spec with only its `id` and `date` set. No instance field, M invariant, record, or Index changed. Every 1.3.0 instance, record, and Index is a valid 1.4.0 one.
 - 1.3.0 adds findings on records and renderings and requires a `decision_maker` act to declare `--index` or `--unbound`. No instance field changed and no M invariant was added or tightened: `gist-unrepresentable` is a `warn`, not an M number, for exactly that reason. Every 1.2.0 instance and record is a valid 1.3.0 instance and record. What changed is a command line, not a file: a script that froze without naming a round now has to say `--unbound`.
@@ -481,20 +484,25 @@ Question development is finished when:
 
 `qspec` ships in this repository as a Node package with one dependency. Every command is a resolution procedure over files, an act recorded to a file, a file laid down for a person to fill, or a record of what a check saw. None writes a field of a spec other than `status`, and that only as the consequence of a recorded act; `new` sets `id` and `date`, which are the spec's name and its birthday, not its content.
 
-Inside a project, `lint` and `index` record every run under `.qspec/runs/` with the files as they stood, passing or failing. The Decision Record is the audit trail for acts; a run is the audit trail for looking. Neither is an act of discipline: the record is written because the check ran.
+Inside a project, every command that reads a spec records a run under `.qspec/runs/` with the files as they stood, passing or failing: `lint`, `index`, `sign`, `transition`, `sheet`, `request`, and `paper`. A rendering keeps the markdown it produced; a document checked from outside the project is kept under `external/`. The Decision Record is the audit trail for acts; a run is the audit trail for looking; a note attached to a run with `attach` is what a role concluded about it, copied whole and never summarised. None of the three is an act of discipline on the tool's side: the run is written because the check ran, and the note is written because somebody handed off.
 
 ```text
 qspec init --into <dir>               a project: specs/ with the round's Index, AGENTS.md, a stamp
 qspec new <Q-id> --domain <d>         an empty spec from the domain template, id and date set
 qspec doctor                          is the project's guidance what init would write now; runs since the last act
 qspec runs [--diff <a>,<b>]           what each recorded run saw; what changed between two of them
+qspec runs show <run>                 one run, its findings, and every note as written
+qspec attach <run> <file> --by <actor> --role <role> [--kind handoff|review|decision|note]
+                                      keep a handoff, review, or decision beside the run it is about
 qspec report "<what happened>"        a friction note carrying version, scaffold state, and last run
 qspec lint <spec>...                  M1 to M16, record checks, signature staleness
 qspec fingerprint <spec>              what a signature is taken over
 qspec sign <spec> --by <reviewer>     draft -> specified, with J1 to J7 and the fingerprint
-                                      prints the seven rules; --show prints without signing
+                                      prints the seven rules; --show prints without signing;
+                                      --run <name> cites the run whose text is signed
 qspec transition <spec> --to <state> --by <actor> --role <role>
-                                      a decision_maker act takes --index <round> or --unbound
+                                      a decision_maker act takes --index <round> or --unbound;
+                                      --run <name> cites the run whose text is acted on
 qspec sheet <spec> [--index <index>]  the Selection Sheet
 qspec index <index> --specs <dir>     the Portfolio Index and its checks
 qspec request <spec>                  the frozen request for a downstream project

@@ -29,8 +29,14 @@ const HELP = `usage: qspec <command> [args]
                                  what init would write now, and what the runs have seen
   runs [--project dir] [--only text]
        [--diff <a>,<b> [--sources]]
-                                 every lint and index run recorded in this project; --diff says
-                                 what changed between two, --sources shows the text
+                                 every recorded run in this project: lint, index, sign, transition,
+                                 sheet, request, paper; --diff says what changed between two,
+                                 --sources shows the text
+  runs show <run> [--project dir]
+                                 one run: its files, findings, and every note as written
+  attach <run> <file> --by <actor> --role <role> [--kind handoff|review|decision|note]
+                                 keep a handoff, review, or decision beside the run it is about;
+                                 copied whole, never summarised
   report "<what happened>" [--issue] [--project dir]
                                  a friction note carrying version, scaffold state, and last run;
                                  --issue prints the latest note for a tracker and files nothing
@@ -39,12 +45,14 @@ const HELP = `usage: qspec <command> [args]
                                  inside a project, records a run under .qspec/runs/
   fingerprint <spec.yaml>        print the fingerprint a signature is taken over
   sign <spec.yaml> --by <reviewer> [--date YYYY-MM-DD] [--reason text] [--show]
-       [--dissent "<reviewer>: <point>"]
+       [--dissent "<reviewer>: <point>"] [--run <name>]
                                  print J1 to J7 with this profile's J7 rule, then
-                                 record draft -> specified; --show prints without signing
+                                 record draft -> specified; --show prints without signing;
+                                 --run names the run whose text is being signed
   transition <spec.yaml> --to <state> --by <actor> --role <owner|reviewer|decision_maker>
        [--index round.yaml | --unbound] [--specs dir] [--reason text] [--cite Jn|Mn]
        [--revisit-by date] [--successor id@ver] [--date date] [--dissent "<who>: <point>"]
+       [--run <name>]
                                  a decision_maker act needs --index, which binds the actor
                                  to the round's committee and holds the one-freeze-per-round
                                  cap, or --unbound to record that nothing checked it
@@ -155,7 +163,7 @@ function dissentFrom(flag) {
 function recordRuns(command, items, label) {
   const byRoot = new Map();
   for (const it of items) {
-    const root = findRoot(dirname(resolve(it.file)));
+    const root = it.root ?? findRoot(dirname(resolve(it.file)));
     if (!root) continue;
     if (!byRoot.has(root)) byRoot.set(root, []);
     byRoot.get(root).push(runs.entry(root, it.file, it));
@@ -164,6 +172,37 @@ function recordRuns(command, items, label) {
     const { name } = runs.write(root, command, entries, label);
     if (!flags.json) console.log(`  recorded ${relative(process.cwd(), join(root, runs.RUNS, name)) || name}`);
   }
+}
+
+// An act that names a run is saying "this is the text I read". The run's
+// recorded fingerprint for this spec must therefore be the spec's fingerprint
+// now; otherwise the actor read one text and is acting on another.
+function citedRun(file, spec) {
+  if (!flags.run || flags.run === true) return null;
+  const root = findRoot(dirname(resolve(file)));
+  if (!root) die("--run needs a QSPEC project around the spec; none found");
+  let run;
+  try { run = runs.load(root, String(flags.run)); } catch (e) { die(e.message); }
+  const rel = relative(root, resolve(file));
+  const seen = run.record.files.find((f) => f.path === rel);
+  if (!seen) die(`run ${run.name} did not include ${rel}`);
+  const now = fingerprint(spec);
+  if (seen.fingerprint !== now) die(`run ${run.name} saw ${rel} at ${seen.fingerprint}; it is now ${now}. The text moved since that run: lint again and cite the new run`);
+  return run.name;
+}
+
+// A note beside a run is a judgment nobody has acted on yet. Say so while it
+// is true; a stack of notes and no act is the shape of a review that happened
+// only in prose.
+function notesWithoutAct(result) {
+  const root = findRoot(dirname(resolve(result.file)));
+  if (!root || !result.spec?.id) return [];
+  const entries = result.record?.entries ?? [];
+  const lastAct = entries.length ? String(entries[entries.length - 1].date ?? "") : null;
+  const notes = runs.notesSince(root, relative(root, resolve(result.file)), lastAct || null);
+  if (!notes.length) return [];
+  const who = [...new Set(notes.map((n) => `${n.kind} by ${n.actor}`))].join(", ");
+  return [{ severity: "warn", rule: "notes-without-act", message: `${notes.length} note(s) attached ${lastAct ? `since the last act on ${lastAct}` : "and no act recorded"}: ${who}. A note is not an act`, act: "a named reviewer signs, or the owner or decision-maker records a transition, citing the run with --run", file: result.file }];
 }
 
 function emit(md, out) {
@@ -214,6 +253,11 @@ switch (cmd) {
   case "runs": {
     const root = flags.project && flags.project !== true ? resolve(String(flags.project)) : findRoot(process.cwd());
     if (!root || !existsSync(join(root, STAMP))) die(`no QSPEC project here or above (no ${STAMP}); pass --project <dir>`);
+    if (positional[0] === "show") {
+      if (!positional[1]) die("runs show needs a run name; `qspec runs` lists them");
+      try { console.log(runs.show(root, positional[1]).join("\n")); } catch (e) { die(e.message); }
+      break;
+    }
     if (flags.diff && flags.diff !== true) {
       const names = String(flags.diff).split(",").map((x) => x.trim()).filter(Boolean);
       if (names.length !== 2) die("--diff takes two run names, comma separated");
@@ -245,6 +289,16 @@ switch (cmd) {
     for (const r of all) console.log(`  ${r.name.padEnd(34)} ${(r.record.label ?? "-").slice(0, 28).padEnd(28)} ${r.record.command.padEnd(6)} ${runs.summary(r.record)}`);
     break;
   }
+  case "attach": {
+    const [runName, file] = positional;
+    if (!runName || !file) die("attach needs <run> <file> --by <actor> --role <role>");
+    const root = flags.project && flags.project !== true ? resolve(String(flags.project)) : findRoot(process.cwd());
+    if (!root || !existsSync(join(root, STAMP))) die(`no QSPEC project here or above (no ${STAMP}); pass --project <dir>`);
+    let done;
+    try { done = runs.attach(root, runName, file, { actor: flags.by, role: flags.role, kind: flags.kind && flags.kind !== true ? String(flags.kind) : "note" }); } catch (e) { die(e.message); }
+    console.log(`attached ${done.note.kind} by ${done.note.actor} (${done.note.role}) to ${done.run} as ${done.note.path}`);
+    break;
+  }
   case "report": {
     const root = flags.project && flags.project !== true ? resolve(String(flags.project)) : findRoot(process.cwd());
     if (!root || !existsSync(join(root, STAMP))) die(`no QSPEC project here or above (no ${STAMP}); pass --project <dir>`);
@@ -264,6 +318,7 @@ switch (cmd) {
     if (!positional.length) die("lint needs at least one spec file");
     let exit = 0;
     const results = positional.map((f) => lintFile(f, { record: flags.record }));
+    for (const r of results) r.findings.push(...notesWithoutAct(r));
     for (const r of results) {
       const blocked = hasBlock(r.findings);
       if (flags["expect-fail"] && r.kind && r.kind !== "spec") { if (!flags.json) console.log(`skip  ${r.file}  (${r.kind})`); continue; }
@@ -289,7 +344,13 @@ switch (cmd) {
     const spec = loadSpec(file);
     const { rule, text } = judgedRules(spec);
     console.log(text);
-    if (flags.show) { console.log("\nnothing signed; re-run without --show to sign these seven."); break; }
+    const judged = text.split("\n").slice(1).map((l) => l.trim());
+    if (flags.show) {
+      console.log("\nnothing signed; re-run without --show to sign these seven.");
+      recordRuns("sign --show", [{ file, kind: "spec", id: spec.id, instance_version: spec.instance_version, status: spec.status, fingerprint: fingerprint(spec), findings: [], recordFile: recordPath(file, spec, flags.record), detail: { judged_rules: judged } }], flags.label && flags.label !== true ? String(flags.label) : null);
+      break;
+    }
+    const cited = citedRun(file, spec);
     const rp = recordPath(file, spec, flags.record);
     const record = loadRecord(rp) ?? newRecord(spec);
     const pre = lintFile(file, { record: flags.record }).findings.filter((x) => x.severity === "block" && /^M\d+$/.test(x.rule));
@@ -301,11 +362,12 @@ switch (cmd) {
         if (prior && prior.spec_fingerprint === fingerprint(spec)) die(`${spec.id} already carries a current signature by ${prior.actor} on ${prior.date}`);
         appendEntry(record, spec, { date: flags.date ?? today(), actor: flags.by, role: "reviewer", to: "draft", reason: "the text changed after signing; demoted to re-sign", cited_invariant: "M16" });
       } else if (state !== "draft") die(`${spec.id} is ${state}; a changed ${state} spec needs a new instance_version or a successor (QSPEC-CORE section 6.3), not a re-signature`);
-      appendEntry(record, spec, { date: flags.date ?? today(), actor: flags.by, role: "reviewer", from: "draft", to: "specified", reason: flags.reason ?? "judged invariants reread and signed", signed_invariants: [...J_INVARIANTS], spec_fingerprint: fingerprint(spec), judged_rules: rule ? { J7: rule } : null, dissent: dissentFrom(flags.dissent) });
+      appendEntry(record, spec, { date: flags.date ?? today(), actor: flags.by, role: "reviewer", from: "draft", to: "specified", reason: flags.reason ?? "judged invariants reread and signed", signed_invariants: [...J_INVARIANTS], spec_fingerprint: fingerprint(spec), judged_rules: rule ? { J7: rule } : null, dissent: dissentFrom(flags.dissent), run: cited });
     } catch (e) { die(e.message); }
     saveRecord(rp, record);
     setStatus(file, "specified");
-    console.log(`\nsigned ${J_INVARIANTS.join(" ")} for ${spec.id}@${spec.instance_version} by ${flags.by}\nrecord: ${rp}\nstatus: specified`);
+    console.log(`\nsigned ${J_INVARIANTS.join(" ")} for ${spec.id}@${spec.instance_version} by ${flags.by}\nrecord: ${rp}\nstatus: specified${cited ? `\nrun: ${cited}` : ""}`);
+    recordRuns("sign", [{ file, kind: "spec", id: spec.id, instance_version: spec.instance_version, status: "specified", fingerprint: fingerprint(spec), findings: [], recordFile: rp, detail: { judged_rules: judged, act: `draft -> specified by ${flags.by}` } }], flags.label && flags.label !== true ? String(flags.label) : null);
     break;
   }
   case "transition": {
@@ -342,13 +404,15 @@ switch (cmd) {
       const already = (frozenInRound(idx, specsIn(flags.specs ?? dirname(file))) ?? []).filter((id) => id !== spec.id);
       if (already.length && !String(idx.exception ?? "").trim()) die(`round ${idx.round} has already frozen ${already.join(", ")}; at most one freeze per round unless the index carries a written exception`);
     }
+    const cited = citedRun(file, spec);
     let entry;
     try {
-      entry = appendEntry(record, spec, { date: flags.date ?? today(), actor: flags.by, role: flags.role, to: flags.to, reason: flags.reason ?? "", cited_invariant: flags.cite ?? null, revisit_by: flags["revisit-by"] ?? null, successor: flags.successor ?? null, dissent: dissentFrom(flags.dissent) }, { index: idx });
+      entry = appendEntry(record, spec, { date: flags.date ?? today(), actor: flags.by, role: flags.role, to: flags.to, reason: flags.reason ?? "", cited_invariant: flags.cite ?? null, revisit_by: flags["revisit-by"] ?? null, successor: flags.successor ?? null, dissent: dissentFrom(flags.dissent), run: cited }, { index: idx });
     } catch (e) { die(e.message); }
     saveRecord(rp, record);
     setStatus(file, flags.to);
-    console.log(`${entry.from} -> ${entry.to} by ${entry.actor} (${entry.role}) for ${spec.id}@${spec.instance_version}\nrecord: ${rp}\nstatus: ${entry.to}`);
+    console.log(`${entry.from} -> ${entry.to} by ${entry.actor} (${entry.role}) for ${spec.id}@${spec.instance_version}\nrecord: ${rp}\nstatus: ${entry.to}${cited ? `\nrun: ${cited}` : ""}`);
+    recordRuns("transition", [{ file, kind: "spec", id: spec.id, instance_version: spec.instance_version, status: entry.to, fingerprint: fingerprint(spec), findings: [], recordFile: rp, detail: { act: `${entry.from} -> ${entry.to} by ${entry.actor} (${entry.role})` } }], flags.label && flags.label !== true ? String(flags.label) : null);
     break;
   }
   case "sheet": {
@@ -359,6 +423,7 @@ switch (cmd) {
     const idx = flags.index ? loadIndex(flags.index) : null;
     const { md, findings } = renderSheet(spec, { record, index: idx });
     const blocked = printFindings(file, findings);
+    recordRuns("sheet", [{ file, kind: "spec", id: spec.id, instance_version: spec.instance_version, status: spec.status, fingerprint: fingerprint(spec), findings, recordFile: recordPath(file, spec, flags.record), rendered: blocked ? null : md }], flags.label && flags.label !== true ? String(flags.label) : null);
     if (blocked) process.exit(1);
     emit(md, flags.out);
     break;
@@ -381,7 +446,9 @@ switch (cmd) {
     const record = loadRecord(recordPath(file, spec, flags.record));
     const lint = lintFile(file, { record: flags.record });
     const { md, findings } = renderRequest(spec, { record });
-    const blocked = printFindings(file, [...lint.findings.filter((x) => x.severity === "block"), ...findings]);
+    const all = [...lint.findings.filter((x) => x.severity === "block"), ...findings];
+    const blocked = printFindings(file, all);
+    recordRuns("request", [{ file, kind: "spec", id: spec.id, instance_version: spec.instance_version, status: spec.status, fingerprint: fingerprint(spec), findings: all, recordFile: recordPath(file, spec, flags.record), rendered: blocked ? null : md }], flags.label && flags.label !== true ? String(flags.label) : null);
     if (blocked) process.exit(1);
     emit(md, flags.out);
     break;
@@ -390,7 +457,13 @@ switch (cmd) {
     const [specFile, mdFile] = positional;
     if (!specFile || !mdFile || !existsSync(mdFile)) die("paper needs <spec.yaml> <document.md>");
     const spec = loadSpec(specFile);
-    const blocked = printFindings(mdFile, checkPaper(spec, mdFile));
+    const findings = checkPaper(spec, mdFile);
+    const blocked = printFindings(mdFile, findings);
+    recordRuns("paper", [
+      { file: specFile, kind: "spec", id: spec.id, instance_version: spec.instance_version, status: spec.status, fingerprint: fingerprint(spec), findings: [], recordFile: recordPath(specFile, spec, flags.record) },
+      // the document belongs to the spec's project for this purpose, wherever it lives
+      { file: mdFile, kind: "document", findings, root: findRoot(dirname(resolve(specFile))) },
+    ], flags.label && flags.label !== true ? String(flags.label) : null);
     process.exit(blocked ? 1 : 0);
   }
   case "help": case undefined: case "--help": case "-h":

@@ -17,7 +17,7 @@ const MARK_CLOSE = "<!-- /qspec:project-guidance -->";
 // Named once, in the order `help` lists them. The guidance names commands, so a
 // command added or removed changes what `init` writes without touching the
 // template, and the fingerprint has to notice that.
-const COMMANDS = ["init", "new", "doctor", "runs", "report", "lint", "fingerprint", "sign", "transition", "sheet", "index", "request", "paper"];
+const COMMANDS = ["init", "new", "doctor", "runs", "attach", "report", "lint", "fingerprint", "sign", "transition", "sheet", "index", "request", "paper"];
 const TEMPLATES = join(__dirname, "..", "templates");
 const VERSION = catalogs.version;
 
@@ -48,6 +48,8 @@ The tool lives outside this project and is not on PATH. Invoke it by path:
 {invocation} request specs/<Q-id>_<slug>.yaml --out requests/<Q-id>.md   # frozen only; the Paperforge handoff
 {invocation} runs                                     # every lint and index run recorded here, with the files as they stood
 {invocation} runs --diff <a>,<b> --sources            # what changed between two of them, and which findings moved
+{invocation} attach <run> <handoff.md> --by <you> --role <role> --kind handoff   # keep what you concluded beside the run
+{invocation} runs show <run>                          # a run, its findings, and every note as written
 {invocation} report "what happened"                   # a note on what you had to work around; solve it and report it
 \`\`\`
 
@@ -65,10 +67,13 @@ The tool lives outside this project and is not on PATH. Invoke it by path:
 - Signing is a reviewer's act and freezing is a decision-maker's. Do not sign or
   freeze as a person you are not; say which person must run the act.
 - \`sheets/\` and \`requests/\` are renderings. Regenerate them; do not edit them.
-- Every \`lint\` and \`index\` run is recorded under \`.qspec/runs/\` with the files it
-  checked, passing or failing. Do not delete or gitignore it: it is how a draft
-  that was overwritten can be put beside the one that replaced it. When you work
-  around the tool, \`report\` it in a sentence; the note carries the facts.
+- Every check is recorded under \`.qspec/runs/\` with the files it saw, passing or
+  failing. Do not delete or gitignore it: it is how a draft that was overwritten
+  can be put beside the one that replaced it. When you hand off, \`attach\` the
+  handoff to the run you cite, so the reasoning stays beside the text it was
+  about; when a person signs or freezes, they cite that run with \`--run\`. A
+  note is not an act: \`lint\` says so until someone acts. When you work around
+  the tool, \`report\` it in a sentence; the note carries the facts.
 ${MARK_CLOSE}
 `;
 
@@ -342,6 +347,8 @@ function doctor({ project, invocation = "qspec", cwd = process.cwd() } = {}) {
   const lastAct = lastActDate(join(root, "specs"));
   const since = lastAct ? all.filter((r) => r.record.recorded.slice(0, 10) > lastAct).length : all.length;
   lines.push(`  ${"runs".padEnd(10)} ${String(all.length).padEnd(8)} ${last ? `last ${last.name}: ${runs.summary(last.record)}` : "none; lint and index record one each time they run here"}${all.length ? `; ${since} since the last recorded act${lastAct ? ` (${lastAct})` : " (none yet)"}` : ""}`);
+  const attached = all.reduce((n, r) => n + (r.record.notes ?? []).length, 0);
+  if (attached) lines.push(`  ${"notes".padEnd(10)} ${String(attached).padEnd(8)} attached to runs; \`qspec runs show <run>\` prints them${lastAct ? "" : "; none acted on yet"}`);
   const notes = friction.listing(root);
   if (notes.length) lines.push(`  ${"friction".padEnd(10)} ${String(notes.length).padEnd(8)} latest ${basename(notes[notes.length - 1])}; \`qspec report --issue\` prints it`);
   return { lines, problems };

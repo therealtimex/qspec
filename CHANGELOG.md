@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.6.0 (2026-09-04)
+
+1.5 gave a project a memory of what the checks saw. On the second loop to use it, seven runs sat in the project, every handoff cited them, and the reviewer's findings and the approver's conditions still sat outside the project in a loop's handoff files, keyed by a loop id. A run answers what changed; only the handoff answers why. 1.6 keeps the two beside each other and lets an act name the run it read. Files, never fields: no instance field or M invariant changed, one optional field joins the Decision Record entry, and `notes-without-act` is a `warn`. Every 1.5.0 project, spec, record, and Index is a valid 1.6.0 one.
+
+### `attach` keeps what a role concluded beside what it saw
+
+- `qspec attach <run> <file> --by <actor> --role <role> [--kind handoff|review|decision|note]` copies the file whole into the run's `notes/` and lists it in `record.json` with actor, role, kind, hash, and time. The tool never summarises or edits a note. Facts stay in `files`; judgments live in `notes`, beside them, with the name of whoever made them.
+- `qspec runs show <run>` prints the run, its findings, and every note as written. `runs` counts notes per run; `doctor` counts them per project.
+- **A note is not an act.** While notes are attached to a spec's runs and no act has been recorded since, `lint` reports `notes-without-act`, naming the notes and the act that would settle it. The Decision Record stays the only home for acts and dissent.
+
+### An act cites the run it read
+
+- `sign` and `transition` take `--run <name>` and write it to the Decision Record entry as `run`. The tool refuses when the run's recorded fingerprint for the spec is not the spec's fingerprint now: the actor read one text and would be acting on another. With the name on the act, what the signer read and the notes beside it are one `runs show` away. Core section 9.1 gains the field; section 9.3 states the rule.
+
+### Every check records a run
+
+- `sign --show`, `sign`, `transition`, `sheet`, `request`, and `paper` now record runs beside `lint` and `index`. A `sign --show` run keeps the seven judged rules as printed; a `transition` or `sign` run keeps the record after the act; a `sheet` or `request` run keeps the rendered markdown under `rendered/`; a `paper` run keeps the document under `sources/external/` when it lives outside the project, as a Paperforge paper does. Most of what an approver typed under "Evidence" on the last loop is now captured by the tool rather than paraphrased.
+
+### Guidance
+
+- The scaffolded `AGENTS.md` names `attach` and `runs show`, tells a role to attach its handoff to the run it cites, and tells a person to cite that run with `--run`. Its fingerprint changed; `qspec init --refresh` clears the resulting `STALE`.
+
+### Not in this release
+
+The loops-side half: a RealTimeX Loops plugin that deposits each handoff into the project's run automatically when the loop's working directory is a QSPEC project. Roles will not remember to attach for the same reason nobody committed; that belongs to the tool that produces the handoff, and it is a separate change on that side.
+
 ## 1.5.0 (2026-09-04)
 
 1.4 gave a project a directory that says what it is. 1.5 gives it a memory of what the checks saw. On the first real project, a spec went through three versions in twenty minutes of agent review, each overwriting the last in place; the reviewer's findings and the approver's corrections lived in chat handoffs outside the project, and versions 1 and 2 survived only in one agent's transcript. The Decision Record could not help, because nobody took an act: the spec stayed `draft`, unsigned, with no record file, while the loop around it closed as "approved". The pattern that fixes this is Paperforge's run records, and the reason is the same: the record has to be a by-product of checking, not an act of discipline. Files, never fields: no instance field, M invariant, record, or Index changed. Every 1.4.0 project, spec, record, and Index is a valid 1.5.0 one.
