@@ -4,12 +4,12 @@ description: Write, lint, sign, select, freeze, or kill a research question as a
 allowed-tools: Read, Write, Edit, Bash
 license: UNLICENSED
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # QSPEC Question Specs
 
-A Question Spec is a YAML contract for one research question. The tool ships beside this file in `tool/` and needs only Node; the schema documents are in `references/`. A project that uses QSPEC holds its specs, their Decision Records, and an Index; the tool is pointed at them.
+A Question Spec is a YAML contract for one research question. The tool ships beside this file in `tool/` and needs only Node; the schema documents are in `references/`. A project that uses QSPEC is a directory `qspec init` prepared: it holds the specs, their Decision Records, the round's Index, and an `AGENTS.md` that says so; the tool is pointed at them.
 
 ## The rule
 
@@ -24,7 +24,8 @@ A Question Spec is a YAML contract for one research question. The tool ships bes
 | Write a natural-science spec | [references/QSPEC-NS.md](references/QSPEC-NS.md) |
 | Write an engineering or software-systems spec | [references/QSPEC-ENG.md](references/QSPEC-ENG.md) |
 | Hand a frozen question to a Paperforge project | [references/paperforge-integration.md](references/paperforge-integration.md) |
-| Start from an empty instance | `tool/templates/qspec-social.yaml`, `qspec-natural.yaml`, `qspec-engineering.yaml` |
+| Start a project directory, or check one | `qspec init`, then `qspec doctor` (below) |
+| Start from an empty instance | `qspec new <Q-id> --domain <d>`, which copies `tool/templates/qspec-social.yaml`, `qspec-natural.yaml`, or `qspec-engineering.yaml` with the id set |
 
 ## Running it
 
@@ -36,6 +37,11 @@ node <skill-dir>/tool/bin/qspec.js lint specs/Q-014_apical-oxygen.yaml
 ```
 
 ```text
+qspec init --into <dir>               prepare a directory: specs/ with the round's Index, AGENTS.md
+     [--title] [--round] [--decision-maker] [--brief path] [--domain] [--append] [--no-git]
+qspec new <Q-id> --domain <d>         an empty spec from the domain template, id and date set
+     [--slug] [--title] [--owner] [--specs dir]
+qspec doctor [--project dir]          is this project's guidance what init would write now
 qspec lint <spec>...                  M1 to M16, record checks, signature staleness; exit 1 on block
 qspec fingerprint <spec>              what a signature is taken over
 qspec sign <spec> --by <reviewer>     draft -> specified; refuses while any M invariant fails
@@ -54,8 +60,9 @@ Findings are `block`, `manual` (with the act that settles it), `warn`, or `skip`
 
 ## Workflow
 
+0. **Prepare the directory once.** If there is no `.qspec/scaffold.json` here or above, ask for the title, the round, the decision-maker, and where the research request is, then run `init`. It writes `AGENTS.md` for every agent that works here and refuses to overwrite one it did not write; in a RealTimeX loops workspace pass `--append` so the loops shim stays. When a project misbehaves, run `doctor` before anything else: it says whether the guidance is stale and what is in `specs/`.
 1. **Interview before writing.** Get the claim sentence, the domain, the primary method family, at least two named closest works, the blocking materials, and the kill condition from the user. If any is missing, leave the field empty and say so; an empty field is a `block` the author can see, a plausible invention is not.
-2. **Copy the template** for the domain, fill it, and run `lint` until nothing blocks. Profile field lists are in the overlay's section 4.
+2. **`qspec new <Q-id> --domain <d> --slug <short-name>`** copies the template with the id and date set; fill it and run `lint` until nothing blocks. Profile field lists are in the overlay's section 4.
 3. **Signing is a person's act.** When lint is clean, run `qspec sign --show` and put the seven rules in front of the reviewer: J7 is the overlay's rule for this profile, and it is the one nobody remembers. Then tell the user which reviewer must reread the spec and run `qspec sign --by <reviewer>`. Do not sign as the reviewer yourself unless the user, acting as that reviewer, says the invariants hold.
 4. **Offer, choose, freeze** with `transition`, and render the Selection Sheet for the decision-maker. A decision-maker act must declare `--index <round>`, which checks the actor against the committee that round names and holds the one-freeze-per-round cap, or `--unbound`, which records that nothing checked it and leaves `unbound-decision` on the record for good. Reach for `--index`; offer `--unbound` only when the user says there is no round, which for a single candidate is normal.
 5. **Withdraw, do not kill, to pull a spec out of a round.** `--to specified --role owner --reason "..."` keeps the signature and allows a later re-offer. Killing is terminal and, when the round listed the spec, the Index reports it.

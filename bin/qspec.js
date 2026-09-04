@@ -9,9 +9,20 @@ const { format, hasBlock, lintFile, loadSpec } = require("../lib/lint.js");
 const { checkPaper } = require("../lib/paper.js");
 const { appendEntry, bindDecisionMaker, fingerprint, frozenInRound, loadRecord, newRecord, recordPath, saveRecord, setStatus, signingEntry } = require("../lib/record.js");
 const { index: renderIndex, request: renderRequest, sheet: renderSheet } = require("../lib/render.js");
+const { STAMP, create, doctor, findRoot, newSpec, titleFrom } = require("../lib/scaffold.js");
+const { resolve } = require("node:path");
 
 const HELP = `usage: qspec <command> [args]
 
+  init --into <dir> [--title text] [--round YYYY-MM] [--decision-maker name]
+       [--brief path] [--domain d] [--append] [--no-git]
+                                 prepare a directory: specs/ with the round's Index, AGENTS.md
+                                 and CLAUDE.md, sheets/, requests/, and a stamp of what wrote them
+  new <Q-id> --domain <social|natural|engineering> [--slug name] [--title text]
+       [--owner name] [--specs dir]
+                                 an empty spec from the domain template with id and date set
+  doctor [--project dir]         tool and node versions, and whether this project's guidance
+                                 is what init would write now
   lint <spec.yaml>...            M invariants, Decision Record, and signature (M16)
        [--record path] [--json] [--expect-fail]
   fingerprint <spec.yaml>        print the fingerprint a signature is taken over
@@ -37,7 +48,7 @@ const HELP = `usage: qspec <command> [args]
 
 const argv = process.argv.slice(2);
 const cmd = argv.shift();
-const BOOLEAN = new Set(["expect-fail", "json", "show", "unbound"]);
+const BOOLEAN = new Set(["append", "expect-fail", "json", "no-git", "show", "unbound"]);
 const flags = {};
 const positional = [];
 for (let i = 0; i < argv.length; i++) {
@@ -130,6 +141,40 @@ function emit(md, out) {
 }
 
 switch (cmd) {
+  case "init": {
+    if (!flags.into || flags.into === true) die("init needs --into <directory>");
+    const round = flags.round && flags.round !== true ? String(flags.round) : today().slice(0, 7);
+    if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(round)) die("--round: letters, digits, '-', '_' and '.' only; it names specs/index-<round>.yaml");
+    const invocation = resolve(process.argv[1]);
+    let made;
+    try {
+      made = create(flags.into, { title: flags.title && flags.title !== true ? String(flags.title) : titleFrom(flags.into), round, decisionMaker: flags["decision-maker"] && flags["decision-maker"] !== true ? String(flags["decision-maker"]) : null, brief: flags.brief && flags.brief !== true ? String(flags.brief) : null, domain: flags.domain && flags.domain !== true ? String(flags.domain) : null, append: Boolean(flags.append), git: !flags["no-git"], invocation });
+    } catch (e) { die(e.message); }
+    console.log(`prepared ${made.root}`);
+    for (const w of made.written) console.log(`  ${w}`);
+    console.log(`\nnext: ${invocation} new Q-001 --domain ${flags.domain && flags.domain !== true ? flags.domain : "<social|natural|engineering>"} --slug <short-name> --specs ${made.root}/specs`);
+    break;
+  }
+  case "new": {
+    const [id] = positional;
+    if (!id) die("new needs <Q-id> --domain <social|natural|engineering>");
+    const root = findRoot(process.cwd());
+    let facts = {};
+    if (root) { try { facts = JSON.parse(readFileSync(join(root, STAMP), "utf8")); } catch {} }
+    const domain = flags.domain && flags.domain !== true ? String(flags.domain) : facts.domain;
+    if (!domain) die(`new needs --domain <social|natural|engineering>${root ? "" : "; no QSPEC project here or above to take a default from"}`);
+    const specsDir = flags.specs && flags.specs !== true ? String(flags.specs) : (root ? join(root, "specs") : process.cwd());
+    let out;
+    try { out = newSpec({ id, domain, slug: flags.slug && flags.slug !== true ? String(flags.slug) : null, title: flags.title && flags.title !== true ? String(flags.title) : null, owner: flags.owner && flags.owner !== true ? String(flags.owner) : null, specsDir }); }
+    catch (e) { die(e.message); }
+    console.log(`wrote ${out}\nfill it in; profile field lists are in the ${domain} overlay's section 4\nnext: ${resolve(process.argv[1])} lint ${out}`);
+    break;
+  }
+  case "doctor": {
+    const { lines, problems } = doctor({ project: flags.project && flags.project !== true ? String(flags.project) : null, invocation: resolve(process.argv[1]) });
+    console.log(lines.join("\n"));
+    process.exit(problems ? 1 : 0);
+  }
   case "lint": {
     if (!positional.length) die("lint needs at least one spec file");
     let exit = 0;

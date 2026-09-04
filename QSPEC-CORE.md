@@ -1,8 +1,8 @@
-# QSPEC-CORE 1.3.0
+# QSPEC-CORE 1.4.0
 # Question Spec: shared core for all research domains
 
 **Spec-ID:** QSPEC-CORE
-**Schema-Version:** 1.3.0
+**Schema-Version:** 1.4.0
 **Date:** 2026-09-04
 **Status:** released
 **Instance format:** `spec_schema: QSPEC/1.0` plus a `domain` key
@@ -470,6 +470,7 @@ Question development is finished when:
 - Overlays version with the core and declare the core version they target.
 - A change that removes a field, renames a field, or tightens an M invariant on the instance fields is a major release and a new `spec_schema` string.
 - 1.1.0 added M16, which tightens what leaving `draft` requires. That was taken as a minor release because no 1.0.0 instance existed outside this repository. It is the last time that exception applies.
+- 1.4.0 adds `init`, `new`, and `doctor`. They write project files and empty templates: a directory layout, an empty Index, agent guidance, a stamp of what wrote them, and a spec with only its `id` and `date` set. No instance field, M invariant, record, or Index changed. Every 1.3.0 instance, record, and Index is a valid 1.4.0 one.
 - 1.3.0 adds findings on records and renderings and requires a `decision_maker` act to declare `--index` or `--unbound`. No instance field changed and no M invariant was added or tightened: `gist-unrepresentable` is a `warn`, not an M number, for exactly that reason. Every 1.2.0 instance and record is a valid 1.3.0 instance and record. What changed is a command line, not a file: a script that froze without naming a round now has to say `--unbound`.
 - 1.2.0 adds a transition, two optional Decision Record fields, one catalog key, one catalog value per profile, and findings on records and Indexes. It removes no field, renames none, and tightens no M invariant on the instance fields. Every 1.1.0 instance and record is a valid 1.2.0 instance and record; a record written before 1.2.0 reports `J7-unrecorded` as `skip` and, for a decision-maker act, `unbound-decision` as `warn`, neither of which blocks. Re-signing and re-freezing with `--index` clears both.
 
@@ -477,9 +478,12 @@ Question development is finished when:
 
 ## 15. Tooling
 
-`qspec` ships in this repository as a Node package with one dependency. Every command is a resolution procedure over files or an act recorded to a file. None writes a field of a spec other than `status`, and that only as the consequence of a recorded act.
+`qspec` ships in this repository as a Node package with one dependency. Every command is a resolution procedure over files, an act recorded to a file, or a file laid down for a person to fill. None writes a field of a spec other than `status`, and that only as the consequence of a recorded act; `new` sets `id` and `date`, which are the spec's name and its birthday, not its content.
 
 ```text
+qspec init --into <dir>               a project: specs/ with the round's Index, AGENTS.md, a stamp
+qspec new <Q-id> --domain <d>         an empty spec from the domain template, id and date set
+qspec doctor                          is the project's guidance what init would write now
 qspec lint <spec>...                  M1 to M16, record checks, signature staleness
 qspec fingerprint <spec>              what a signature is taken over
 qspec sign <spec> --by <reviewer>     draft -> specified, with J1 to J7 and the fingerprint

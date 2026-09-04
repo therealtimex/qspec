@@ -48,7 +48,10 @@ function check() {
   const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
   const skill = readFileSync(join(SKILL, "SKILL.md"), "utf8");
   const skillVersion = /^\s*version:\s*"?([\d.]+)"?/m.exec(skill)?.[1];
-  const versions = { "package.json": pkg.version, "realtimex.plugin.json": manifest.version, "SKILL.md": skillVersion };
+  // The tool reads its own version from the catalog because package.json does
+  // not travel in the bundle; `doctor` and the scaffold stamp print it.
+  const catalog = JSON.parse(readFileSync(join(ROOT, "schema", "catalogs.json"), "utf8"));
+  const versions = { "package.json": pkg.version, "realtimex.plugin.json": manifest.version, "SKILL.md": skillVersion, "schema/catalogs.json": catalog.version };
   if (new Set(Object.values(versions)).size !== 1) problems.push(`versions disagree: ${JSON.stringify(versions)}`);
   for (const ref of skill.matchAll(/\]\((references\/[^)]+|tool\/[^)]+)\)/g)) if (!existsSync(join(SKILL, ref[1]))) problems.push(`SKILL.md links to missing ${ref[1]}`);
   if (pkg.dependencies && Object.keys(pkg.dependencies).length) problems.push("package.json declares dependencies; the bundle must run with none");

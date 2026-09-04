@@ -2,7 +2,7 @@
 
 A Question Spec is a short contract that turns a research topic, technique, or platform into a claim that can be wrong, so that questions from different methods and domains can be compared, selected, frozen, or killed on the same terms.
 
-Version 1.3.0, released 2026-09-04. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
+Version 1.4.0, released 2026-09-04. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
 
 The tool renders and checks; it does not author. A field is written by a person, a judgment is signed by a person, and the tool notices when a signature no longer covers the text. It pairs with [Paperforge](docs/paperforge-integration.md) downstream, which applies the same rule to the documents that answer the question.
 
@@ -14,8 +14,9 @@ The tool renders and checks; it does not author. A field is written by a person,
 | `QSPEC-SS.md`, `QSPEC-NS.md`, `QSPEC-ENG.md` | Domain overlays for social sciences, natural sciences, and engineering: claim fields, catalogs, method profiles. Software is in scope for engineering. |
 | `schema/catalogs.json` | Machine-readable catalogs and profile field lists. The single source of truth for the tool. |
 | `bin/qspec.js` | The tool. `qspec help` lists commands. No dependencies; js-yaml is vendored under `lib/vendor/`. |
-| `lib/` | `lint` (M invariants), `record` (fingerprint, transitions, acts), `render` (sheet, index, request), `paper` (gist check). |
+| `lib/` | `lint` (M invariants), `record` (fingerprint, transitions, acts), `render` (sheet, index, request), `paper` (gist check), `scaffold` (init, new, doctor). |
 | `templates/` | Empty instances per domain, plus Decision Record and Index templates. |
+| `.qspec/scaffold.json` | In a project `init` prepared: what wrote it, and a fingerprint of the guidance so `doctor` can say when it has gone stale. |
 | `examples/` | Two complete instances per domain with their Decision Records, one Index, one downstream paper. Citations are illustrative, not real. |
 | `examples/negative/` | Instances that must block, including a stale signature. `round/` holds a freeze taken by someone the round does not name: the spec lints clean, and its round refuses it. |
 | `docs/paperforge-integration.md` | The file contract with Paperforge. |
@@ -28,11 +29,17 @@ The tool renders and checks; it does not author. A field is written by a person,
 
 No install: the tool runs on Node 22 with no dependencies.
 
+Prepare a directory first. `init` writes `specs/` with the round's empty Index, `AGENTS.md` and `CLAUDE.md` telling any agent what the directory is and how to invoke the tool, and a stamp of what wrote them; `doctor` says whether that guidance is still what `init` would write.
+
 ```sh
-cp templates/qspec-natural.yaml specs/Q-014_apical-oxygen.yaml
+node bin/qspec.js init --into ~/research/procurement --title "Procurement questions" \
+    --round 2026-09 --decision-maker "Group lead" --brief ~/research/procurement/brief.pdf
+node bin/qspec.js new Q-014 --domain natural --slug apical-oxygen --specs ~/research/procurement/specs
 # fill it in; profile field lists are in the overlay's section 4
 node bin/qspec.js lint specs/Q-014_apical-oxygen.yaml
 ```
+
+`init` refuses to overwrite an `AGENTS.md` it did not write; `--append` adds the QSPEC block below whatever is there, which is what a RealTimeX loops workspace needs. `new` copies the domain template with the id and date set and nothing else, and never overwrites.
 
 When lint reports no `block`, a reviewer who is not the owner rereads the spec and signs:
 
@@ -61,6 +68,11 @@ node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to specified --by 
 ## Commands
 
 ```text
+qspec init --into <dir>               prepare a directory: specs/ with the round's Index, AGENTS.md,
+     [--title] [--round YYYY-MM] [--decision-maker] [--brief path] [--domain] [--append] [--no-git]
+qspec new <Q-id> --domain <d>         an empty spec from the domain template, id and date set
+     [--slug] [--title] [--owner] [--specs dir]
+qspec doctor [--project dir]          tool and node versions; is this project's guidance current
 qspec lint <spec>...                  M1 to M16, record checks, signature staleness; exit 1 on block
      [--record path] [--json] [--expect-fail]
 qspec fingerprint <spec>              what a signature is taken over
@@ -100,6 +112,7 @@ Tag `vX.Y.Z`. The release workflow refuses the tag unless it matches the version
 - Instances declare `spec_schema: QSPEC/1.0` and a `domain`. All 1.x core releases accept that string.
 - Schema documents carry their version in the header, not the filename.
 - A field removal, rename, or tightened M invariant on instance fields is a major release with a new `spec_schema` string.
+- Every 1.3.0 instance, record, and Index is valid under 1.4.0. 1.4.0 adds `init`, `new`, and `doctor`, which write project files and empty templates; no instance field or M invariant changed.
 - Every 1.2.0 instance and record is valid under 1.3.0. What 1.3.0 changed is a command line, not a file: a `decision_maker` act now has to declare `--index` or `--unbound`.
 - Every 1.1.0 instance and record is valid under 1.2.0. A record written before 1.2.0 reports `J7-unrecorded` as `skip`, and a decision-maker act in one reports `unbound-decision` as `warn`; neither blocks, and re-signing or re-freezing with `--index` clears them.
 

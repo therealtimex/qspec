@@ -1,4 +1,5 @@
 {
+  "version": "1.4.0",
   "schema": "QSPEC/1.0",
   "core": {
     "states": ["draft", "specified", "selectable", "deferred", "frozen", "superseded", "killed"],

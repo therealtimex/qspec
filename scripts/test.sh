@@ -59,6 +59,35 @@ echo "== a round survives its own outcome: a listed spec killed, and a freeze su
 $Q transition /tmp/qspec-acts/eng-experimental-converter-efficiency.yaml --to killed --by "J. Owner" --role owner $IDX --reason "vendor part removed the question" >/dev/null
 $Q transition /tmp/qspec-acts/ns-experimental-apical-oxygen.yaml --to superseded --by "F. Owner" --role owner --successor "Q-202@1" --reason "claim narrowed" >/dev/null
 $Q index /tmp/qspec-acts/index-round-2026-09.yaml --specs /tmp/qspec-acts >/dev/null
+echo "== init prepares a project that passes its own checks"
+ROOT="$PWD"
+rm -rf /tmp/qspec-init
+$Q init --into /tmp/qspec-init --title "Init Probe" --round 2026-09 --decision-maker "Group lead" --domain social --no-git >/dev/null
+test -f /tmp/qspec-init/AGENTS.md && test -L /tmp/qspec-init/CLAUDE.md && test -f /tmp/qspec-init/.qspec/scaffold.json && test -f /tmp/qspec-init/specs/index-2026-09.yaml || { echo "UNEXPECTED: init did not write the project"; exit 1; }
+test ! -e /tmp/qspec-init/.git || { echo "UNEXPECTED: --no-git initialised a repository"; exit 1; }
+$Q doctor --project /tmp/qspec-init >/dev/null
+$Q index /tmp/qspec-init/specs/index-2026-09.yaml --specs /tmp/qspec-init/specs --out /tmp/qspec-init-round.md >/dev/null
+(cd /tmp/qspec-init/specs && node "$ROOT/bin/qspec.js" doctor | grep -q "scaffold   ok") || { echo "UNEXPECTED: doctor did not find the project from inside it"; exit 1; }
+echo "== init refuses to run twice, refuses guidance it did not write, and appends below a shim on --append"
+if $Q init --into /tmp/qspec-init --no-git >/dev/null 2>&1; then echo "UNEXPECTED: init ran twice on one directory"; exit 1; fi
+rm -rf /tmp/qspec-shim && mkdir -p /tmp/qspec-shim && printf '# Workspace Agent Guide\n\nThis workspace delegates to LOOP_ROLE.md.\n' > /tmp/qspec-shim/AGENTS.md
+if $Q init --into /tmp/qspec-shim --no-git >/dev/null 2>&1; then echo "UNEXPECTED: init overwrote an AGENTS.md it did not write"; exit 1; fi
+$Q init --into /tmp/qspec-shim --append --no-git >/dev/null
+head -1 /tmp/qspec-shim/AGENTS.md | grep -q "Workspace Agent Guide" || { echo "UNEXPECTED: --append did not keep the shim above the block"; exit 1; }
+grep -q "qspec:project-guidance" /tmp/qspec-shim/AGENTS.md || { echo "UNEXPECTED: --append did not add the QSPEC block"; exit 1; }
+echo "== new copies the domain template with the id set, takes the project's domain, and never overwrites"
+(cd /tmp/qspec-init && node "$ROOT/bin/qspec.js" new Q-001 --slug probe --title "Probe" --owner "A. Owner" >/dev/null)
+grep -q "^id: Q-001$" /tmp/qspec-init/specs/Q-001_probe.yaml && grep -q "^domain: social$" /tmp/qspec-init/specs/Q-001_probe.yaml && ! grep -q "YYYY-MM-DD" /tmp/qspec-init/specs/Q-001_probe.yaml || { echo "UNEXPECTED: new left a placeholder in the spec"; exit 1; }
+$Q lint --expect-fail /tmp/qspec-init/specs/Q-001_probe.yaml >/dev/null
+if (cd /tmp/qspec-init && node "$ROOT/bin/qspec.js" new Q-001 --slug probe >/dev/null 2>&1); then echo "UNEXPECTED: new overwrote a spec"; exit 1; fi
+if $Q new Q-002 --specs /tmp/qspec-init/specs >/dev/null 2>&1; then echo "UNEXPECTED: new ran with no domain and no project to take one from"; exit 1; fi
+$Q doctor --project /tmp/qspec-init | grep -q "1 draft" || { echo "UNEXPECTED: doctor did not count the new spec"; exit 1; }
+echo "== doctor reports guidance that no longer matches what init writes"
+sed -i.bak 's/"agents": "[0-9a-f]*"/"agents": "0000000000000000"/' /tmp/qspec-init/.qspec/scaffold.json && rm -f /tmp/qspec-init/.qspec/*.bak
+if $Q doctor --project /tmp/qspec-init >/dev/null 2>&1; then echo "UNEXPECTED: doctor passed a stale scaffold"; exit 1; fi
+$Q doctor --project /tmp/qspec-init | grep -q "STALE" || { echo "UNEXPECTED: doctor did not say STALE"; exit 1; }
+echo "== the commands the guidance names are the commands help lists"
+for c in $(node -e 'console.log(require("./lib/scaffold.js").COMMANDS.join(" "))'); do $Q help | grep -q "^  $c " || { echo "UNEXPECTED: guidance names '$c' but help does not list it"; exit 1; }; done
 echo "== renderings carry nothing Paperforge lint would block"
-if grep -qiE '\b(TODO|TBD|FIXME|XXX|PLACEHOLDER)\b' /tmp/qspec-index.md /tmp/qspec-sheet.md /tmp/qspec-request.md; then echo "UNEXPECTED: a blocked marker reached a rendering"; exit 1; fi
+if grep -qiE '\b(TODO|TBD|FIXME|XXX|PLACEHOLDER)\b' /tmp/qspec-index.md /tmp/qspec-sheet.md /tmp/qspec-request.md /tmp/qspec-init-round.md /tmp/qspec-init/AGENTS.md; then echo "UNEXPECTED: a blocked marker reached a rendering"; exit 1; fi
 echo "all checks passed"

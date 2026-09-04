@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.4.0 (2026-09-04)
+
+1.3 made the commands refuse quietly wrong acts. 1.4 adds the thing that was missing before the first command runs: a project. Until now a directory that held specs told nobody what it was, and an agent asked to write a Question Spec in one produced a research memo, because nothing in the directory said otherwise. The pattern is Paperforge's `init`: a scaffolded project carries its own guidance, and a stamp records what wrote it so drift is a visible failure. Files, never fields: nothing here writes a claim, a citation, or an ask, and no instance field or M invariant changed. Every 1.3.0 spec, record, and Index is a valid 1.4.0 one.
+
+### `qspec init` prepares a directory
+
+- `qspec init --into <dir> [--title] [--round YYYY-MM] [--decision-maker] [--brief <path>] [--domain] [--append] [--no-git]` writes `specs/` with the round's empty Index, `sheets/` and `requests/`, `AGENTS.md`, `CLAUDE.md` as a relative symlink to it (an `@AGENTS.md` import where the filesystem refuses a link), `.qspec/scaffold.json`, and a git repository unless one is already above.
+- `AGENTS.md` says only what init knows: the absolute path of the tool it was run from, the layout it just made, the round it named, where the research request is, and the rules the core states: fields are a person's, records are tool-written, lint is not bypassed, signing and freezing are somebody's act. It says in as many words that a memo or a ranked list of topics is material for a spec, not the deliverable.
+- **It refuses to overwrite an `AGENTS.md` it did not write.** In a RealTimeX loops workspace that file is the shim the loops doctor requires. `--append` keeps whatever is there and adds the QSPEC block below it. It also refuses to run twice on one directory.
+- A fresh project passes its own checks: `qspec doctor` reports `ok` and `qspec index` on the new round renders clean. A team whose first encounter with the gates is a wall of red learns to ignore them.
+
+### `qspec new` copies a template with the id set
+
+- `qspec new <Q-id> --domain <d> [--slug] [--title] [--owner] [--specs <dir>]` copies the domain template to `specs/<Q-id>_<slug>.yaml` with the id, today's date, and whatever the user said on the command line. Inside a project, `--domain` defaults to the one `init` recorded and `--specs` to the project's `specs/`. It never overwrites, and it fails rather than leave a `Q-000` in a spec if a template changes shape.
+
+### `qspec doctor` says whether the guidance is current
+
+- `.qspec/scaffold.json` records the version and a fingerprint of the guidance **template** plus the command list, not of the rendered file, because a project's own `AGENTS.md` carries its title and its own path. `qspec doctor [--project <dir>]` compares the two and reports `ok`, `STALE`, or `unknown` with the reason, whether `AGENTS.md` still carries the block, whether the recorded request still exists, and what is in `specs/` by status. Reported, never rewritten: editing a file in somebody's project is not a diagnostic.
+- The tool now reads its version from `schema/catalogs.json`, which travels in the plugin bundle where `package.json` does not; `scripts/plugin.mjs --check` holds it to the other three.
+
+### Not in this release
+
+A project manifest that lets `lint` and `index` run with no arguments. It would change how every command resolves its files; it waits for a real round to show that passing paths hurts.
+
 ## 1.3.0 (2026-09-04)
 
 1.2 closed the places where the prose and the tool disagreed. 1.3 closes four places where using the commands in order lets a round go quietly wrong. Nothing here touches an instance field, adds an M invariant, or changes a file format: every 1.2.0 spec and record is a valid 1.3.0 spec and record. What changed is a command line.
