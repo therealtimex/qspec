@@ -226,24 +226,42 @@ function writeRendering(outDir, subdir, name, md) {
 
 function missingManifestEntries(manifest, outputs) {
   const text = readFileSync(manifest, "utf8");
-  const declared = new Set();
+  const declared = new Set(), slugs = new Set();
   let collectionRoot = ".";
   for (const line of text.split("\n")) {
     if (/^\s*\[\[collection\]\]\s*$/.test(line)) collectionRoot = ".";
+    const slug = /^\s*slug\s*=\s*"([^"]+)"/.exec(line);
+    if (slug) slugs.add(slug[1]);
     const root = /^\s*root\s*=\s*"([^"]+)"/.exec(line);
     if (root) collectionRoot = root[1];
     const source = /^\s*source\s*=\s*"([^"]+)"/.exec(line);
     if (source) declared.add(join(collectionRoot, source[1]).replace(/\\/g, "/"));
   }
-  return outputs.map((o) => ({ ...o, source: relative(dirname(resolve(manifest)), resolve(o.output)).replace(/\\/g, "/") }))
-    .filter((o) => !declared.has(o.source))
-    .map((o) => {
-      const type = o.kind === "request" ? "report" : `qspec-${o.kind}`;
-      const lines = ["  [[collection.document]]", `  id = "qspec-${o.kind}-${safeName(o.id).toLowerCase()}"`, `  type = "${type}"`, `  source = "${o.source}"`];
-      if (o.kind === "dossier") lines.push('  pdf = "typst"', "  docx = true");
+  const groups = new Map();
+  for (const output of outputs) {
+    const path = relative(dirname(resolve(manifest)), resolve(output.output)).replace(/\\/g, "/");
+    if (declared.has(path)) continue;
+    const root = dirname(path).replace(/\\/g, "/");
+    const key = `${output.kind}\0${root}`;
+    if (!groups.has(key)) groups.set(key, { kind: output.kind, root, documents: [] });
+    groups.get(key).documents.push({ ...output, source: relative(root, path).replace(/\\/g, "/") });
+  }
+  const toml = (value) => JSON.stringify(String(value));
+  return [...groups.values()].map((group) => {
+    const plural = group.kind === "index" ? "indexes" : `${group.kind}s`;
+    const base = `qspec-render-${plural}`;
+    let slug = base, suffix = 2;
+    while (slugs.has(slug)) slug = `${base}-${suffix++}`;
+    slugs.add(slug);
+    const lines = ["[[collection]]", `slug = ${toml(slug)}`, `root = ${toml(group.root)}`, 'profile = "en"'];
+    for (const output of group.documents) {
+      const type = output.kind === "request" ? "report" : `qspec-${output.kind}`;
+      lines.push("", "  [[collection.document]]", `  id = ${toml(`qspec-${output.kind}-${safeName(output.id).toLowerCase()}`)}`, `  type = ${toml(type)}`, `  source = ${toml(output.source)}`);
+      if (output.kind === "dossier") lines.push('  pdf = "typst"', "  docx = true");
       lines.push("  publish = false");
-      return lines.join("\n");
-    });
+    }
+    return lines.join("\n");
+  });
 }
 
 switch (cmd) {
@@ -529,9 +547,6 @@ switch (cmd) {
       try { indexes.push({ file: chosenPath, index: loadIndex(chosenPath) }); }
       catch (e) { die(`${chosenPath}: cannot parse Index: ${e.message}`); }
     }
-    const sheetIndex = chosenPath
-      ? indexes.find((x) => resolve(x.file) === chosenPath)?.index
-      : indexes.length === 1 ? indexes[0].index : null;
     const ambiguousIndex = !chosenPath && indexes.length > 1;
     let blocked = parseFailures.length > 0;
     for (const failure of parseFailures) console.error(`FAIL  ${failure.file}\n    block   PARSE              ${failure.message}`);
@@ -546,6 +561,19 @@ switch (cmd) {
       resolved.files[spec.id] = file;
       const record = loadRecord(recordPath(file, spec));
       if (record) resolved.records[spec.id] = record;
+    }
+    const renderedIndexes = indexes.map(({ file, index }) => {
+      const rendered = renderIndex(index, resolved);
+      const indexBlocked = printFindings(file, rendered.findings);
+      if (indexBlocked) blocked = true;
+      return { file, index, rendered, blocked: indexBlocked };
+    });
+    const selectedIndex = chosenPath
+      ? renderedIndexes.find((x) => resolve(x.file) === chosenPath) ?? null
+      : renderedIndexes.length === 1 ? renderedIndexes[0] : null;
+    const eligibleSheets = specs.some(({ spec }) => SHEET_STATES.includes(spec.status));
+    if (selectedIndex?.blocked && eligibleSheets) {
+      console.error(`FAIL  sheets\n    block   render-index       selected Index ${selectedIndex.file} is blocked; no sheets were rendered`);
     }
     const written = [], runItems = [];
     const remember = ({ source, output, kind, id, spec = null, findings = [], recordFile = null, md }) => {
@@ -563,8 +591,10 @@ switch (cmd) {
 
       if (!SHEET_STATES.includes(spec.status)) {
         console.log(`skip  ${file}: sheet is only for ${SHEET_STATES.join(", ")}; status is ${spec.status}`);
+      } else if (selectedIndex?.blocked) {
+        console.log(`skip  ${file}: selected Index ${selectedIndex.file} is blocked`);
       } else if (!ambiguousIndex) {
-        const sheet = renderSheet(spec, { record, index: sheetIndex });
+        const sheet = renderSheet(spec, { record, index: selectedIndex?.index ?? null });
         const sheetBlocked = printFindings(file, sheet.findings);
         if (sheetBlocked) blocked = true;
         else {
@@ -585,9 +615,11 @@ switch (cmd) {
         }
       }
     }
-    for (const { file, index: idx } of indexes) {
-      const rendered = renderIndex(idx, resolved);
-      printFindings(file, rendered.findings);
+    for (const { file, index: idx, rendered, blocked: indexBlocked } of renderedIndexes) {
+      if (indexBlocked) {
+        runItems.push({ file, kind: "index", id: idx.round, findings: rendered.findings, rendered: null });
+        continue;
+      }
       const output = writeRendering(outDir, "index", idx.round, rendered.md);
       remember({ source: file, output, kind: "index", id: idx.round, findings: rendered.findings, md: rendered.md });
     }

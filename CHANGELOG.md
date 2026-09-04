@@ -14,7 +14,7 @@ QSPEC's records were complete enough for a tool and still required a person to r
 
 - `qspec render --out <dir> [--specs <dir>] [--index <round>] [--label <text>]` writes every dossier, sheets for `selectable`, `deferred`, and `frozen` specs, every Index, and requests for frozen specs. A draft sheet is skipped with its reason; one failed target does not prevent independent outputs.
 - One `render` run records one entry per file written, names its output, and keeps the rendered markdown. Existing unrelated files under the output directory are untouched.
-- `--manifest <documents.toml>` prints missing `[[collection.document]]` blocks and never edits the manifest.
+- `--manifest <documents.toml>` prints appendable collection blocks for missing documents, with every source relative to its collection root, and never edits the manifest.
 
 ### Paperforge stays on its side of the seam
 

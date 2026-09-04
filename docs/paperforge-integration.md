@@ -29,7 +29,10 @@ If the corpus has ids or rendered states not yet named by the installed manifest
 qspec render --out documents --manifest documents/documents.toml
 ```
 
-The command prints the absent `[[collection.document]]` blocks to stdout. A person can review and add them; qspec never edits Paperforge's manifest.
+The command prints complete `[[collection]]` blocks containing the absent
+`[[collection.document]]` entries. Each block names the matching output
+directory as its root, so the snippet can be reviewed and appended as printed;
+qspec never edits Paperforge's manifest.
 
 ## Three points of contact
 

@@ -164,9 +164,31 @@ node -e 'const r=require("./lib/runs.js").load("/tmp/qspec-render", "render-prob
 cp templates/documents.qspec.toml /tmp/qspec-render/documents/documents.toml
 MANIFEST_SHA=$(shasum -a 256 /tmp/qspec-render/documents/documents.toml | awk '{print $1}')
 $Q render --specs /tmp/qspec-render/specs --out /tmp/qspec-render/documents --index /tmp/qspec-render/specs/index-2026-09.yaml --manifest /tmp/qspec-render/documents/documents.toml --label manifest-probe > /tmp/qspec-render/manifest.out
-grep -q 'source = "dossiers/Q-102.md"' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not print an entry missing from the Paperforge manifest"; exit 1; }
+grep -q 'root = "dossiers"' /tmp/qspec-render/manifest.out && grep -q 'source = "Q-102.md"' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not print a dossier collection with sources relative to its root"; exit 1; }
+grep -q 'root = "sheets"' /tmp/qspec-render/manifest.out && grep -q 'root = "requests"' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not give sheets and requests their own collection roots"; exit 1; }
+if grep -q 'source = "dossiers/Q-102.md"' /tmp/qspec-render/manifest.out; then echo "UNEXPECTED: render repeated a collection root inside a document source"; exit 1; fi
 if grep -q 'source = "index/2026-09.md"' /tmp/qspec-render/manifest.out; then echo "UNEXPECTED: render reported an Index already declared under its collection root"; exit 1; fi
 test "$MANIFEST_SHA" = "$(shasum -a 256 /tmp/qspec-render/documents/documents.toml | awk '{print $1}')" || { echo "UNEXPECTED: render edited the Paperforge manifest"; exit 1; }
+echo "== the printed manifest collections paste into the template and Paperforge resolves every source"
+sed -n '/^\[\[collection\]\]/,$p' /tmp/qspec-render/manifest.out >> /tmp/qspec-render/documents/documents.toml
+cp /tmp/qspec-render/documents/dossiers/Q-102.md /tmp/qspec-render/documents/dossiers/Q-001.md
+cp /tmp/qspec-render/documents/dossiers/Q-101.md /tmp/qspec-render/documents/dossiers/Q-002.md
+cp /tmp/qspec-render/documents/dossiers/Q-201.md /tmp/qspec-render/documents/dossiers/Q-003.md
+PAPERFORGE_REPO="$ROOT/../paperforge"
+if test -f "$PAPERFORGE_REPO/paperforge/cli.py"; then
+  PAPERFORGE_PYTHON="${PAPERFORGE_PYTHON:-python3}"
+  if test -x /Applications/RealTimeX.AI.app/Contents/Resources/app/src/electron/features/pty/compat/macos/python3; then PAPERFORGE_PYTHON=/Applications/RealTimeX.AI.app/Contents/Resources/app/src/electron/features/pty/compat/macos/python3; fi
+  PYTHONPATH="$PAPERFORGE_REPO" "$PAPERFORGE_PYTHON" -c 'import sys; from paperforge.cli import load; _, docs = load(sys.argv[1]); missing = [str(d["source_path"]) for d in docs if not d["source_path"].is_file()]; assert len(docs) == 10, len(docs); assert not missing, missing' /tmp/qspec-render/documents/documents.toml || { echo "UNEXPECTED: Paperforge could not resolve every template-plus-snippet source"; exit 1; }
+else
+  echo "SKIP: sibling Paperforge checkout is absent; manifest structure assertions still ran"
+fi
+echo "== a blocked selected Index writes no sheets or blocked Index document and exits nonzero"
+rm -rf /tmp/qspec-render-invalid
+if $Q render --specs /tmp/qspec-render/specs --out /tmp/qspec-render-invalid --index templates/index.yaml --label invalid-index-probe > /tmp/qspec-render-invalid.out 2>&1; then echo "UNEXPECTED: render exited zero for a blocked selected Index"; exit 1; fi
+grep -q 'index-claim' /tmp/qspec-render-invalid.out && grep -q 'selected Index.*blocked; no sheets were rendered' /tmp/qspec-render-invalid.out || { echo "UNEXPECTED: render did not explain the blocked Index and dependent sheets"; exit 1; }
+test "$(find /tmp/qspec-render-invalid/dossiers -type f -name '*.md' | wc -l | tr -d ' ')" = "3" && test -f /tmp/qspec-render-invalid/requests/Q-201.md || { echo "UNEXPECTED: a blocked Index suppressed independent dossiers or request"; exit 1; }
+test ! -d /tmp/qspec-render-invalid/sheets || test -z "$(find /tmp/qspec-render-invalid/sheets -type f -name '*.md' -print -quit)" || { echo "UNEXPECTED: a sheet was written from a blocked selected Index"; exit 1; }
+test ! -e /tmp/qspec-render-invalid/index/unnamed.md || { echo "UNEXPECTED: the blocked selected Index was written as a successful document"; exit 1; }
 echo "== sign --show, sheet, and request record runs; the sheet keeps what was rendered"
 $Q sign /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml --by "D. Reviewer" --show >/dev/null
 $Q sheet /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml --index /tmp/qspec-notes/specs/index-round-2026-09.yaml --out /tmp/qspec-notes/sheets/Q-101.md >/dev/null
