@@ -86,8 +86,45 @@ echo "== doctor reports guidance that no longer matches what init writes"
 sed -i.bak 's/"agents": "[0-9a-f]*"/"agents": "0000000000000000"/' /tmp/qspec-init/.qspec/scaffold.json && rm -f /tmp/qspec-init/.qspec/*.bak
 if $Q doctor --project /tmp/qspec-init >/dev/null 2>&1; then echo "UNEXPECTED: doctor passed a stale scaffold"; exit 1; fi
 $Q doctor --project /tmp/qspec-init | grep -q "STALE" || { echo "UNEXPECTED: doctor did not say STALE"; exit 1; }
+echo "== init --refresh rewrites only the block init wrote, re-stamps, and clears STALE"
+printf '\nMy own note below the block.\n' >> /tmp/qspec-init/AGENTS.md
+$Q init --refresh --into /tmp/qspec-init >/dev/null
+$Q doctor --project /tmp/qspec-init | grep -q "scaffold   ok" || { echo "UNEXPECTED: refresh did not clear STALE"; exit 1; }
+grep -q "My own note below the block" /tmp/qspec-init/AGENTS.md && head -1 /tmp/qspec-init/AGENTS.md | grep -q "Init Probe" || { echo "UNEXPECTED: refresh touched text outside the markers"; exit 1; }
+test "$(grep -c -F -- "<!-- qspec:project-guidance -->" /tmp/qspec-init/AGENTS.md)" = "1" || { echo "UNEXPECTED: refresh duplicated the block"; exit 1; }
+grep -q '"created"' /tmp/qspec-init/.qspec/scaffold.json && grep -q '"refreshed"' /tmp/qspec-init/.qspec/scaffold.json || { echo "UNEXPECTED: the stamp lost its creation date or gained no refresh date"; exit 1; }
+$Q init --refresh --into /tmp/qspec-shim >/dev/null
+head -1 /tmp/qspec-shim/AGENTS.md | grep -q "Workspace Agent Guide" || { echo "UNEXPECTED: refresh disturbed the shim above the block"; exit 1; }
+if $Q init --refresh --into /tmp/qspec-nonesuch >/dev/null 2>&1; then echo "UNEXPECTED: refresh ran where there is no project"; exit 1; fi
+echo "== lint and index record a run inside a project, and nothing outside one"
+test ! -e .qspec || { echo "UNEXPECTED: a run was recorded in this repository, which is not a project"; exit 1; }
+rm -rf /tmp/qspec-runs && $Q init --into /tmp/qspec-runs --title "Runs Probe" --round 2026-09 --domain social --no-git >/dev/null
+(cd /tmp/qspec-runs && node "$ROOT/bin/qspec.js" new Q-001 --slug probe >/dev/null)
+$Q lint /tmp/qspec-runs/specs/Q-001_probe.yaml --label "first look" >/dev/null 2>&1 || true
+test -d /tmp/qspec-runs/.qspec/runs && test "$(ls /tmp/qspec-runs/.qspec/runs | wc -l | tr -d ' ')" = "1" || { echo "UNEXPECTED: lint in a project did not record exactly one run"; exit 1; }
+test -f /tmp/qspec-runs/.qspec/runs/*first-look/sources/specs/Q-001_probe.yaml || { echo "UNEXPECTED: the run did not keep the spec as it stood"; exit 1; }
+sed -i.bak 's/^owner: ""$/owner: "A. Owner"/; s/^  one_sentence: ""$/  one_sentence: "Cutoffs raise small-firm win rates."/' /tmp/qspec-runs/specs/Q-001_probe.yaml && rm -f /tmp/qspec-runs/specs/*.bak
+$Q lint /tmp/qspec-runs/specs/Q-001_probe.yaml >/dev/null 2>&1 || true
+$Q index /tmp/qspec-runs/specs/index-2026-09.yaml --specs /tmp/qspec-runs/specs >/dev/null
+test "$($Q runs --project /tmp/qspec-runs | wc -l | tr -d ' ')" = "3" || { echo "UNEXPECTED: runs did not list three runs"; exit 1; }
+$Q runs --project /tmp/qspec-runs | sed -n '1p' | grep -q "first-look" || { echo "UNEXPECTED: runs are not listed in the order they were written"; exit 1; }
+echo "== runs --diff says the claim moved, which findings cleared, and shows the text"
+SECOND=$($Q runs --project /tmp/qspec-runs | sed -n '2p' | awk '{print $1}')
+$Q runs --project /tmp/qspec-runs --diff first-look,"$SECOND" --sources > /tmp/qspec-runs-diff.txt
+grep -q "rewritten" /tmp/qspec-runs-diff.txt || { echo "UNEXPECTED: a changed claim was not reported as rewritten"; exit 1; }
+grep -q -- "- block  M2" /tmp/qspec-runs-diff.txt || { echo "UNEXPECTED: the cleared M2 finding was not reported"; exit 1; }
+grep -q '^+owner: "A. Owner"' /tmp/qspec-runs-diff.txt || { echo "UNEXPECTED: --sources did not show the changed line"; exit 1; }
+if $Q runs --project /tmp/qspec-runs --diff first-look,nonesuch >/dev/null 2>&1; then echo "UNEXPECTED: --diff accepted a run that does not exist"; exit 1; fi
+echo "== report writes a note carrying the facts, and --issue prints without filing"
+(cd /tmp/qspec-runs && node "$ROOT/bin/qspec.js" report "lint kept blocking on M3 while a reviewer was assigned" >/dev/null)
+test "$(ls /tmp/qspec-runs/.qspec/friction | wc -l | tr -d ' ')" = "1" || { echo "UNEXPECTED: report did not write one note"; exit 1; }
+$Q report --issue --project /tmp/qspec-runs | grep -q "last_run: .*index" || { echo "UNEXPECTED: the note does not carry the last run"; exit 1; }
+if $Q report --project /tmp/qspec-runs >/dev/null 2>&1; then echo "UNEXPECTED: report ran with nothing to say"; exit 1; fi
+echo "== doctor counts runs since the last act and sees the friction note"
+$Q doctor --project /tmp/qspec-runs | grep -q "runs       3 .*3 since the last recorded act" || { echo "UNEXPECTED: doctor did not report three runs since no act"; exit 1; }
+$Q doctor --project /tmp/qspec-runs | grep -q "friction   1" || { echo "UNEXPECTED: doctor did not see the friction note"; exit 1; }
 echo "== the commands the guidance names are the commands help lists"
 for c in $(node -e 'console.log(require("./lib/scaffold.js").COMMANDS.join(" "))'); do $Q help | grep -q "^  $c " || { echo "UNEXPECTED: guidance names '$c' but help does not list it"; exit 1; }; done
 echo "== renderings carry nothing Paperforge lint would block"
-if grep -qiE '\b(TODO|TBD|FIXME|XXX|PLACEHOLDER)\b' /tmp/qspec-index.md /tmp/qspec-sheet.md /tmp/qspec-request.md /tmp/qspec-init-round.md /tmp/qspec-init/AGENTS.md; then echo "UNEXPECTED: a blocked marker reached a rendering"; exit 1; fi
+if grep -qiE '\b(TODO|TBD|FIXME|XXX|PLACEHOLDER)\b' /tmp/qspec-index.md /tmp/qspec-sheet.md /tmp/qspec-request.md /tmp/qspec-init-round.md /tmp/qspec-init/AGENTS.md /tmp/qspec-runs/AGENTS.md; then echo "UNEXPECTED: a blocked marker reached a rendering"; exit 1; fi
 echo "all checks passed"

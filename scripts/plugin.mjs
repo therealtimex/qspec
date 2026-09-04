@@ -15,6 +15,7 @@ const SYNC = [
   ["QSPEC-CORE.md", "references/QSPEC-CORE.md"], ["QSPEC-SS.md", "references/QSPEC-SS.md"],
   ["QSPEC-NS.md", "references/QSPEC-NS.md"], ["QSPEC-ENG.md", "references/QSPEC-ENG.md"],
   ["docs/paperforge-integration.md", "references/paperforge-integration.md"],
+  ["docs/runs.md", "references/runs.md"],
   ["LICENSE", "LICENSE"], ["NOTICE", "NOTICE"],
 ];
 

@@ -2,7 +2,7 @@
 
 A Question Spec is a short contract that turns a research topic, technique, or platform into a claim that can be wrong, so that questions from different methods and domains can be compared, selected, frozen, or killed on the same terms.
 
-Version 1.4.0, released 2026-09-04. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
+Version 1.5.0, released 2026-09-04. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
 
 The tool renders and checks; it does not author. A field is written by a person, a judgment is signed by a person, and the tool notices when a signature no longer covers the text. It pairs with [Paperforge](docs/paperforge-integration.md) downstream, which applies the same rule to the documents that answer the question.
 
@@ -14,12 +14,14 @@ The tool renders and checks; it does not author. A field is written by a person,
 | `QSPEC-SS.md`, `QSPEC-NS.md`, `QSPEC-ENG.md` | Domain overlays for social sciences, natural sciences, and engineering: claim fields, catalogs, method profiles. Software is in scope for engineering. |
 | `schema/catalogs.json` | Machine-readable catalogs and profile field lists. The single source of truth for the tool. |
 | `bin/qspec.js` | The tool. `qspec help` lists commands. No dependencies; js-yaml is vendored under `lib/vendor/`. |
-| `lib/` | `lint` (M invariants), `record` (fingerprint, transitions, acts), `render` (sheet, index, request), `paper` (gist check), `scaffold` (init, new, doctor). |
+| `lib/` | `lint` (M invariants), `record` (fingerprint, transitions, acts), `render` (sheet, index, request), `paper` (gist check), `scaffold` (init, new, doctor), `runs` (run records and diffs), `friction` (report notes). |
 | `templates/` | Empty instances per domain, plus Decision Record and Index templates. |
 | `.qspec/scaffold.json` | In a project `init` prepared: what wrote it, and a fingerprint of the guidance so `doctor` can say when it has gone stale. |
+| `.qspec/runs/`, `.qspec/friction/` | In a project: what every `lint` and `index` run saw, with the files as they stood, and the notes `report` wrote. See [docs/runs.md](docs/runs.md). Not gitignored. |
 | `examples/` | Two complete instances per domain with their Decision Records, one Index, one downstream paper. Citations are illustrative, not real. |
 | `examples/negative/` | Instances that must block, including a stale signature. `round/` holds a freeze taken by someone the round does not name: the spec lints clean, and its round refuses it. |
 | `docs/paperforge-integration.md` | The file contract with Paperforge. |
+| `docs/runs.md` | Run records and friction notes: why they exist, what they hold, how to read a diff. |
 | `plugin/` | The RealTimeX declarative skill plugin. `tool/` and `references/` are generated from the repo by `scripts/plugin.mjs`; `SKILL.md` and the manifest are authored there. |
 | `scripts/` | `test.sh` runs every command over the examples; `check-judged.mjs` holds the J7 rules in the catalog and the overlays to the same text; `plugin.mjs` syncs, checks, and packages the bundle. |
 | `archive/` | The 0.1.0 drafts, for reference. Do not use them. |
@@ -72,8 +74,12 @@ qspec init --into <dir>               prepare a directory: specs/ with the round
      [--title] [--round YYYY-MM] [--decision-maker] [--brief path] [--domain] [--append] [--no-git]
 qspec new <Q-id> --domain <d>         an empty spec from the domain template, id and date set
      [--slug] [--title] [--owner] [--specs dir]
-qspec doctor [--project dir]          tool and node versions; is this project's guidance current
-qspec lint <spec>...                  M1 to M16, record checks, signature staleness; exit 1 on block
+qspec init --refresh --into <dir>     rewrite only the QSPEC block in AGENTS.md and re-stamp; what doctor asks for on STALE
+qspec doctor [--project dir]          tool and node versions; is this project's guidance current; runs since the last act
+qspec runs [--project dir]            every lint and index run recorded in the project, oldest first
+     [--diff <a>,<b> [--sources]]     what changed between two runs: reworded or rewritten, findings appeared or cleared
+qspec report "<what happened>"        a friction note with version, scaffold state, and last run; --issue prints the latest
+qspec lint <spec>...                  M1 to M16, record checks, signature staleness; exit 1 on block; records a run
      [--record path] [--json] [--expect-fail]
 qspec fingerprint <spec>              what a signature is taken over
 qspec sign <spec> --by <reviewer>     draft -> specified; refuses while any M invariant fails
@@ -92,6 +98,8 @@ Findings use four severities: `block`, `manual` (with the act that settles it), 
 Nothing here authenticates anyone. `owner` and `reviewer` are checked against fields of the spec, `decision_maker` against the round's Index when one is given. A signature establishes that a name was written beside an act and that the text has not moved since; it does not establish that the person acted or consented.
 
 `npm test` runs every command over the examples, the negatives, and the templates, then checks the plugin bundle for drift.
+
+Inside a project, every `lint` and `index` run is recorded under `.qspec/runs/` with the files it checked, passing or failing, and `qspec runs --diff a,b --sources` shows what changed between two of them. The reason is Paperforge's: a draft overwritten in place is gone, and git did not help because nobody committed. See [docs/runs.md](docs/runs.md).
 
 ## Installing as a plugin
 
@@ -112,6 +120,7 @@ Tag `vX.Y.Z`. The release workflow refuses the tag unless it matches the version
 - Instances declare `spec_schema: QSPEC/1.0` and a `domain`. All 1.x core releases accept that string.
 - Schema documents carry their version in the header, not the filename.
 - A field removal, rename, or tightened M invariant on instance fields is a major release with a new `spec_schema` string.
+- Every 1.4.0 project, spec, record, and Index is valid under 1.5.0. 1.5.0 adds run records, `runs`, `report`, and doctor lines; a project scaffolded by 1.4.0 reports `STALE` guidance because the guidance now names `runs` and `report`.
 - Every 1.3.0 instance, record, and Index is valid under 1.4.0. 1.4.0 adds `init`, `new`, and `doctor`, which write project files and empty templates; no instance field or M invariant changed.
 - Every 1.2.0 instance and record is valid under 1.3.0. What 1.3.0 changed is a command line, not a file: a `decision_maker` act now has to declare `--index` or `--unbound`.
 - Every 1.1.0 instance and record is valid under 1.2.0. A record written before 1.2.0 reports `J7-unrecorded` as `skip`, and a decision-maker act in one reports `unbound-decision` as `warn`; neither blocks, and re-signing or re-freezing with `--index` clears them.

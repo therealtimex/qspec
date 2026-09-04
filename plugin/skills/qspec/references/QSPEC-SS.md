@@ -1,9 +1,9 @@
-# QSPEC-SS 1.4.0
+# QSPEC-SS 1.5.0
 # Question Spec overlay for the social sciences
 
 **Spec-ID:** QSPEC-SS
-**Schema-Version:** 1.4.0
-**Targets core:** QSPEC-CORE 1.4.0
+**Schema-Version:** 1.5.0
+**Targets core:** QSPEC-CORE 1.5.0
 **Date:** 2026-09-04
 **Status:** released
 **Instance header:** `spec_schema: QSPEC/1.0` and `domain: social`

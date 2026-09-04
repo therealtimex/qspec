@@ -9,8 +9,10 @@ const { format, hasBlock, lintFile, loadSpec } = require("../lib/lint.js");
 const { checkPaper } = require("../lib/paper.js");
 const { appendEntry, bindDecisionMaker, fingerprint, frozenInRound, loadRecord, newRecord, recordPath, saveRecord, setStatus, signingEntry } = require("../lib/record.js");
 const { index: renderIndex, request: renderRequest, sheet: renderSheet } = require("../lib/render.js");
-const { STAMP, create, doctor, findRoot, newSpec, titleFrom } = require("../lib/scaffold.js");
-const { resolve } = require("node:path");
+const { STAMP, create, doctor, findRoot, newSpec, refresh, titleFrom } = require("../lib/scaffold.js");
+const runs = require("../lib/runs.js");
+const friction = require("../lib/friction.js");
+const { relative, resolve } = require("node:path");
 
 const HELP = `usage: qspec <command> [args]
 
@@ -18,13 +20,23 @@ const HELP = `usage: qspec <command> [args]
        [--brief path] [--domain d] [--append] [--no-git]
                                  prepare a directory: specs/ with the round's Index, AGENTS.md
                                  and CLAUDE.md, sheets/, requests/, and a stamp of what wrote them
+  init --refresh --into <dir>    rewrite only the QSPEC block init wrote in AGENTS.md, and re-stamp;
+                                 what doctor asks for when the guidance is STALE
   new <Q-id> --domain <social|natural|engineering> [--slug name] [--title text]
        [--owner name] [--specs dir]
                                  an empty spec from the domain template with id and date set
-  doctor [--project dir]         tool and node versions, and whether this project's guidance
-                                 is what init would write now
+  doctor [--project dir]         tool and node versions, whether this project's guidance is
+                                 what init would write now, and what the runs have seen
+  runs [--project dir] [--only text]
+       [--diff <a>,<b> [--sources]]
+                                 every lint and index run recorded in this project; --diff says
+                                 what changed between two, --sources shows the text
+  report "<what happened>" [--issue] [--project dir]
+                                 a friction note carrying version, scaffold state, and last run;
+                                 --issue prints the latest note for a tracker and files nothing
   lint <spec.yaml>...            M invariants, Decision Record, and signature (M16)
-       [--record path] [--json] [--expect-fail]
+       [--record path] [--json] [--expect-fail] [--label text]
+                                 inside a project, records a run under .qspec/runs/
   fingerprint <spec.yaml>        print the fingerprint a signature is taken over
   sign <spec.yaml> --by <reviewer> [--date YYYY-MM-DD] [--reason text] [--show]
        [--dissent "<reviewer>: <point>"]
@@ -38,8 +50,8 @@ const HELP = `usage: qspec <command> [args]
                                  cap, or --unbound to record that nothing checked it
   sheet <spec.yaml> [--index index.yaml] [--out file.md]
                                  selection sheet in Paperforge head format
-  index <index.yaml> [--specs dir] [--out file.md]
-                                 portfolio index table, with its checks
+  index <index.yaml> [--specs dir] [--out file.md] [--label text]
+                                 portfolio index table, with its checks; records a run
   request <spec.yaml> [--out file.md]
                                  frozen request for a Paperforge project's request key
   paper <spec.yaml> <document.md>
@@ -48,7 +60,7 @@ const HELP = `usage: qspec <command> [args]
 
 const argv = process.argv.slice(2);
 const cmd = argv.shift();
-const BOOLEAN = new Set(["append", "expect-fail", "json", "no-git", "show", "unbound"]);
+const BOOLEAN = new Set(["append", "expect-fail", "issue", "json", "no-git", "refresh", "show", "sources", "unbound"]);
 const flags = {};
 const positional = [];
 for (let i = 0; i < argv.length; i++) {
@@ -136,6 +148,24 @@ function dissentFrom(flag) {
   return [{ reviewer: String(flag).slice(0, at).trim(), point: String(flag).slice(at + 1).trim(), unresolved: true }];
 }
 
+// A run is recorded only inside a project: the root is the nearest .qspec/
+// above the checked file. Outside one there is nowhere to keep it, and lint
+// over a scratch copy or this repository's examples should leave no trace.
+// Files from more than one project make one run each.
+function recordRuns(command, items, label) {
+  const byRoot = new Map();
+  for (const it of items) {
+    const root = findRoot(dirname(resolve(it.file)));
+    if (!root) continue;
+    if (!byRoot.has(root)) byRoot.set(root, []);
+    byRoot.get(root).push(runs.entry(root, it.file, it));
+  }
+  for (const [root, entries] of byRoot) {
+    const { name } = runs.write(root, command, entries, label);
+    if (!flags.json) console.log(`  recorded ${relative(process.cwd(), join(root, runs.RUNS, name)) || name}`);
+  }
+}
+
 function emit(md, out) {
   if (out) { writeFileSync(out, md); console.log(`wrote ${out}`); } else process.stdout.write(md);
 }
@@ -147,6 +177,12 @@ switch (cmd) {
     if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(round)) die("--round: letters, digits, '-', '_' and '.' only; it names specs/index-<round>.yaml");
     const invocation = resolve(process.argv[1]);
     let made;
+    if (flags.refresh) {
+      try { made = refresh(flags.into, { invocation }); } catch (e) { die(e.message); }
+      console.log(`refreshed ${made.root}`);
+      for (const w of made.written) console.log(`  ${w}`);
+      break;
+    }
     try {
       made = create(flags.into, { title: flags.title && flags.title !== true ? String(flags.title) : titleFrom(flags.into), round, decisionMaker: flags["decision-maker"] && flags["decision-maker"] !== true ? String(flags["decision-maker"]) : null, brief: flags.brief && flags.brief !== true ? String(flags.brief) : null, domain: flags.domain && flags.domain !== true ? String(flags.domain) : null, append: Boolean(flags.append), git: !flags["no-git"], invocation });
     } catch (e) { die(e.message); }
@@ -175,6 +211,55 @@ switch (cmd) {
     console.log(lines.join("\n"));
     process.exit(problems ? 1 : 0);
   }
+  case "runs": {
+    const root = flags.project && flags.project !== true ? resolve(String(flags.project)) : findRoot(process.cwd());
+    if (!root || !existsSync(join(root, STAMP))) die(`no QSPEC project here or above (no ${STAMP}); pass --project <dir>`);
+    if (flags.diff && flags.diff !== true) {
+      const names = String(flags.diff).split(",").map((x) => x.trim()).filter(Boolean);
+      if (names.length !== 2) die("--diff takes two run names, comma separated");
+      let a, b;
+      try { a = runs.load(root, names[0]); b = runs.load(root, names[1]); } catch (e) { die(e.message); }
+      const d = runs.diff(a, b);
+      console.log(`${a.name} -> ${b.name}`);
+      for (const f of d.files) {
+        const bits = [f.change];
+        if (f.status[0] !== f.status[1]) bits.push(`status ${f.status[0]} -> ${f.status[1]}`);
+        if (f.version[0] !== f.version[1]) bits.push(`@${f.version[0]} -> @${f.version[1]}`);
+        if (f.verdict[0] !== f.verdict[1]) bits.push(`verdict ${f.verdict[0]} -> ${f.verdict[1]}`);
+        if (f.record === "changed") bits.push("record changed");
+        console.log(`  ${f.path}: ${bits.join(", ")}`);
+        for (const x of f.appeared) console.log(`      + ${x.severity.padEnd(6)} ${x.rule.padEnd(18)} ${x.message}`);
+        for (const x of f.cleared) console.log(`      - ${x.severity.padEnd(6)} ${x.rule.padEnd(18)} ${x.message}`);
+      }
+      if (d.added.length) console.log(`  added      ${d.added.join(", ")}`);
+      if (d.removed.length) console.log(`  removed    ${d.removed.join(", ")}`);
+      if (flags.sources) {
+        const { lines, missing } = runs.sourceDiff(root, a, b, flags.only && flags.only !== true ? String(flags.only) : null);
+        if (missing.length) console.log(`  no stored sources for ${missing.join(", ")}`);
+        if (!lines.length) console.log("  sources identical"); else console.log("\n" + lines.join("\n"));
+      }
+      break;
+    }
+    const all = runs.listing(root).filter((r) => !flags.only || flags.only === true || r.name.includes(String(flags.only)) || (r.record.label ?? "").includes(String(flags.only)));
+    if (!all.length) { console.log("  no runs recorded yet"); break; }
+    for (const r of all) console.log(`  ${r.name.padEnd(34)} ${(r.record.label ?? "-").slice(0, 28).padEnd(28)} ${r.record.command.padEnd(6)} ${runs.summary(r.record)}`);
+    break;
+  }
+  case "report": {
+    const root = flags.project && flags.project !== true ? resolve(String(flags.project)) : findRoot(process.cwd());
+    if (!root || !existsSync(join(root, STAMP))) die(`no QSPEC project here or above (no ${STAMP}); pass --project <dir>`);
+    if (flags.issue) {
+      const last = friction.latest(root);
+      if (!last) die("no friction notes yet; `qspec report \"what happened\"` writes one");
+      console.log(friction.issueBody(last));
+      break;
+    }
+    const what = positional.join(" ").trim();
+    if (!what) die('report needs a sentence: qspec report "what happened"');
+    const path = friction.write(root, what, friction.facts(root, resolve(process.argv[1])));
+    console.log(`wrote ${relative(process.cwd(), path) || path}\ncommit it and mention it in your handoff; \`qspec report --issue\` prints it for a tracker`);
+    break;
+  }
   case "lint": {
     if (!positional.length) die("lint needs at least one spec file");
     let exit = 0;
@@ -189,6 +274,7 @@ switch (cmd) {
       }
     }
     if (flags.json) console.log(JSON.stringify(results.map(({ file, findings }) => ({ file, findings })), null, 2));
+    recordRuns("lint", results.filter((r) => !r.kind || r.kind === "spec").map((r) => ({ file: r.file, kind: "spec", id: r.spec?.id, instance_version: r.spec?.instance_version, status: r.spec?.status, fingerprint: r.spec?.id ? fingerprint(r.spec) : null, findings: r.findings, recordFile: r.recordFile })), flags.label && flags.label !== true ? String(flags.label) : null);
     process.exit(exit);
   }
   case "fingerprint": {
@@ -283,6 +369,7 @@ switch (cmd) {
     const idx = loadIndex(file);
     const { md, findings } = renderIndex(idx, flags.specs ? resolveDir(flags.specs) : null);
     const blocked = printFindings(file, findings);
+    recordRuns("index", [{ file, kind: "index", id: idx?.round ?? null, status: null, findings }], flags.label && flags.label !== true ? String(flags.label) : null);
     if (blocked) process.exit(1);
     emit(md, flags.out);
     break;

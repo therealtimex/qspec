@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.5.0 (2026-09-04)
+
+1.4 gave a project a directory that says what it is. 1.5 gives it a memory of what the checks saw. On the first real project, a spec went through three versions in twenty minutes of agent review, each overwriting the last in place; the reviewer's findings and the approver's corrections lived in chat handoffs outside the project, and versions 1 and 2 survived only in one agent's transcript. The Decision Record could not help, because nobody took an act: the spec stayed `draft`, unsigned, with no record file, while the loop around it closed as "approved". The pattern that fixes this is Paperforge's run records, and the reason is the same: the record has to be a by-product of checking, not an act of discipline. Files, never fields: no instance field, M invariant, record, or Index changed. Every 1.4.0 project, spec, record, and Index is a valid 1.5.0 one.
+
+### `lint` and `index` record a run
+
+- Inside a project, every `qspec lint` and `qspec index` run writes `.qspec/runs/<timestamp>[-<label>]/` holding `record.json` (tool version, command, and per file: id, `instance_version`, status, fingerprint, sha256, verdict, and the findings themselves) and `sources/` with the spec, its Decision Record if any, or the Index, as they stood. Passing or failing. `--label` names the run. Outside a project nothing is written, so this repository's own examples and a scratch copy leave no trace.
+- Two runs in one second get distinct names, and `runs` lists them in the order they were written rather than the order their names sort in.
+
+### `runs` lists them and `runs --diff` reads them
+
+- `qspec runs [--project <dir>] [--only <text>]` lists every run with its label, command, and verdict. `qspec runs --diff <a>,<b>` reports each file as `unchanged`, `reworded` (the file changed but the fingerprinted fields did not, so a signature would still hold), or `rewritten` (the fingerprinted text moved), with status, version, and verdict changes, whether the Decision Record beside it changed, and which findings appeared or cleared. `--sources` adds a unified diff of the stored text, computed from what was checked, so no repository is needed. Run names match exactly, by unique prefix, or by label.
+
+### `report` writes a friction note
+
+- `qspec report "what happened"` writes `.qspec/friction/<timestamp>.md` carrying the sentence and the facts an author cannot be expected to assemble: tool version, node, invocation path, whether the project's guidance is current, and the last run. `--issue` prints the latest note as a tracker body and files nothing. Solve it and report it.
+
+### `doctor` says how much looking has happened since anyone acted
+
+- `doctor` now reports the run count, the last run, how many runs since the most recent date any Decision Record carries, and whether friction notes exist. Many runs and no act is the shape of a spec being polished in chat while nobody signs.
+- The guidance `init` writes names `runs` and `report` and says not to delete or gitignore `.qspec/runs/`. Its fingerprint therefore changed: a project scaffolded by 1.4.0 reports `STALE` under `doctor`, which is the check doing its job.
+- `qspec init --refresh --into <dir>` is what `doctor` now asks for. It rewrites only the block between the markers in `AGENTS.md`, keeps everything outside them including a loops shim, and re-stamps with the facts init was given and this run's tool path. 1.4.0 could report stale guidance and could not clear it, because the stamp was written once; that was copied from Paperforge and is a gap there too.
+
+### Not in this release
+
+A `review` act on the Decision Record carrying a reviewer's findings and the fingerprint reviewed. It is an act, so it depends on discipline, and it needs a named reviewer in the spec, which the project above never had. It can come once runs have shown what reviewers actually cite.
+
 ## 1.4.0 (2026-09-04)
 
 1.3 made the commands refuse quietly wrong acts. 1.4 adds the thing that was missing before the first command runs: a project. Until now a directory that held specs told nobody what it was, and an agent asked to write a Question Spec in one produced a research memo, because nothing in the directory said otherwise. The pattern is Paperforge's `init`: a scaffolded project carries its own guidance, and a stamp records what wrote it so drift is a visible failure. Files, never fields: nothing here writes a claim, a citation, or an ask, and no instance field or M invariant changed. Every 1.3.0 spec, record, and Index is a valid 1.4.0 one.
