@@ -20,10 +20,11 @@ const HELP = `usage: qspec <command> [args]
                                  print J1 to J7 with this profile's J7 rule, then
                                  record draft -> specified; --show prints without signing
   transition <spec.yaml> --to <state> --by <actor> --role <owner|reviewer|decision_maker>
-       [--index round.yaml] [--specs dir] [--reason text] [--cite Jn|Mn]
+       [--index round.yaml | --unbound] [--specs dir] [--reason text] [--cite Jn|Mn]
        [--revisit-by date] [--successor id@ver] [--date date] [--dissent "<who>: <point>"]
-                                 --index binds a decision_maker to the round's committee
-                                 and holds the one-freeze-per-round cap
+                                 a decision_maker act needs --index, which binds the actor
+                                 to the round's committee and holds the one-freeze-per-round
+                                 cap, or --unbound to record that nothing checked it
   sheet <spec.yaml> [--index index.yaml] [--out file.md]
                                  selection sheet in Paperforge head format
   index <index.yaml> [--specs dir] [--out file.md]
@@ -36,7 +37,7 @@ const HELP = `usage: qspec <command> [args]
 
 const argv = process.argv.slice(2);
 const cmd = argv.shift();
-const BOOLEAN = new Set(["expect-fail", "json", "show"]);
+const BOOLEAN = new Set(["expect-fail", "json", "show", "unbound"]);
 const flags = {};
 const positional = [];
 for (let i = 0; i < argv.length; i++) {
@@ -72,17 +73,37 @@ function specsIn(dir) {
   return out;
 }
 
-function recordsIn(dir) {
-  const out = {};
+// Specs, their records, and the file each spec came from, keyed by id. The paths
+// are kept so a finding about a listed spec can name the file to fix.
+function resolveDir(dir) {
+  const specs = {}, records = {}, files = {};
   for (const f of readdirSync(dir)) {
-    if (!/\.record\.ya?ml$/.test(f)) continue;
-    try { const r = loadRecord(join(dir, f)); if (r?.spec_id) out[r.spec_id] = r; } catch {}
+    const p = join(dir, f);
+    if (/\.record\.ya?ml$/.test(f)) { try { const r = loadRecord(p); if (r?.spec_id) records[r.spec_id] = r; } catch {} continue; }
+    if (!/\.ya?ml$/.test(f)) continue;
+    try { const sp = loadSpec(p); if (sp?.id) { specs[sp.id] = sp; files[sp.id] = p; } } catch {}
   }
-  return out;
+  return { specs, records, files };
 }
 
 function loadIndex(path) {
   return yaml.load(readFileSync(path, "utf8"), { schema: yaml.CORE_SCHEMA });
+}
+
+// Rounds that are sitting right there. An omitted --index is the likeliest way
+// to weaken an act, so the refusal names the files it can see rather than
+// leaving the actor to go looking.
+function indexesNear(dirs) {
+  const found = [];
+  for (const dir of new Set(dirs.filter(Boolean))) {
+    let names = [];
+    try { names = readdirSync(dir); } catch { continue; }
+    for (const f of names) {
+      if (!/\.ya?ml$/.test(f) || /\.record\.ya?ml$/.test(f)) continue;
+      try { if (loadIndex(join(dir, f))?.index_schema === "QSPEC-INDEX/1.0") found.push(join(dir, f)); } catch {}
+    }
+  }
+  return found.sort();
 }
 
 // What a reviewer is asserting. J1 to J6 are the core's; J7 is the overlay's
@@ -166,7 +187,20 @@ switch (cmd) {
     if (flags.to === "specified" && state === "draft") die("use `qspec sign` for draft -> specified; it must carry the signature");
     if (["frozen", "superseded"].includes(flags.to) && !(spec.handoff?.first_check ?? "").trim()) die("handoff.first_check must be filled before freeze (M14)");
     const idx = flags.index ? loadIndex(flags.index) : null;
-    if (flags.role === "decision_maker" && !idx) console.error(`note: no --index, so '${flags.by}' acts as decision_maker on their own say-so; the record will show the round as unnamed`);
+    // A decision_maker is the one role no field of a spec names, so the only
+    // thing that can check it is the round's Index. 1.2 let the flag be omitted
+    // and said so on stderr, which is a note nobody reads in a transcript. The
+    // act now has to declare which of the two it is; neither is refused.
+    if (flags.role !== "decision_maker" && flags.unbound) die("--unbound says a decision-maker was checked against no round; it means nothing for owner or reviewer");
+    if (flags.role === "decision_maker") {
+      if (idx && flags.unbound) die("pass --index <round.yaml> or --unbound, not both");
+      if (!idx && !flags.unbound) {
+        const near = indexesNear([flags.specs, dirname(file)]);
+        die(`acting as decision_maker needs the round: pass --index <round.yaml>, so '${flags.by}' is checked against the committee that round names, or --unbound to record that nothing checked it`
+          + (near.length ? `\n  did you mean: ${near.map((p) => `--index ${p}`).join("\n                ")}` : ""));
+      }
+      if (flags.unbound) console.error(`note: --unbound, so '${flags.by}' acts as decision_maker on their own say-so; the record will show the round as unnamed and lint will report unbound-decision`);
+    }
     // Identity before arithmetic: who may act is a better error than how many
     // freezes are left.
     const unbound = bindDecisionMaker({ role: flags.role, actor: flags.by }, idx);
@@ -202,9 +236,7 @@ switch (cmd) {
     const [file] = positional;
     if (!file) die("index needs an index file");
     const idx = loadIndex(file);
-    const specsById = flags.specs ? specsIn(flags.specs) : null;
-    const recordsById = specsById ? recordsIn(flags.specs) : null;
-    const { md, findings } = renderIndex(idx, specsById, recordsById);
+    const { md, findings } = renderIndex(idx, flags.specs ? resolveDir(flags.specs) : null);
     const blocked = printFindings(file, findings);
     if (blocked) process.exit(1);
     emit(md, flags.out);

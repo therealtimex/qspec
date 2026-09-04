@@ -3,7 +3,7 @@
 // Nothing here composes: every line is a field, and an empty field is reported
 // as a hole rather than filled.
 const { catalogs, resolveProfile } = require("./catalogs.js");
-const { frozenInRound, signingEntry } = require("./record.js");
+const { checkSignature, frozenInRound, signingEntry } = require("./record.js");
 
 const s = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
 const hole = "(not stated)";
@@ -67,8 +67,14 @@ function sheet(spec, { record = null, index = null } = {}) {
 // rather than as a failure of the round. Only `draft` is refused, because a spec
 // that cannot leave draft was never offerable.
 const INDEX_STATES = ["specified", "selectable", "deferred", "frozen", "killed", "superseded"];
+const IN_PLAY = ["selectable", "deferred", "frozen"];
 
-function index(idx, specsById = null, recordsById = null) {
+// `resolved` is what `--specs` found: { specs, records, files }, each keyed by
+// spec id. Without it only the Index's own fields can be checked.
+function index(idx, resolved = null) {
+  const specsById = resolved?.specs ?? null;
+  const recordsById = resolved?.records ?? null;
+  const filesById = resolved?.files ?? null;
   const findings = [];
   const f = (severity, rule, message, act) => findings.push({ severity, rule, message, act });
   if (idx.index_schema !== "QSPEC-INDEX/1.0") f("block", "index-schema", "index_schema must be QSPEC-INDEX/1.0");
@@ -85,6 +91,18 @@ function index(idx, specsById = null, recordsById = null) {
     const sp = specsById[e.id];
     if (!sp) { f("block", "index-resolve", `${e.id}: no spec with that id in the given directory`); continue; }
     outcomes.push([e.id, sp.status]);
+    // A round shows a committee a claim in twenty words. If the spec has moved
+    // out from under its signature, those twenty words may describe a claim the
+    // spec no longer makes, and nothing else in the round would say so: `lint`
+    // sees the spec, the sheet sees the spec, the Index sees only its own text.
+    // Only for specs still in play: a killed, superseded or withdrawn spec is
+    // this round's outcome, and an edit made to it afterwards is not this
+    // round's problem.
+    if (IN_PLAY.includes(sp.status)) {
+      for (const x of checkSignature(sp, recordsById?.[e.id] ?? null, filesById?.[e.id] ?? e.id)) {
+        if (x.severity === "block") f("block", "index-stale", `${e.id}: ${x.message}. The claim this round shows may not be the claim the spec makes`, x.act);
+      }
+    }
     if (sp.status === "draft") f("block", "index-state", `${e.id}: spec status is 'draft', so it was never offerable in a round`);
     else if (!INDEX_STATES.includes(sp.status)) f("block", "index-state", `${e.id}: spec status '${sp.status}' is not a listed state`);
     else if (sp.status === "specified") f("warn", "index-withdrawn", `${e.id}: listed in this round but its status is 'specified', so it is not currently offered`);
@@ -107,13 +125,13 @@ function index(idx, specsById = null, recordsById = null) {
   }
   // The cap is over what actually froze, not over the hand-written list.
   const declared = Array.isArray(idx.frozen) ? idx.frozen : [];
-  const resolved = frozenInRound(idx, specsById);
-  const frozen = resolved ?? declared;
+  const actuallyFrozen = frozenInRound(idx, specsById);
+  const frozen = actuallyFrozen ?? declared;
   if (frozen.length > 1 && !s(idx.exception)) f("block", "index-freeze", `${frozen.length} specs frozen in one round (${frozen.join(", ")}) with no written exception`);
   for (const id of declared) if (!entries.some((e) => e.id === id)) f("block", "index-frozen-id", `${id} is listed as frozen but has no entry`);
-  if (resolved) {
-    for (const id of resolved) if (!declared.includes(id)) f("block", "index-frozen-drift", `${id} is frozen but the index does not list it under frozen`);
-    for (const id of declared) if (!resolved.includes(id) && specsById[id]) f("block", "index-frozen-drift", `${id} is listed under frozen but its status is '${specsById[id].status}', which is not a freeze`);
+  if (actuallyFrozen) {
+    for (const id of actuallyFrozen) if (!declared.includes(id)) f("block", "index-frozen-drift", `${id} is frozen but the index does not list it under frozen`);
+    for (const id of declared) if (!actuallyFrozen.includes(id) && specsById[id]) f("block", "index-frozen-drift", `${id} is listed under frozen but its status is '${specsById[id].status}', which is not a freeze`);
   }
   const rows = [...entries].sort((a, b) => a.rank - b.rank).map((e) => `| ${e.rank} | ${e.id}@${e.instance_version} | ${e.domain} | ${e.family} | ${e.claim_20_words} | ${e.blocking ? "yes" : "no"} | ${e.recommended_action} |`);
   const md = [

@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.3.0 (2026-09-04)
+
+1.2 closed the places where the prose and the tool disagreed. 1.3 closes four places where using the commands in order lets a round go quietly wrong. Nothing here touches an instance field, adds an M invariant, or changes a file format: every 1.2.0 spec and record is a valid 1.3.0 spec and record. What changed is a command line.
+
+### A decision-maker act declares its round or disclaims it
+
+- `qspec transition --role decision_maker` now requires `--index <round>` or `--unbound`. 1.2 allowed the flag to be omitted and noted on stderr that it had checked nothing, which is not a note anyone reads back from a transcript; the omission is how a committee ends up with a freeze taken by someone it never named. Neither option is refused. The choice is.
+- `--index` checks the actor against the committee the round names and holds the one-freeze-per-round cap. `--unbound` records no round and leaves `unbound-decision` on the record for as long as the record exists.
+- The refusal names the rounds it can see: an Index sitting beside the spec, or in `--specs`, is printed as a `did you mean` line, because an omitted flag is usually a flag someone did not know to type.
+- The requirement is on the role, not on the target state. 1.2's hole was described for `frozen` and `deferred`, but a kill taken as `decision_maker` is unbindable in exactly the same way.
+
+### A round refuses to show a claim its spec has moved away from
+
+- `qspec index --specs` now checks every listed spec's signature and blocks on `index-stale`. An Index shows a committee a claim in twenty words that a person wrote by hand. If the spec has moved since it was signed, those twenty words may describe a claim the spec no longer makes, and nothing else in a round would say so: `lint` reads the spec, the Selection Sheet reads the spec, and the Index reads only its own text. Before this, `qspec lint` would report `stale-signature` as a block on the same spec while `qspec index` reported `ok` and printed the superseded wording.
+
+### The claim's quote rule is checked where the rule is stated
+
+- Core section 7 says `one_sentence` may not contain a double quote or a brace, because a downstream document carries it verbatim as a gist. The only enforcement was in `qspec paper`, at the far end of the pipeline: a claim could be signed and frozen and fail only when a document was checked against it, and by then rewording costs a new `instance_version` or a successor. `qspec lint` now reports `gist-unrepresentable` as a `warn` while the spec is still in draft.
+- It is a warning and not an M invariant on purpose. A new blocking check on an instance field is a major release under section 14, and 1.3 is not that. `qspec paper` still blocks.
+
+### `manual` never stopped anything, and no longer says it does
+
+- Section 8.1's table claimed `manual` stops a spec leaving `draft`. No command has ever refused on a `manual` finding; only `block` sets an exit code. The claim was true of M16 by coincidence, because the act M16 names is signing and signing is what leaves `draft`, and false of every other `manual` finding, such as an empty `ask` on a Selection Sheet. The column now reads "sets an exit code", and what stops a spec leaving `draft` is named as what it is: an act refusing to run.
+
+### Not in this release
+
+Suggested and deliberately held for evidence from a real round: an `act:` label on record entries, generating or diffing `claim_20_words`, and refusing an offer whose `ask` is empty. The first duplicates state that `from`, `to` and `role` already carry; the second cannot be measured, because a twenty-word précis and a claim sentence are meant to be different text, and the tool composing one would break the rule that it never writes a field; the third is a real gap whose harm is that the Selection Sheet tells the committee late rather than not at all.
+
 ## 1.2.0 (2026-09-03)
 
 Six gaps found by reading 1.1.0 against what the tool actually does. All additive: no field removed or renamed, no M invariant on the instance fields tightened, every 1.1.0 instance and record still valid.

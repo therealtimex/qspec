@@ -2,7 +2,7 @@
 
 A Question Spec is a short contract that turns a research topic, technique, or platform into a claim that can be wrong, so that questions from different methods and domains can be compared, selected, frozen, or killed on the same terms.
 
-Version 1.2.0, released 2026-09-03. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
+Version 1.3.0, released 2026-09-04. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
 
 The tool renders and checks; it does not author. A field is written by a person, a judgment is signed by a person, and the tool notices when a signature no longer covers the text. It pairs with [Paperforge](docs/paperforge-integration.md) downstream, which applies the same rule to the documents that answer the question.
 
@@ -43,7 +43,7 @@ node bin/qspec.js sign specs/Q-014_apical-oxygen.yaml --by "G. Reviewer"
 
 `--show` prints J1 to J7 with J7 resolved to this profile's rule from the overlay, and signs nothing. Signing appends a draft-to-specified entry to `specs/Q-014_apical-oxygen.record.yaml` carrying a fingerprint of the spec and the J7 rule verbatim, and sets `status: specified`. Edit the claim afterwards and `lint` reports `stale-signature` until the reviewer signs again; reword the overlay's J7 rule and `lint` reports `overlay-drift`.
 
-The owner offers it, the decision-maker chooses. `--index` names the round, which is the only thing that can check a decision-maker against a committee and hold the one-freeze-per-round cap:
+The owner offers it, the decision-maker chooses. A decision-maker act must declare `--index <round>` or `--unbound`: the Index is the only thing that can check a decision-maker against a committee and hold the one-freeze-per-round cap, and `--unbound` records that nothing did.
 
 ```sh
 node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to selectable --by "F. Owner" --role owner --index round.yaml
@@ -67,15 +67,15 @@ qspec fingerprint <spec>              what a signature is taken over
 qspec sign <spec> --by <reviewer>     draft -> specified; refuses while any M invariant fails
      [--show] [--dissent "<who>: <point>"]   --show prints J1 to J7 and signs nothing
 qspec transition <spec> --to <state> --by <actor> --role <owner|reviewer|decision_maker>
-     [--index round.yaml] [--specs dir] [--reason] [--cite Jn] [--revisit-by date]
-     [--successor id@ver] [--date date] [--dissent "<who>: <point>"]
+     [--index round.yaml | --unbound] [--specs dir] [--reason] [--cite Jn]
+     [--revisit-by date] [--successor id@ver] [--date date] [--dissent "<who>: <point>"]
 qspec sheet <spec> [--index <index>] [--out file]      selectable, deferred, or frozen only
 qspec index <index> --specs <dir> [--out file]         checks, then renders
 qspec request <spec> [--out file]                      frozen only
 qspec paper <spec> <document.md>                       the document carries the frozen claim as a gist
 ```
 
-Findings use four severities: `block`, `manual` (with the act that settles it), `warn`, `skip`. Only `block` sets the exit code. Judged invariants J1 to J7 are never evaluated by the tool; it prints them, records what was signed, and reports when the overlay's wording has moved since.
+Findings use four severities: `block`, `manual` (with the act that settles it), `warn`, `skip`. Only `block` sets the exit code; a `manual` finding names an act, and running the act is what settles it. Judged invariants J1 to J7 are never evaluated by the tool; it prints them, records what was signed, and reports when the overlay's wording has moved since.
 
 Nothing here authenticates anyone. `owner` and `reviewer` are checked against fields of the spec, `decision_maker` against the round's Index when one is given. A signature establishes that a name was written beside an act and that the text has not moved since; it does not establish that the person acted or consented.
 
@@ -100,6 +100,7 @@ Tag `vX.Y.Z`. The release workflow refuses the tag unless it matches the version
 - Instances declare `spec_schema: QSPEC/1.0` and a `domain`. All 1.x core releases accept that string.
 - Schema documents carry their version in the header, not the filename.
 - A field removal, rename, or tightened M invariant on instance fields is a major release with a new `spec_schema` string.
+- Every 1.2.0 instance and record is valid under 1.3.0. What 1.3.0 changed is a command line, not a file: a `decision_maker` act now has to declare `--index` or `--unbound`.
 - Every 1.1.0 instance and record is valid under 1.2.0. A record written before 1.2.0 reports `J7-unrecorded` as `skip`, and a decision-maker act in one reports `unbound-decision` as `warn`; neither blocks, and re-signing or re-freezing with `--index` clears them.
 
 ## Migrating a 0.1.0 draft instance

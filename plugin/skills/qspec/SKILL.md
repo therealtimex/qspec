@@ -4,7 +4,7 @@ description: Write, lint, sign, select, freeze, or kill a research question as a
 allowed-tools: Read, Write, Edit, Bash
 license: UNLICENSED
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # QSPEC Question Specs
@@ -41,7 +41,8 @@ qspec fingerprint <spec>              what a signature is taken over
 qspec sign <spec> --by <reviewer>     draft -> specified; refuses while any M invariant fails
      [--show]                         print J1 to J7 for this profile and sign nothing
 qspec transition <spec> --to <state> --by <actor> --role <owner|reviewer|decision_maker>
-     [--index <round>] [--specs <dir>]  bind the decision-maker to the round; hold the freeze cap
+     [--index <round> | --unbound]    a decision_maker act must declare one of the two
+     [--specs <dir>]                  where the round's other specs live, for the freeze cap
      [--dissent "<who>: <point>"]     record a dissenting point with the act
 qspec sheet <spec> [--index <index>]  the Selection Sheet, for selectable, deferred, or frozen only
 qspec index <index> --specs <dir>     the Portfolio Index and its checks
@@ -56,19 +57,19 @@ Findings are `block`, `manual` (with the act that settles it), `warn`, or `skip`
 1. **Interview before writing.** Get the claim sentence, the domain, the primary method family, at least two named closest works, the blocking materials, and the kill condition from the user. If any is missing, leave the field empty and say so; an empty field is a `block` the author can see, a plausible invention is not.
 2. **Copy the template** for the domain, fill it, and run `lint` until nothing blocks. Profile field lists are in the overlay's section 4.
 3. **Signing is a person's act.** When lint is clean, run `qspec sign --show` and put the seven rules in front of the reviewer: J7 is the overlay's rule for this profile, and it is the one nobody remembers. Then tell the user which reviewer must reread the spec and run `qspec sign --by <reviewer>`. Do not sign as the reviewer yourself unless the user, acting as that reviewer, says the invariants hold.
-4. **Offer, choose, freeze** with `transition`, and render the Selection Sheet for the decision-maker. Pass `--index <round>` to every decision-maker act: it is the only thing that checks the actor against the round's committee and holds the one-freeze-per-round cap. Without it the act still records, and says on stderr that it checked nothing.
+4. **Offer, choose, freeze** with `transition`, and render the Selection Sheet for the decision-maker. A decision-maker act must declare `--index <round>`, which checks the actor against the committee that round names and holds the one-freeze-per-round cap, or `--unbound`, which records that nothing checked it and leaves `unbound-decision` on the record for good. Reach for `--index`; offer `--unbound` only when the user says there is no round, which for a single candidate is normal.
 5. **Withdraw, do not kill, to pull a spec out of a round.** `--to specified --role owner --reason "..."` keeps the signature and allows a later re-offer. Killing is terminal and, when the round listed the spec, the Index reports it.
 6. **Hand off** with `request`. Point the Paperforge project's `request` key at the exported file and put `**Question:** Q-014@1` in the document head.
 
 ## Three things not to work around
 
-**When lint blocks, fix the spec.** M invariants are listed in QSPEC-CORE section 8 with their numbers. A block is a missing or malformed field, not a style note.
+**When lint blocks, fix the spec.** M invariants are listed in QSPEC-CORE section 8 with their numbers. A block is a missing or malformed field, not a style note. `gist-unrepresentable` is only a warning, but act on it while the spec is in draft: a double quote or a brace in `one_sentence` blocks `qspec paper` at the far end, and rewording a frozen claim costs a new `instance_version` or a successor.
 
 **When a signature is stale, a reviewer rereads.** `sign` on a changed spec demotes it and re-signs in one act, but only a person can say the judged invariants still hold. A frozen spec that changed needs a new `instance_version` or a successor, never a re-signature.
 
 **Never edit a Decision Record by hand.** It is append-only and tool-written. If a state is wrong, append the right transition. Dissent goes in with `--dissent` on the act, not with an editor.
 
-**A role is claimed, not proved.** `--role decision_maker` is checked against the round's Index when one is given and against nothing when one is not. Do not tell a user the tool established who someone is; it established that a name was written beside an act and that the text has not moved since.
+**A role is claimed, not proved.** `--role decision_maker` is checked against the round's Index when one is given and against nothing under `--unbound`. Do not tell a user the tool established who someone is; it established that a name was written beside an act and that the text has not moved since.
 
 ## Essentials
 

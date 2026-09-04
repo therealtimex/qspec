@@ -1,9 +1,9 @@
-# QSPEC-CORE 1.2.0
+# QSPEC-CORE 1.3.0
 # Question Spec: shared core for all research domains
 
 **Spec-ID:** QSPEC-CORE
-**Schema-Version:** 1.2.0
-**Date:** 2026-09-03
+**Schema-Version:** 1.3.0
+**Date:** 2026-09-04
 **Status:** released
 **Instance format:** `spec_schema: QSPEC/1.0` plus a `domain` key
 **Domain overlays:** [QSPEC-SS](QSPEC-SS.md) (social sciences), [QSPEC-NS](QSPEC-NS.md) (natural sciences), [QSPEC-ENG](QSPEC-ENG.md) (engineering)
@@ -110,7 +110,9 @@ killed      closed, with a written reason
 
 A spec needs at least one reviewer who is not the owner before it can leave `draft`.
 
-`owner` and `reviewer` name people the spec itself names, so an act in one of those roles is checked against the spec. No field of a spec names the committee, so a `decision_maker` is checked only against the Index of the round the act is taken in, and only when that Index is in hand. An act taken without one records no round, and the tool says so rather than implying an authority it did not check. None of this is authentication; see section 3.
+`owner` and `reviewer` name people the spec itself names, so an act in one of those roles is checked against the spec. No field of a spec names the committee, so a `decision_maker` is checked only against the Index of the round the act is taken in, and only when that Index is in hand.
+
+Because that is the one binding available, an act in the `decision_maker` role must say which it is: `--index <round>`, and the actor is checked against the committee that round names, or `--unbound`, and the record shows no round and `qspec lint` reports `unbound-decision` for as long as the record exists. Neither is refused; the choice is. Before 1.3 the flag could be omitted and the tool noted on stderr that it had checked nothing, which is not a note anyone reads back. None of this is authentication; see section 3.
 
 ### 6.3 Transitions
 
@@ -132,7 +134,7 @@ Rules:
 
 - Only `selectable` specs are put forward for choice. Only `frozen` specs are the official question for the next stage.
 - Withdrawal is not killing. An owner who no longer wants a spec in the round returns it to `specified`, where it keeps its signature and can be offered again. `killed` stays available to an owner at any point, and it stays terminal; when a round listed the spec, the Index reports the kill and its reason so an aborted round is never silent.
-- The one-freeze-per-round cap is held by the act, not only by the Index: `qspec transition --to frozen --index <round>` refuses a second freeze in a round unless the Index carries a written `exception`. What counts as a freeze is the specs' own statuses, `frozen` or `superseded`, not the Index's hand-written `frozen` list.
+- The one-freeze-per-round cap is held by the act, not only by the Index: `qspec transition --to frozen --index <round>` refuses a second freeze in a round unless the Index carries a written `exception`. What counts as a freeze is the specs' own statuses, `frozen` or `superseded`, not the Index's hand-written `frozen` list. An act taken `--unbound` is outside every round, so no cap applies to it and none of its acts appear in a round's checks. That is the cost of not naming one.
 - A change to any fingerprinted section (section 9.2) after signing makes the signature stale. The spec cannot be offered or frozen again until a reviewer re-signs. After `frozen`, such a change also requires a new `instance_version`; if the claim itself changed, a new `id`, and the old spec becomes `superseded`. Typos and added citations bump `instance_version` alone.
 - `killed` is terminal for that instance. Reopening means a new `instance_version` or new `id` with new materials, new variation, or a changed claim, never the same spec with softer language.
 - Exploratory work is not exempt. It is written as a spec whose knowledge goal is one of the domain's `exploratory_goals` and whose kill condition is about the method, the instrument, or the corpus rather than about the world. The goals differ by domain, because `feasibility` is an engineering value and does not exist in the social or natural catalogs; each overlay names its own in section 3.2. What does not differ is the kill condition: "keep looking" is not one.
@@ -226,7 +228,7 @@ handoff:                  # not fingerprinted: first_check is filled between sig
 
 | Field | Meaning |
 |---|---|
-| `one_sentence` | A statement that can turn out false. Not a theme, a technique, a platform, or a list of nouns. It must not contain a double quote or a brace, because a downstream document carries it verbatim as a gist. |
+| `one_sentence` | A statement that can turn out false. Not a theme, a technique, a platform, or a list of nouns. It must not contain a double quote or a brace, because a downstream document carries it verbatim as a gist. `qspec lint` reports `gist-unrepresentable` as a `warn` while the spec is still being written; `qspec paper` blocks on it. It is a warning and not an M invariant because a new blocking check on an instance field would be a major release, and finding out at the document is far too late: rewording a frozen claim costs a new `instance_version` or a successor. |
 | `comparative` | Whether the claim asserts better, worse, larger, or different relative to something. If true, the profile's comparator field must be filled. |
 | `why_it_matters` | Why a reader who does not work on this setting, system, or testbed should care. |
 | `method_family` | How the claim is to be established. Exactly one primary. |
@@ -261,10 +263,12 @@ Invariants are numbered so a Decision Record can cite them. **M** invariants are
 
 Every finding the tool reports carries one of four severities. The vocabulary is Paperforge's, so a team reading both tools reads one language.
 
-| Severity | Means | Stops the spec leaving draft |
+Only `block` sets an exit code, in every command. What stops a spec leaving `draft` is an act refusing to run, not a severity: `qspec sign` refuses while any M invariant blocks, and it is signing that leaves `draft`. A `manual` finding is a prompt with an act attached, and no command has ever refused on one. Before 1.3 this table said `manual` stopped a spec leaving `draft`, which was true of M16 by coincidence, because the act M16 names is signing, and false of every other `manual` finding.
+
+| Severity | Means | Sets an exit code |
 |---|---|---|
 | `block` | a listed invariant demonstrably fails, or a signature no longer covers the text | yes |
-| `manual` | the check ran and the verdict is a person's; the finding names the act that settles it | yes, until the act is done |
+| `manual` | the check ran and the verdict is a person's; the finding names the act that settles it | no; it names an act, and the act is what settles it |
 | `warn` | worth a look; the owner decides | no |
 | `skip` | the check could not run, and says why | no |
 
@@ -321,6 +325,8 @@ These come from the record, the Index, or a rendering rather than from the insta
 | `J7-unrecorded` | skip | signed before the rule was recorded, so drift cannot be checked |
 | `blocking-without-plan` | warn | blocking materials with no `obtainable` entry |
 | `index-committee` | block | an act claims a round whose Index names a different decision-maker |
+| `index-stale` | block | a listed spec's signature no longer covers its text, so the round may be showing a claim the spec does not make |
+| `gist-unrepresentable` | warn in `lint`, block in `paper` | `one_sentence` carries a double quote or a brace, which a downstream gist cannot hold |
 | `index-freeze`, `index-frozen-drift` | block | more than one freeze without an exception, or a `frozen` list that disagrees with the specs |
 | `index-withdrawn`, `round-withdrawal` | warn | a listed spec was withdrawn or killed by its owner |
 
@@ -431,6 +437,7 @@ What is checked against the specs themselves, when `--specs` is given:
 
 - `frozen` must agree with the specs' own statuses. `frozen` and `superseded` both count as a freeze, because superseding replaces a freeze rather than undoing it. More than one needs a written `exception`.
 - Any act in the specs' records that claims this `round` as `decision_maker` must be by the person this Index names. This is the only place that check can be made.
+- Every listed spec still in play, meaning `selectable`, `deferred`, or `frozen`, must carry a signature that still covers its text. An Index shows a committee a claim in twenty words that a person wrote by hand; if the spec has moved since it was signed, those twenty words may describe a claim the spec no longer makes, and nothing else in a round would say so, because `lint` reads the spec and the Selection Sheet reads the spec while the Index reads only its own text. A spec the round killed, superseded, or that its owner withdrew is this round's outcome, and an edit made to it afterwards is not this round's failure.
 - A listed spec killed or withdrawn by its owner is reported with the reason from its record, so a round that lost a candidate says so.
 
 ---
@@ -463,6 +470,7 @@ Question development is finished when:
 - Overlays version with the core and declare the core version they target.
 - A change that removes a field, renames a field, or tightens an M invariant on the instance fields is a major release and a new `spec_schema` string.
 - 1.1.0 added M16, which tightens what leaving `draft` requires. That was taken as a minor release because no 1.0.0 instance existed outside this repository. It is the last time that exception applies.
+- 1.3.0 adds findings on records and renderings and requires a `decision_maker` act to declare `--index` or `--unbound`. No instance field changed and no M invariant was added or tightened: `gist-unrepresentable` is a `warn`, not an M number, for exactly that reason. Every 1.2.0 instance and record is a valid 1.3.0 instance and record. What changed is a command line, not a file: a script that froze without naming a round now has to say `--unbound`.
 - 1.2.0 adds a transition, two optional Decision Record fields, one catalog key, one catalog value per profile, and findings on records and Indexes. It removes no field, renames none, and tightens no M invariant on the instance fields. Every 1.1.0 instance and record is a valid 1.2.0 instance and record; a record written before 1.2.0 reports `J7-unrecorded` as `skip` and, for a decision-maker act, `unbound-decision` as `warn`, neither of which blocks. Re-signing and re-freezing with `--index` clears both.
 
 ---
@@ -476,7 +484,8 @@ qspec lint <spec>...                  M1 to M16, record checks, signature stalen
 qspec fingerprint <spec>              what a signature is taken over
 qspec sign <spec> --by <reviewer>     draft -> specified, with J1 to J7 and the fingerprint
                                       prints the seven rules; --show prints without signing
-qspec transition <spec> --to <state> --by <actor> --role <role> [--index <round>]
+qspec transition <spec> --to <state> --by <actor> --role <role>
+                                      a decision_maker act takes --index <round> or --unbound
 qspec sheet <spec> [--index <index>]  the Selection Sheet
 qspec index <index> --specs <dir>     the Portfolio Index and its checks
 qspec request <spec>                  the frozen request for a downstream project
