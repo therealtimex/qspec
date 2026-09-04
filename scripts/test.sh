@@ -135,6 +135,38 @@ $Q runs --project /tmp/qspec-notes | grep -q "1 note(s)" || { echo "UNEXPECTED: 
 $Q lint /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml | grep -q "notes-without-act" || { echo "UNEXPECTED: lint did not warn that a note is not an act"; exit 1; }
 if $Q attach nonesuch /tmp/qspec-notes/handoff.md --by X --role reviewer --project /tmp/qspec-notes >/dev/null 2>&1; then echo "UNEXPECTED: attach accepted a run that does not exist"; exit 1; fi
 if $Q attach baseline /tmp/qspec-notes/handoff.md --by X --role reviewer --kind verdict --project /tmp/qspec-notes >/dev/null 2>&1; then echo "UNEXPECTED: attach accepted an unlisted kind"; exit 1; fi
+echo "== dossiers preserve notes, frozen claims carry gists, and run labels scope by spec"
+rm -rf /tmp/qspec-render && $Q init --into /tmp/qspec-render --title "Render Probe" --round 2026-09 --decision-maker "Group lead" --no-git >/dev/null
+cp examples/ss-ethnographic-scoring-weights.yaml /tmp/qspec-render/specs/Q-102.yaml
+sed -i.bak 's/^status: specified$/status: draft/' /tmp/qspec-render/specs/Q-102.yaml && rm -f /tmp/qspec-render/specs/*.bak
+cp examples/ss-causal-procurement-cutoff.yaml examples/ss-causal-procurement-cutoff.record.yaml /tmp/qspec-render/specs/
+cp examples/ns-experimental-apical-oxygen.yaml examples/ns-experimental-apical-oxygen.record.yaml /tmp/qspec-render/specs/
+cp examples/index-round-2026-09.yaml /tmp/qspec-render/specs/index-2026-09.yaml
+sed -i.bak '/  - id: Q-301/,/    rank: 3/d' /tmp/qspec-render/specs/index-2026-09.yaml && rm -f /tmp/qspec-render/specs/*.bak
+$Q lint /tmp/qspec-render/specs/Q-102.yaml --label reviewer-round-1 >/dev/null
+printf '# Draft review\n\nKeep this line byte-for-byte, including TBD and  two spaces.\n' > /tmp/qspec-render/draft-review.md
+$Q attach reviewer-round-1 /tmp/qspec-render/draft-review.md --by "D. Reviewer" --role reviewer --kind review --project /tmp/qspec-render >/dev/null
+$Q lint /tmp/qspec-render/specs/ss-causal-procurement-cutoff.yaml --label reviewer-round-1 >/dev/null
+if $Q runs show reviewer-round-1 --project /tmp/qspec-render >/dev/null 2>&1; then echo "UNEXPECTED: an ambiguous bare run label resolved"; exit 1; fi
+$Q runs show reviewer-round-1 --spec Q-102 --project /tmp/qspec-render | grep -q "Keep this line byte-for-byte" || { echo "UNEXPECTED: --spec did not resolve the draft's run label"; exit 1; }
+$Q dossier /tmp/qspec-render/specs/Q-102.yaml --out /tmp/qspec-render/Q-102-dossier.md --label draft-dossier >/dev/null
+NOTE=$(find /tmp/qspec-render/.qspec/runs -path '*/notes/*-review-d-reviewer.md' -print | head -1)
+node -e 'const fs=require("node:fs"); const note=fs.readFileSync(process.argv[1]); const dossier=fs.readFileSync(process.argv[2]); if (!dossier.includes(note)) process.exit(1)' "$NOTE" /tmp/qspec-render/Q-102-dossier.md || { echo "UNEXPECTED: dossier changed the attached note bytes"; exit 1; }
+if grep -q 'claim-q-102' /tmp/qspec-render/Q-102-dossier.md; then echo "UNEXPECTED: a draft dossier carried a frozen claim label"; exit 1; fi
+$Q dossier /tmp/qspec-render/specs/ns-experimental-apical-oxygen.yaml --out /tmp/qspec-render/Q-201-dossier.md >/dev/null
+grep -q '{#claim-q-201 gist="In the studied cuprate family' /tmp/qspec-render/Q-201-dossier.md || { echo "UNEXPECTED: a frozen dossier did not carry the frozen claim gist"; exit 1; }
+$Q runs --project /tmp/qspec-render --diff reviewer-round-1,draft-dossier --spec Q-102 >/dev/null || { echo "UNEXPECTED: --spec did not scope runs --diff"; exit 1; }
+echo "== render writes the state-appropriate corpus and one run names every output"
+$Q render --specs /tmp/qspec-render/specs --out /tmp/qspec-render/documents --index /tmp/qspec-render/specs/index-2026-09.yaml --label render-probe > /tmp/qspec-render/render.out
+grep -q 'skip.*Q-102.yaml.*status is draft' /tmp/qspec-render/render.out || { echo "UNEXPECTED: render did not name the skipped draft sheet"; exit 1; }
+test "$(find /tmp/qspec-render/documents -type f -name '*.md' | wc -l | tr -d ' ')" = "7" || { echo "UNEXPECTED: render did not write exactly three dossiers, two sheets, one request, and one Index"; exit 1; }
+node -e 'const r=require("./lib/runs.js").load("/tmp/qspec-render", "render-probe").record; const outputs=r.files.map(f=>f.output).filter(Boolean); if(r.command!=="render" || outputs.length!==7 || new Set(outputs).size!==7) process.exit(1)' || { echo "UNEXPECTED: the render run did not name every written file exactly once"; exit 1; }
+cp templates/documents.qspec.toml /tmp/qspec-render/documents/documents.toml
+MANIFEST_SHA=$(shasum -a 256 /tmp/qspec-render/documents/documents.toml | awk '{print $1}')
+$Q render --specs /tmp/qspec-render/specs --out /tmp/qspec-render/documents --index /tmp/qspec-render/specs/index-2026-09.yaml --manifest /tmp/qspec-render/documents/documents.toml --label manifest-probe > /tmp/qspec-render/manifest.out
+grep -q 'source = "dossiers/Q-102.md"' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not print an entry missing from the Paperforge manifest"; exit 1; }
+if grep -q 'source = "index/2026-09.md"' /tmp/qspec-render/manifest.out; then echo "UNEXPECTED: render reported an Index already declared under its collection root"; exit 1; fi
+test "$MANIFEST_SHA" = "$(shasum -a 256 /tmp/qspec-render/documents/documents.toml | awk '{print $1}')" || { echo "UNEXPECTED: render edited the Paperforge manifest"; exit 1; }
 echo "== sign --show, sheet, and request record runs; the sheet keeps what was rendered"
 $Q sign /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml --by "D. Reviewer" --show >/dev/null
 $Q sheet /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml --index /tmp/qspec-notes/specs/index-round-2026-09.yaml --out /tmp/qspec-notes/sheets/Q-101.md >/dev/null
@@ -156,5 +188,5 @@ ls /tmp/qspec-notes/.qspec/runs/*/sources/external/qspec-external-paper.md >/dev
 echo "== the commands the guidance names are the commands help lists"
 for c in $(node -e 'console.log(require("./lib/scaffold.js").COMMANDS.join(" "))'); do $Q help | grep -q "^  $c " || { echo "UNEXPECTED: guidance names '$c' but help does not list it"; exit 1; }; done
 echo "== renderings carry nothing Paperforge lint would block"
-if grep -qiE '\b(TODO|TBD|FIXME|XXX|PLACEHOLDER)\b' /tmp/qspec-index.md /tmp/qspec-sheet.md /tmp/qspec-request.md /tmp/qspec-init-round.md /tmp/qspec-init/AGENTS.md /tmp/qspec-runs/AGENTS.md /tmp/qspec-notes/AGENTS.md; then echo "UNEXPECTED: a blocked marker reached a rendering"; exit 1; fi
+if grep -qiE '\b(TODO|TBD|FIXME|XXX|PLACEHOLDER)\b' /tmp/qspec-index.md /tmp/qspec-sheet.md /tmp/qspec-request.md /tmp/qspec-init-round.md /tmp/qspec-init/AGENTS.md /tmp/qspec-runs/AGENTS.md /tmp/qspec-notes/AGENTS.md /tmp/qspec-render/documents/sheets/*.md /tmp/qspec-render/documents/index/*.md /tmp/qspec-render/documents/requests/*.md; then echo "UNEXPECTED: a blocked marker reached a sheet, Index, request, or guidance"; exit 1; fi
 echo "all checks passed"

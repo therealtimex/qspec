@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.7.0 (2026-09-04)
+
+QSPEC's records were complete enough for a tool and still required a person to read YAML, JSON, and scattered markdown before signing or funding a question. 1.7 keeps the file boundary with Paperforge: qspec renders markdown, Paperforge renders and gates editions. No instance field, M invariant, Decision Record shape, or Index shape changed; every 1.6.0 project remains valid.
+
+### A dossier is the readable process record
+
+- `qspec dossier <spec> [--out <file>] [--label <text>]` renders any state, including `draft`: head metadata, the spec in core order, closest work and Decision Record tables, the run timeline, then every attached note in chronological order. Note bodies are copied byte for byte and never trimmed or summarised.
+- A frozen, gist-representable `one_sentence` labels the claim paragraph as `{#claim-q-<id> gist="..."}` using the same representation rule as `qspec paper`; a draft dossier carries no claim label.
+- The command records a `dossier` run and keeps the markdown under `rendered/`.
+
+### `render` makes the whole markdown corpus
+
+- `qspec render --out <dir> [--specs <dir>] [--index <round>] [--label <text>]` writes every dossier, sheets for `selectable`, `deferred`, and `frozen` specs, every Index, and requests for frozen specs. A draft sheet is skipped with its reason; one failed target does not prevent independent outputs.
+- One `render` run records one entry per file written, names its output, and keeps the rendered markdown. Existing unrelated files under the output directory are untouched.
+- `--manifest <documents.toml>` prints missing `[[collection.document]]` blocks and never edits the manifest.
+
+### Paperforge stays on its side of the seam
+
+- `templates/documents.qspec.toml` is a complete unpublished Paperforge corpus manifest. It declares brief layouts for sheets and Indexes and a report-derived dossier type; dossier entries request HTML, Typst PDF, and DOCX.
+- Dossiers are process records: attached notes may contain Paperforge's publication markers. The docs and scaffolded guidance require `paperforge all --draft`, which reports findings and cannot publish. Sheets, Indexes, requests, and guidance stay under the suite's marker grep; dossiers are deliberately excluded.
+
+### Run labels scope to a question
+
+- `runs`, `runs show`, and `runs --diff` accept `--spec <id|path>`. Name and label resolution considers only runs that included that spec, so useful labels may repeat across concurrent question loops without being rewritten.
+- The scaffold guidance names `dossier` and `render`, so its fingerprint changes. `qspec init --refresh` rewrites only the managed block and clears the expected `STALE` state.
+
 ## 1.6.0 (2026-09-04)
 
 1.5 gave a project a memory of what the checks saw. On the second loop to use it, seven runs sat in the project, every handoff cited them, and the reviewer's findings and the approver's conditions still sat outside the project in a loop's handoff files, keyed by a loop id. A run answers what changed; only the handoff answers why. 1.6 keeps the two beside each other and lets an act name the run it read. Files, never fields: no instance field or M invariant changed, one optional field joins the Decision Record entry, and `notes-without-act` is a `warn`. Every 1.5.0 project, spec, record, and Index is a valid 1.6.0 one.

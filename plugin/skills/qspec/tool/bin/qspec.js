@@ -1,18 +1,17 @@
 #!/usr/bin/env node
-// qspec: lint specs, record acts, and render selection sheets, indexes and
-// frozen requests. `qspec help` lists the commands.
-const { existsSync, readFileSync, readdirSync, writeFileSync } = require("node:fs");
-const { dirname, join } = require("node:path");
+// qspec: lint specs, record acts, and render the documents people use to read
+// and choose questions. `qspec help` lists the commands.
+const { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } = require("node:fs");
+const { dirname, join, relative, resolve } = require("node:path");
 const yaml = require("../lib/vendor/js-yaml/js-yaml.js");
 const { J_INVARIANTS, J_TEXT, judgedRule } = require("../lib/catalogs.js");
 const { format, hasBlock, lintFile, loadSpec } = require("../lib/lint.js");
 const { checkPaper } = require("../lib/paper.js");
 const { appendEntry, bindDecisionMaker, fingerprint, frozenInRound, loadRecord, newRecord, recordPath, saveRecord, setStatus, signingEntry } = require("../lib/record.js");
-const { index: renderIndex, request: renderRequest, sheet: renderSheet } = require("../lib/render.js");
+const { SHEET_STATES, dossier: renderDossier, index: renderIndex, request: renderRequest, sheet: renderSheet } = require("../lib/render.js");
 const { STAMP, create, doctor, findRoot, newSpec, refresh, titleFrom } = require("../lib/scaffold.js");
 const runs = require("../lib/runs.js");
 const friction = require("../lib/friction.js");
-const { relative, resolve } = require("node:path");
 
 const HELP = `usage: qspec <command> [args]
 
@@ -27,12 +26,12 @@ const HELP = `usage: qspec <command> [args]
                                  an empty spec from the domain template with id and date set
   doctor [--project dir]         tool and node versions, whether this project's guidance is
                                  what init would write now, and what the runs have seen
-  runs [--project dir] [--only text]
+  runs [--project dir] [--only text] [--spec <id|path>]
        [--diff <a>,<b> [--sources]]
                                  every recorded run in this project: lint, index, sign, transition,
-                                 sheet, request, paper; --diff says what changed between two,
+                                 sheet, dossier, request, render, paper; --diff says what changed between two,
                                  --sources shows the text
-  runs show <run> [--project dir]
+  runs show <run> [--project dir] [--spec <id|path>]
                                  one run: its files, findings, and every note as written
   attach <run> <file> --by <actor> --role <role> [--kind handoff|review|decision|note]
                                  keep a handoff, review, or decision beside the run it is about;
@@ -60,8 +59,13 @@ const HELP = `usage: qspec <command> [args]
                                  selection sheet in Paperforge head format
   index <index.yaml> [--specs dir] [--out file.md] [--label text]
                                  portfolio index table, with its checks; records a run
+  dossier <spec.yaml> [--out file.md] [--label text]
+                                 whole spec, decision record, run timeline, and attached notes
   request <spec.yaml> [--out file.md]
                                  frozen request for a Paperforge project's request key
+  render --out <dir> [--specs dir] [--index round.yaml] [--manifest documents.toml]
+         [--label text]           dossiers for every spec, eligible sheets, every Index, and
+                                 frozen requests; prints manifest entries missing for its outputs
   paper <spec.yaml> <document.md>
                                  does the document carry the frozen claim as a gist
 `;
@@ -206,7 +210,40 @@ function notesWithoutAct(result) {
 }
 
 function emit(md, out) {
-  if (out) { writeFileSync(out, md); console.log(`wrote ${out}`); } else process.stdout.write(md);
+  if (out) { mkdirSync(dirname(resolve(out)), { recursive: true }); writeFileSync(out, md); console.log(`wrote ${out}`); } else process.stdout.write(md);
+}
+
+const flagText = (name) => flags[name] && flags[name] !== true ? String(flags[name]) : null;
+const safeName = (value) => String(value ?? "unnamed").replace(/[^A-Za-z0-9_.-]+/g, "-").replace(/^-|-$/g, "") || "unnamed";
+
+function writeRendering(outDir, subdir, name, md) {
+  const path = join(outDir, subdir, `${safeName(name)}.md`);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, md);
+  console.log(`wrote ${path}`);
+  return path;
+}
+
+function missingManifestEntries(manifest, outputs) {
+  const text = readFileSync(manifest, "utf8");
+  const declared = new Set();
+  let collectionRoot = ".";
+  for (const line of text.split("\n")) {
+    if (/^\s*\[\[collection\]\]\s*$/.test(line)) collectionRoot = ".";
+    const root = /^\s*root\s*=\s*"([^"]+)"/.exec(line);
+    if (root) collectionRoot = root[1];
+    const source = /^\s*source\s*=\s*"([^"]+)"/.exec(line);
+    if (source) declared.add(join(collectionRoot, source[1]).replace(/\\/g, "/"));
+  }
+  return outputs.map((o) => ({ ...o, source: relative(dirname(resolve(manifest)), resolve(o.output)).replace(/\\/g, "/") }))
+    .filter((o) => !declared.has(o.source))
+    .map((o) => {
+      const type = o.kind === "request" ? "report" : `qspec-${o.kind}`;
+      const lines = ["  [[collection.document]]", `  id = "qspec-${o.kind}-${safeName(o.id).toLowerCase()}"`, `  type = "${type}"`, `  source = "${o.source}"`];
+      if (o.kind === "dossier") lines.push('  pdf = "typst"', "  docx = true");
+      lines.push("  publish = false");
+      return lines.join("\n");
+    });
 }
 
 switch (cmd) {
@@ -255,14 +292,14 @@ switch (cmd) {
     if (!root || !existsSync(join(root, STAMP))) die(`no QSPEC project here or above (no ${STAMP}); pass --project <dir>`);
     if (positional[0] === "show") {
       if (!positional[1]) die("runs show needs a run name; `qspec runs` lists them");
-      try { console.log(runs.show(root, positional[1]).join("\n")); } catch (e) { die(e.message); }
+      try { console.log(runs.show(root, positional[1], flagText("spec")).join("\n")); } catch (e) { die(e.message); }
       break;
     }
     if (flags.diff && flags.diff !== true) {
       const names = String(flags.diff).split(",").map((x) => x.trim()).filter(Boolean);
       if (names.length !== 2) die("--diff takes two run names, comma separated");
       let a, b;
-      try { a = runs.load(root, names[0]); b = runs.load(root, names[1]); } catch (e) { die(e.message); }
+      try { a = runs.load(root, names[0], flagText("spec")); b = runs.load(root, names[1], flagText("spec")); } catch (e) { die(e.message); }
       const d = runs.diff(a, b);
       console.log(`${a.name} -> ${b.name}`);
       for (const f of d.files) {
@@ -284,7 +321,7 @@ switch (cmd) {
       }
       break;
     }
-    const all = runs.listing(root).filter((r) => !flags.only || flags.only === true || r.name.includes(String(flags.only)) || (r.record.label ?? "").includes(String(flags.only)));
+    const all = runs.listing(root, flagText("spec")).filter((r) => !flags.only || flags.only === true || r.name.includes(String(flags.only)) || (r.record.label ?? "").includes(String(flags.only)));
     if (!all.length) { console.log("  no runs recorded yet"); break; }
     for (const r of all) console.log(`  ${r.name.padEnd(34)} ${(r.record.label ?? "-").slice(0, 28).padEnd(28)} ${r.record.command.padEnd(6)} ${runs.summary(r.record)}`);
     break;
@@ -439,6 +476,20 @@ switch (cmd) {
     emit(md, flags.out);
     break;
   }
+  case "dossier": {
+    const [file] = positional;
+    if (!file) die("dossier needs a spec file");
+    let spec;
+    try { spec = loadSpec(file); } catch (e) { die(`${file}: cannot parse spec: ${e.message}`); }
+    const rp = recordPath(file, spec, flags.record);
+    const record = loadRecord(rp);
+    const root = findRoot(dirname(resolve(file)));
+    const history = root ? runs.history(root, relative(root, resolve(file))) : [];
+    const { md, findings } = renderDossier(spec, { record, history });
+    recordRuns("dossier", [{ file, kind: "spec", id: spec.id, instance_version: spec.instance_version, status: spec.status, fingerprint: fingerprint(spec), findings, recordFile: rp, rendered: md, output: flagText("out") }], flagText("label"));
+    emit(md, flagText("out"));
+    break;
+  }
   case "request": {
     const [file] = positional;
     if (!file) die("request needs a spec file");
@@ -452,6 +503,102 @@ switch (cmd) {
     if (blocked) process.exit(1);
     emit(md, flags.out);
     break;
+  }
+  case "render": {
+    const outDir = flagText("out");
+    if (!outDir) die("render needs --out <directory>");
+    const project = findRoot(process.cwd());
+    const specsDir = resolve(flagText("specs") ?? (project ? join(project, "specs") : join(process.cwd(), "specs")));
+    if (!existsSync(specsDir)) die(`${specsDir}: no such specs directory; pass --specs <dir>`);
+    const renderRoot = findRoot(specsDir) ?? project;
+    const manifest = flagText("manifest");
+    if (manifest && !existsSync(manifest)) die(`${manifest}: no such manifest`);
+
+    const specs = [], indexes = [], parseFailures = [];
+    for (const name of readdirSync(specsDir).sort()) {
+      if (!/\.ya?ml$/.test(name) || /\.record\.ya?ml$/.test(name)) continue;
+      const file = join(specsDir, name);
+      try {
+        const doc = loadSpec(file);
+        if (doc?.index_schema) indexes.push({ file, index: doc });
+        else if (doc?.id) specs.push({ file, spec: doc });
+      } catch (e) { parseFailures.push({ file, message: e.message }); }
+    }
+    const chosenPath = flagText("index") ? resolve(flagText("index")) : null;
+    if (chosenPath && !indexes.some((x) => resolve(x.file) === chosenPath)) {
+      try { indexes.push({ file: chosenPath, index: loadIndex(chosenPath) }); }
+      catch (e) { die(`${chosenPath}: cannot parse Index: ${e.message}`); }
+    }
+    const sheetIndex = chosenPath
+      ? indexes.find((x) => resolve(x.file) === chosenPath)?.index
+      : indexes.length === 1 ? indexes[0].index : null;
+    const ambiguousIndex = !chosenPath && indexes.length > 1;
+    let blocked = parseFailures.length > 0;
+    for (const failure of parseFailures) console.error(`FAIL  ${failure.file}\n    block   PARSE              ${failure.message}`);
+    if (ambiguousIndex) {
+      console.error(`FAIL  sheets\n    block   render-index       found several Index files (${indexes.map((x) => x.file).join(", ")}); pass --index <round.yaml>`);
+      if (specs.some(({ spec }) => SHEET_STATES.includes(spec.status))) blocked = true;
+    }
+
+    const resolved = { specs: {}, records: {}, files: {} };
+    for (const { file, spec } of specs) {
+      resolved.specs[spec.id] = spec;
+      resolved.files[spec.id] = file;
+      const record = loadRecord(recordPath(file, spec));
+      if (record) resolved.records[spec.id] = record;
+    }
+    const written = [], runItems = [];
+    const remember = ({ source, output, kind, id, spec = null, findings = [], recordFile = null, md }) => {
+      written.push({ output, kind, id });
+      runItems.push({ file: source, kind: spec ? "spec" : kind, id, instance_version: spec?.instance_version, status: spec?.status, fingerprint: spec ? fingerprint(spec) : null, findings, recordFile, rendered: md, output });
+    };
+
+    for (const { file, spec } of specs) {
+      const rp = recordPath(file, spec);
+      const record = loadRecord(rp);
+      const history = renderRoot ? runs.history(renderRoot, relative(renderRoot, resolve(file))) : [];
+      const dossier = renderDossier(spec, { record, history });
+      const dossierOut = writeRendering(outDir, "dossiers", spec.id, dossier.md);
+      remember({ source: file, output: dossierOut, kind: "dossier", id: spec.id, spec, findings: dossier.findings, recordFile: rp, md: dossier.md });
+
+      if (!SHEET_STATES.includes(spec.status)) {
+        console.log(`skip  ${file}: sheet is only for ${SHEET_STATES.join(", ")}; status is ${spec.status}`);
+      } else if (!ambiguousIndex) {
+        const sheet = renderSheet(spec, { record, index: sheetIndex });
+        const sheetBlocked = printFindings(file, sheet.findings);
+        if (sheetBlocked) blocked = true;
+        else {
+          const sheetOut = writeRendering(outDir, "sheets", spec.id, sheet.md);
+          remember({ source: file, output: sheetOut, kind: "sheet", id: spec.id, spec, findings: sheet.findings, recordFile: rp, md: sheet.md });
+        }
+      }
+
+      if (spec.status === "frozen") {
+        const checked = lintFile(file);
+        const request = renderRequest(spec, { record });
+        const findings = [...checked.findings.filter((x) => x.severity === "block"), ...request.findings];
+        const requestBlocked = printFindings(file, findings);
+        if (requestBlocked) blocked = true;
+        else {
+          const requestOut = writeRendering(outDir, "requests", spec.id, request.md);
+          remember({ source: file, output: requestOut, kind: "request", id: spec.id, spec, findings, recordFile: rp, md: request.md });
+        }
+      }
+    }
+    for (const { file, index: idx } of indexes) {
+      const rendered = renderIndex(idx, resolved);
+      printFindings(file, rendered.findings);
+      const output = writeRendering(outDir, "index", idx.round, rendered.md);
+      remember({ source: file, output, kind: "index", id: idx.round, findings: rendered.findings, md: rendered.md });
+    }
+
+    recordRuns("render", runItems.map((item) => ({ ...item, root: renderRoot })), flagText("label"));
+    if (manifest) {
+      const missing = missingManifestEntries(manifest, written);
+      if (missing.length) console.log(`\nmanifest entries missing from ${manifest}:\n\n${missing.join("\n\n")}\n`);
+      else console.log(`manifest already names all ${written.length} rendered file(s)`);
+    }
+    process.exit(blocked ? 1 : 0);
   }
   case "paper": {
     const [specFile, mdFile] = positional;

@@ -2,7 +2,7 @@
 
 A Question Spec is a short contract that turns a research topic, technique, or platform into a claim that can be wrong, so that questions from different methods and domains can be compared, selected, frozen, or killed on the same terms.
 
-Version 1.6.0, released 2026-09-04. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
+Version 1.7.0, released 2026-09-04. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
 
 The tool renders and checks; it does not author. A field is written by a person, a judgment is signed by a person, and the tool notices when a signature no longer covers the text. It pairs with [Paperforge](docs/paperforge-integration.md) downstream, which applies the same rule to the documents that answer the question.
 
@@ -14,8 +14,8 @@ The tool renders and checks; it does not author. A field is written by a person,
 | `QSPEC-SS.md`, `QSPEC-NS.md`, `QSPEC-ENG.md` | Domain overlays for social sciences, natural sciences, and engineering: claim fields, catalogs, method profiles. Software is in scope for engineering. |
 | `schema/catalogs.json` | Machine-readable catalogs and profile field lists. The single source of truth for the tool. |
 | `bin/qspec.js` | The tool. `qspec help` lists commands. No dependencies; js-yaml is vendored under `lib/vendor/`. |
-| `lib/` | `lint` (M invariants), `record` (fingerprint, transitions, acts), `render` (sheet, index, request), `paper` (gist check), `scaffold` (init, new, doctor), `runs` (run records and diffs), `friction` (report notes). |
-| `templates/` | Empty instances per domain, plus Decision Record and Index templates. |
+| `lib/` | `lint` (M invariants), `record` (fingerprint, transitions, acts), `render` (sheet, index, dossier, request), `paper` (gist check), `scaffold` (init, new, doctor), `runs` (run records and diffs), `friction` (report notes). |
+| `templates/` | Empty instances per domain, Decision Record and Index templates, and `documents.qspec.toml` for a Paperforge document corpus. |
 | `.qspec/scaffold.json` | In a project `init` prepared: what wrote it, and a fingerprint of the guidance so `doctor` can say when it has gone stale. |
 | `.qspec/runs/`, `.qspec/friction/` | In a project: what every check saw, with the files as they stood, the notes roles attached to each run, and the notes `report` wrote. See [docs/runs.md](docs/runs.md). Not gitignored. |
 | `examples/` | Two complete instances per domain with their Decision Records, one Index, one downstream paper. Citations are illustrative, not real. |
@@ -61,6 +61,20 @@ node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to frozen --by "Gr
 node bin/qspec.js request specs/Q-014_apical-oxygen.yaml --out requests/Q-014.md
 ```
 
+For a readable process record at any state, render one dossier or the whole
+corpus. qspec writes markdown; Paperforge owns HTML, PDF, and DOCX:
+
+```sh
+node bin/qspec.js dossier specs/Q-014_apical-oxygen.yaml --out documents/dossiers/Q-014.md
+node bin/qspec.js render --out documents
+/path/to/paperforge/bin/paperforge all --draft --config documents/documents.toml
+```
+
+A dossier includes the spec, Decision Record, run timeline, and every attached
+note exactly as written. Because those notes can contain publication markers,
+dossiers are built in Paperforge draft mode, which reports findings and cannot
+publish. See [docs/paperforge-integration.md](docs/paperforge-integration.md).
+
 To pull a spec out of a round without ending it, the owner withdraws it rather than killing it:
 
 ```sh
@@ -76,9 +90,11 @@ qspec new <Q-id> --domain <d>         an empty spec from the domain template, id
      [--slug] [--title] [--owner] [--specs dir]
 qspec init --refresh --into <dir>     rewrite only the QSPEC block in AGENTS.md and re-stamp; what doctor asks for on STALE
 qspec doctor [--project dir]          tool and node versions; is this project's guidance current; runs since the last act
-qspec runs [--project dir]            every recorded run in the project, oldest first
+qspec runs [--project dir] [--spec <id|path>]
+                                      every recorded run in the project, optionally scoped to one spec
      [--diff <a>,<b> [--sources]]     what changed between two runs: reworded or rewritten, findings appeared or cleared
-qspec runs show <run>                 one run, its findings, and every note as written
+qspec runs show <run> [--spec <id|path>]
+                                      one run, its findings, and every note as written
 qspec attach <run> <file> --by <actor> --role <role> [--kind handoff|review|decision|note]
                                       keep a handoff, review, or decision beside the run it is about
 qspec report "<what happened>"        a friction note with version, scaffold state, and last run; --issue prints the latest
@@ -92,7 +108,10 @@ qspec transition <spec> --to <state> --by <actor> --role <owner|reviewer|decisio
      [--revisit-by date] [--successor id@ver] [--date date] [--dissent "<who>: <point>"]
 qspec sheet <spec> [--index <index>] [--out file]      selectable, deferred, or frozen only
 qspec index <index> --specs <dir> [--out file]         checks, then renders
+qspec dossier <spec> [--out file]                      readable process record; any state
 qspec request <spec> [--out file]                      frozen only
+qspec render --out <dir> [--specs dir] [--index file] [--manifest documents.toml]
+                                      the full markdown corpus; prints missing manifest entries
 qspec paper <spec> <document.md>                       the document carries the frozen claim as a gist
 ```
 
@@ -123,6 +142,7 @@ Tag `vX.Y.Z`. The release workflow refuses the tag unless it matches the version
 - Instances declare `spec_schema: QSPEC/1.0` and a `domain`. All 1.x core releases accept that string.
 - Schema documents carry their version in the header, not the filename.
 - A field removal, rename, or tightened M invariant on instance fields is a major release with a new `spec_schema` string.
+- Every 1.6.0 project, spec, record, and Index is valid under 1.7.0. 1.7.0 adds dossiers, aggregate rendering, a Paperforge manifest template, and spec-scoped run lookup; no instance field, M invariant, record shape, or Index shape changed.
 - Every 1.5.0 project, spec, record, and Index is valid under 1.6.0. 1.6.0 adds an optional `run` on Decision Record entries, notes attached to runs, and run records for every checking command; `notes-without-act` is a warning.
 - Every 1.4.0 project, spec, record, and Index is valid under 1.5.0. 1.5.0 adds run records, `runs`, `report`, and doctor lines; a project scaffolded by 1.4.0 reports `STALE` guidance because the guidance now names `runs` and `report`.
 - Every 1.3.0 instance, record, and Index is valid under 1.4.0. 1.4.0 adds `init`, `new`, and `doctor`, which write project files and empty templates; no instance field or M invariant changed.

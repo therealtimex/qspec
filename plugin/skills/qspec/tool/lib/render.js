@@ -3,12 +3,17 @@
 // Nothing here composes: every line is a field, and an empty field is reported
 // as a hole rather than filled.
 const { catalogs, resolveProfile } = require("./catalogs.js");
+const { claimGist, claimLabel, gistRepresentable } = require("./paper.js");
 const { checkSignature, frozenInRound, signingEntry } = require("./record.js");
 
 const s = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
 const hole = "(not stated)";
 const show = (v) => s(v) ?? hole;
 const list = (xs) => (Array.isArray(xs) && xs.length ? xs.map((x) => `- ${x}`).join("\n") : "- none");
+const words = (key) => key.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+const tableCell = (v) => String(v == null || v === "" ? hole : v).replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
+const value = (v) => Array.isArray(v) ? list(v) : show(v == null ? null : String(v));
+const fields = (object, keys) => keys.flatMap((key) => [`**${words(key)}:**`, "", value(object?.[key]), ""]);
 
 function contextLine(spec) {
   const c = spec.claim ?? {};
@@ -180,4 +185,84 @@ function request(spec, { record = null } = {}) {
   return { md, findings };
 }
 
-module.exports = { SHEET_STATES, sheet, index, request };
+// A dossier is the whole process record for one question. Unlike a Selection
+// Sheet or request it is useful while the spec is still draft, so missing
+// fields are shown rather than treated as rendering failures. Attached note
+// bodies are appended byte for byte: they are judgments, not input to rewrite.
+function dossier(spec, { record = null, history = [] } = {}) {
+  const qt = spec.question_type ?? {}, inc = spec.increment ?? {}, mat = spec.materials ?? {};
+  const sf = spec.success_and_failure ?? {}, con = spec.constraints ?? {};
+  const ask = spec.ask ?? {}, hints = spec.hints ?? {}, profile = spec.profile ?? {};
+  const domain = catalogs.domains[spec.domain];
+  const def = domain ? resolveProfile(domain, qt.method_family) : null;
+  const claimKeys = [...new Set([
+    ...(domain?.claim_required ?? []),
+    ...(domain?.claim_conditional ?? []).map((c) => c.field),
+    "comparative", "why_it_matters",
+  ])];
+  const constraintKeys = ["safety_or_ethics", "sensitivity", "independence_limits", ...(domain?.constraints_extra ?? [])];
+  const hintKeys = ["ceiling", "build_risk", ...Object.keys(domain?.hints_extra ?? {})];
+  const profileKeys = [...new Set([...(def?.required ?? []), ...(def?.optional ?? [])])];
+  const gist = claimGist(spec);
+  const claimMark = spec.status === "frozen" && gist && gistRepresentable(gist) ? ` {#${claimLabel(spec)} gist="${gist}"}` : "";
+  const closest = Array.isArray(inc.closest_work) ? inc.closest_work : [];
+  const decisions = Array.isArray(record?.entries) ? record.entries : [];
+  const runRows = history.map((run) => {
+    const files = run.record?.files ?? [];
+    const blocks = files.flatMap((f) => f.findings ?? []).filter((f) => f.severity === "block").length;
+    const verdict = files.some((f) => f.verdict === "block") ? "block" : "ok";
+    return `| ${tableCell(run.name)} | ${tableCell(run.record?.label ?? "-")} | ${tableCell(run.record?.command)} | ${verdict} | ${blocks} | ${(run.record?.notes ?? []).length} |`;
+  });
+  const decisionRows = decisions.map((e) => {
+    const dissent = (e.dissent ?? []).map((d) => `${d.reviewer}: ${d.point}${d.unresolved ? " (unresolved)" : ""}`).join("; ") || "none";
+    return `| ${tableCell(e.date)} | ${tableCell(e.actor)} | ${tableCell(e.role)} | ${tableCell(e.from)} | ${tableCell(e.to)} | ${tableCell(e.reason)} | ${tableCell(e.run ?? "-")} | ${tableCell(dissent)} |`;
+  });
+  const mdParts = [
+    head("QUESTION DOSSIER", spec, [
+      ["Question", `${spec.id}@${spec.instance_version}`], ["Status", show(spec.status)],
+      ["Domain", show(spec.domain)], ["Profile", show(qt.method_family)], ["Owner", show(spec.owner)],
+      ["Reviewers", (spec.reviewers ?? []).join(", ") || hole],
+    ]),
+    "### Claim", "", `${show(spec.claim?.one_sentence)}${claimMark}`, "",
+    ...fields(spec.claim, claimKeys),
+    "### Question type", "", ...fields(qt, ["method_family", "knowledge_goal", "secondary_method", "rescue_rule"]),
+    "### Increment", "",
+    "| Closest work | Settled | Still open |", "|---|---|---|",
+    ...(closest.length ? closest.map((w) => `| ${tableCell(w.cite)} | ${tableCell(w.settled)} | ${tableCell(w.still_open)} |`) : [`| ${hole} | ${hole} | ${hole} |`]), "",
+    ...fields(inc, ["increment_if_this_works", "vehicle_is_not_the_contribution"]),
+    "### Materials", "", ...fields(mat, ["in_hand", "blocking"]),
+    "**Obtainable:**", "",
+    ...(Array.isArray(mat.obtainable) && mat.obtainable.length
+      ? ["| Item | Source | Horizon | Probability |", "|---|---|---|---|", ...mat.obtainable.map((o) => `| ${tableCell(o.item)} | ${tableCell(o.source)} | ${tableCell(o.horizon)} | ${tableCell(o.probability)} |`), ""]
+      : ["- none", ""]),
+    ...fields(mat, ["access_risk"]),
+    "### Success and failure", "", ...fields(sf, ["support_would_look_like", "failure_would_look_like", "uninteresting_even_if_true", "kill_condition"]),
+    "### Constraints", "", ...fields(con, constraintKeys),
+    "### Ask", "", ...fields(ask, ["time", "people", "access", "hardware_or_compute"]),
+    "### Hints", "", ...fields(hints, hintKeys),
+    `### Method profile: ${show(profile.name)}`, "", ...fields(profile, profileKeys),
+    "### Handoff", "", ...fields(spec.handoff, ["first_check", "notes_for_next_stage"]),
+    "### Decision Record", "",
+    "| Date | Actor | Role | From | To | Reason | Run | Dissent |", "|---|---|---|---|---|---|---|---|",
+    ...(decisionRows.length ? decisionRows : [`| ${hole} | ${hole} | ${hole} | ${hole} | ${hole} | ${hole} | ${hole} | none |`]), "",
+    "### Run timeline", "",
+    "| Name | Label | Command | Verdict | Blocks | Notes |", "|---|---|---|---|---|---|",
+    ...(runRows.length ? runRows : [`| ${hole} | ${hole} | ${hole} | ${hole} | 0 | 0 |`]), "",
+    "### Attached notes", "",
+  ];
+  let md = mdParts.join("\n");
+  const notes = history.flatMap((run) => (run.notes ?? []).map((note) => ({ run: run.name, ...note })))
+    .sort((a, b) => String(a.attached).localeCompare(String(b.attached)) || String(a.run).localeCompare(String(b.run)));
+  if (!notes.length) return { md: md + "- none\n", findings: [] };
+  md += "Each note body below is copied verbatim.\n\n";
+  for (const note of notes) {
+    md += `### ${note.kind} by ${note.actor} (${note.role}) — run ${note.run} — ${note.attached}\n\n`;
+    md += "Attached note follows verbatim.\n\n";
+    md += note.text;
+    if (!String(note.text).endsWith("\n")) md += "\n";
+    md += "\n";
+  }
+  return { md, findings: [] };
+}
+
+module.exports = { SHEET_STATES, dossier, sheet, index, request };

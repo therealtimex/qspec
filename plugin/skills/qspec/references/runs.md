@@ -2,7 +2,7 @@
 
 Every command that reads a spec inside a project writes a record of what it saw
 to `.qspec/runs/`, whether the run passed or failed: `lint`, `index`, `sign`,
-`transition`, `sheet`, `request`, and `paper`. Nothing has to be remembered for
+`transition`, `sheet`, `dossier`, `request`, `render`, and `paper`. Nothing has to be remembered for
 this to happen. A project is a directory `qspec init` prepared; outside one,
 nothing is written.
 
@@ -36,12 +36,13 @@ looking.
                    plus the notes attached, with actor, role, kind, and hash
   sources/         the spec, its Decision Record if any, or the Index, as they stood;
                    a document checked from outside the project sits under external/
-  rendered/        the Selection Sheet or request markdown, when the run produced one
+  rendered/        the Selection Sheet, dossier, request, or aggregate-render markdown
   notes/           what a role said about this run, copied whole
 ```
 
 A `sign --show` run keeps the seven judged rules as they were printed; a
-`transition` run keeps the record after the act.
+`transition` run keeps the record after the act. One aggregate `render` run has
+one entry per file it wrote; each entry names the output and keeps the markdown.
 
 The files are kept, not only their hashes. What is wanted afterwards is the
 lost draft, and a fingerprint would not return it. A spec is one small YAML, so
@@ -50,6 +51,21 @@ gitignore `.qspec/`.
 
 Two runs in one second get distinct names; `runs` lists them in the order they
 were written, not the order their names sort in.
+
+## Labels that repeat across questions
+
+A label describes a pass through one question, so the same useful name can
+appear in several loops. Scope listing, lookup, and comparison by spec id or
+path when that makes the bare label ambiguous:
+
+```bash
+qspec runs --spec Q-003
+qspec runs show reviewer-round-1 --spec Q-003
+qspec runs --diff reviewer-round-1,reviewer-round-2 --spec specs/Q-003.yaml
+```
+
+Resolution considers only runs whose `files` include that spec. qspec does not
+prefix or rewrite the label the person chose.
 
 ## Reading a diff
 

@@ -2,7 +2,7 @@
   "id": "ai.realtimex.qspec",
   "name": "qspec",
   "displayName": "QSPEC Question Specs",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Write, check, sign, select, and freeze research questions as Question Specs: a claim that can fail, a method family, materials, increment over named work, and a kill condition. Bundles the qspec tool and the core and domain schemas. It measures and records; it never writes a field or judges whether a question is good.",
   "author": "RealTimeX",
   "license": "UNLICENSED",

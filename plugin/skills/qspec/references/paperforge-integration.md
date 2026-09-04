@@ -6,7 +6,30 @@ QSPEC decides which question is worth asking. Paperforge renders and gates the d
 
 - Paperforge is TOML-only and refused a YAML parser on principle. It must never read a spec directly. Everything it consumes from QSPEC is markdown that `qspec` rendered.
 - Paperforge's project lint rules run over document lines, not over the request file. So the gate that only a frozen question reaches a project lives on the QSPEC side: `qspec request` refuses any status but `frozen`.
-- Paperforge's `todo` rule blocks the words TODO, TBD, FIXME, XXX, and PLACEHOLDER, case-insensitively, anywhere in a document. Do not use them in a spec field that a rendering carries. The QSPEC test suite greps its renderings for them.
+- Paperforge's `todo` rule blocks the words TODO, TBD, FIXME, XXX, and PLACEHOLDER, case-insensitively, anywhere in a document. Do not use them in a spec field that a rendering carries. Attached notes are different: a dossier is a process record and copies each note whole, so dossiers are excluded from QSPEC's marker grep and are built with Paperforge's non-publishing `--draft` mode. Sheets, Indexes, and requests remain covered by the grep.
+
+## Documents from a QSPEC project
+
+`qspec render` makes the readable corpus while leaving the boundary intact: it writes markdown, and Paperforge alone makes HTML, PDF, and Word editions. From the QSPEC project root:
+
+```sh
+/path/to/paperforge/bin/paperforge init --into documents --publications brief --no-git
+cp /path/to/qspec/templates/documents.qspec.toml documents/documents.toml
+qspec render --out documents
+/path/to/paperforge/bin/paperforge all --draft --config documents/documents.toml
+```
+
+The template declares `qspec-sheet` and `qspec-index` as brief layouts and `qspec-dossier` as a report-derived type. Every document is `publish = false`; dossiers request HTML, Typst PDF, and DOCX editions. `all --draft` runs the same lint and verification, reports every finding, builds what a person can inspect, stops before publication, and cannot publish.
+
+`render` writes `dossiers/<id>.md` for every parseable spec, `sheets/<id>.md` for `selectable`, `deferred`, and `frozen` specs, `index/<round>.md` for every Index, and `requests/<id>.md` for frozen specs. A draft's sheet is skipped with its reason while the other files continue. Existing unrelated files under `documents/` are untouched.
+
+If the corpus has ids or rendered states not yet named by the installed manifest, ask for the missing TOML without editing it:
+
+```sh
+qspec render --out documents --manifest documents/documents.toml
+```
+
+The command prints the absent `[[collection.document]]` blocks to stdout. A person can review and add them; qspec never edits Paperforge's manifest.
 
 ## Three points of contact
 

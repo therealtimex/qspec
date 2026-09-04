@@ -1,8 +1,8 @@
-# QSPEC-CORE 1.6.0
+# QSPEC-CORE 1.7.0
 # Question Spec: shared core for all research domains
 
 **Spec-ID:** QSPEC-CORE
-**Schema-Version:** 1.6.0
+**Schema-Version:** 1.7.0
 **Date:** 2026-09-04
 **Status:** released
 **Instance format:** `spec_schema: QSPEC/1.0` plus a `domain` key
@@ -472,6 +472,7 @@ Question development is finished when:
 - Overlays version with the core and declare the core version they target.
 - A change that removes a field, renames a field, or tightens an M invariant on the instance fields is a major release and a new `spec_schema` string.
 - 1.1.0 added M16, which tightens what leaving `draft` requires. That was taken as a minor release because no 1.0.0 instance existed outside this repository. It is the last time that exception applies.
+- 1.7.0 adds the human-readable dossier, aggregate `render`, a documented Paperforge manifest template, and `--spec` scoping for run labels that collide across questions. No instance field, M invariant, Decision Record shape, or Index shape changed. Every 1.6.0 project, spec, record, and Index is a valid 1.7.0 one.
 - 1.6.0 adds `run` as an optional field on Decision Record entries, notes attached to runs, and run records for every checking command. No instance field or M invariant changed; `notes-without-act` is a `warn`. Every 1.5.0 project, spec, record, and Index is a valid 1.6.0 one.
 - 1.5.0 adds run records: inside a project, `lint` and `index` write what they saw and the files as they stood under `.qspec/runs/`, `runs --diff` reads two of them, and `report` writes a friction note. No instance field, M invariant, record, or Index changed. Every 1.4.0 project, spec, record, and Index is a valid 1.5.0 one.
 - 1.4.0 adds `init`, `new`, and `doctor`. They write project files and empty templates: a directory layout, an empty Index, agent guidance, a stamp of what wrote them, and a spec with only its `id` and `date` set. No instance field, M invariant, record, or Index changed. Every 1.3.0 instance, record, and Index is a valid 1.4.0 one.
@@ -482,16 +483,18 @@ Question development is finished when:
 
 ## 15. Tooling
 
-`qspec` ships in this repository as a Node package with one dependency. Every command is a resolution procedure over files, an act recorded to a file, a file laid down for a person to fill, or a record of what a check saw. None writes a field of a spec other than `status`, and that only as the consequence of a recorded act; `new` sets `id` and `date`, which are the spec's name and its birthday, not its content.
+`qspec` ships in this repository as a Node package with no npm dependencies; its YAML reader is vendored in the bundle. Every command is a resolution procedure over files, an act recorded to a file, a file laid down for a person to fill, or a record of what a check saw. None writes a field of a spec other than `status`, and that only as the consequence of a recorded act; `new` sets `id` and `date`, which are the spec's name and its birthday, not its content.
 
-Inside a project, every command that reads a spec records a run under `.qspec/runs/` with the files as they stood, passing or failing: `lint`, `index`, `sign`, `transition`, `sheet`, `request`, and `paper`. A rendering keeps the markdown it produced; a document checked from outside the project is kept under `external/`. The Decision Record is the audit trail for acts; a run is the audit trail for looking; a note attached to a run with `attach` is what a role concluded about it, copied whole and never summarised. None of the three is an act of discipline on the tool's side: the run is written because the check ran, and the note is written because somebody handed off.
+Inside a project, every command that reads a spec records a run under `.qspec/runs/` with the files as they stood, passing or failing: `lint`, `index`, `sign`, `transition`, `sheet`, `dossier`, `request`, `render`, and `paper`. A rendering keeps the markdown it produced; aggregate `render` records one entry naming each output. A document checked from outside the project is kept under `external/`. The Decision Record is the audit trail for acts; a run is the audit trail for looking; a note attached to a run with `attach` is what a role concluded about it, copied whole and never summarised. None of the three is an act of discipline on the tool's side: the run is written because the check ran, and the note is written because somebody handed off.
 
 ```text
 qspec init --into <dir>               a project: specs/ with the round's Index, AGENTS.md, a stamp
 qspec new <Q-id> --domain <d>         an empty spec from the domain template, id and date set
 qspec doctor                          is the project's guidance what init would write now; runs since the last act
-qspec runs [--diff <a>,<b>]           what each recorded run saw; what changed between two of them
-qspec runs show <run>                 one run, its findings, and every note as written
+qspec runs [--diff <a>,<b>] [--spec <id|path>]
+                                      what each recorded run saw; scope colliding labels to one spec
+qspec runs show <run> [--spec <id|path>]
+                                      one run, its findings, and every note as written
 qspec attach <run> <file> --by <actor> --role <role> [--kind handoff|review|decision|note]
                                       keep a handoff, review, or decision beside the run it is about
 qspec report "<what happened>"        a friction note carrying version, scaffold state, and last run
@@ -505,7 +508,9 @@ qspec transition <spec> --to <state> --by <actor> --role <role>
                                       --run <name> cites the run whose text is acted on
 qspec sheet <spec> [--index <index>]  the Selection Sheet
 qspec index <index> --specs <dir>     the Portfolio Index and its checks
+qspec dossier <spec>                  the spec, Decision Record, run timeline, and attached notes
 qspec request <spec>                  the frozen request for a downstream project
+qspec render --out <dir>              every dossier, eligible sheet and request, and every Index
 qspec paper <spec> <document.md>      does the document carry the frozen claim
 ```
 

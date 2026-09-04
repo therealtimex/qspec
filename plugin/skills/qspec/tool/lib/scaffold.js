@@ -17,7 +17,7 @@ const MARK_CLOSE = "<!-- /qspec:project-guidance -->";
 // Named once, in the order `help` lists them. The guidance names commands, so a
 // command added or removed changes what `init` writes without touching the
 // template, and the fingerprint has to notice that.
-const COMMANDS = ["init", "new", "doctor", "runs", "attach", "report", "lint", "fingerprint", "sign", "transition", "sheet", "index", "request", "paper"];
+const COMMANDS = ["init", "new", "doctor", "runs", "attach", "report", "lint", "fingerprint", "sign", "transition", "sheet", "index", "dossier", "request", "render", "paper"];
 const TEMPLATES = join(__dirname, "..", "templates");
 const VERSION = catalogs.version;
 
@@ -45,7 +45,9 @@ The tool lives outside this project and is not on PATH. Invoke it by path:
 {invocation} sign specs/<Q-id>_<slug>.yaml --by <reviewer> --show   # the seven rules a reviewer signs
 {invocation} index specs/index-{round}.yaml --specs specs           # the round's Index and its checks
 {invocation} sheet specs/<Q-id>_<slug>.yaml --index specs/index-{round}.yaml --out sheets/<Q-id>.md
+{invocation} dossier specs/<Q-id>_<slug>.yaml --out documents/dossiers/<Q-id>.md   # the whole process record for a person
 {invocation} request specs/<Q-id>_<slug>.yaml --out requests/<Q-id>.md   # frozen only; the Paperforge handoff
+{invocation} render --out documents/                   # every dossier, eligible sheet and request, and every Index
 {invocation} runs                                     # every lint and index run recorded here, with the files as they stood
 {invocation} runs --diff <a>,<b> --sources            # what changed between two of them, and which findings moved
 {invocation} attach <run> <handoff.md> --by <you> --role <role> --kind handoff   # keep what you concluded beside the run
@@ -66,6 +68,9 @@ The tool lives outside this project and is not on PATH. Invoke it by path:
 - If lint blocks, fix the spec. Do not bypass the gate.
 - Signing is a reviewer's act and freezing is a decision-maker's. Do not sign or
   freeze as a person you are not; say which person must run the act.
+- For a person, run \`qspec render --out documents/\`, then \`paperforge all --draft
+  --config documents/documents.toml\`. Dossiers may carry publication-blocking
+  markers from attached notes, so draft mode reports them without publishing.
 - \`sheets/\` and \`requests/\` are renderings. Regenerate them; do not edit them.
 - Every check is recorded under \`.qspec/runs/\` with the files it saw, passing or
   failing. Do not delete or gitignore it: it is how a draft that was overwritten
