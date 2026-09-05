@@ -1,4 +1,4 @@
-# Illustrative instance. Citations are placeholders, not real references.
+# Illustrative instance. Citations are illustrative, not real references.
 spec_schema: QSPEC/1.0
 domain: social
 id: Q-101
@@ -32,9 +32,11 @@ question_type:
 increment:
   closest_work:
     - cite: "[Illustrative work 1: regression-discontinuity study of a set-aside threshold in another country]"
+      key: q101-work-1
       settled: "Small-firm participation rises at the cutoff."
       still_open: "Whether prices paid change, and whether buyers sort around the cutoff."
     - cite: "[Illustrative work 2: cross-country descriptive study of set-aside prevalence]"
+      key: q101-work-2
       settled: "Set-asides are common and heterogeneous in design."
       still_open: "No causal estimate of price effects."
   increment_if_this_works: "A joint estimate of the win-rate and price-paid discontinuities at one cutoff, with a manipulation test, which neither closest work provides."

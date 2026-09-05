@@ -1,4 +1,4 @@
-# Illustrative instance. Citations are placeholders, not real references.
+# Illustrative instance. Citations are illustrative, not real references.
 spec_schema: QSPEC/1.0
 domain: natural
 id: Q-202
@@ -30,9 +30,11 @@ question_type:
 increment:
   closest_work:
     - cite: "[Illustrative work 1: textbook weak-coupling treatment of the instability]"
+      key: q202-work-1
       settled: "Instability at arbitrarily weak coupling in the strict limit."
       still_open: "Behaviour when the neglected band is retained."
     - cite: "[Illustrative work 2: numerical study of the same model at intermediate coupling]"
+      key: q202-work-2
       settled: "Instability observed above some coupling numerically."
       still_open: "No analytic statement of whether a threshold exists or is a finite-size effect."
   increment_if_this_works: "An analytic threshold condition with an explicit reduction to the textbook limit, which neither the textbook nor the numerics provides."

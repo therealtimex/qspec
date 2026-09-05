@@ -4,7 +4,7 @@ description: Write, lint, sign, select, freeze, or kill a research question as a
 allowed-tools: Read, Write, Edit, Bash
 license: UNLICENSED
 metadata:
-  version: "1.7.0"
+  version: "1.8.0"
 ---
 
 # QSPEC Question Specs
@@ -44,7 +44,7 @@ qspec init --into <dir>               prepare a directory: specs/ with the round
 qspec new <Q-id> --domain <d>         an empty spec from the domain template, id and date set
      [--slug] [--title] [--owner] [--specs dir]
 qspec init --refresh --into <dir>     rewrite only the QSPEC block in AGENTS.md and re-stamp; what doctor asks for on STALE
-qspec doctor [--project dir]          is this project's guidance what init would write now; runs since the last act
+qspec doctor [--project dir]          guidance and bibliography state; runs since the last act
 qspec runs [--diff <a>,<b> [--sources]] [--spec <id|path>]
                                       every recorded run here; scope colliding labels to one spec
 qspec runs show <run> [--spec <id|path>]
@@ -75,7 +75,7 @@ Findings are `block`, `manual` (with the act that settles it), `warn`, or `skip`
 ## Workflow
 
 0. **Prepare the directory once.** If there is no `.qspec/scaffold.json` here or above, ask for the title, the round, the decision-maker, and where the research request is, then run `init`. It writes `AGENTS.md` for every agent that works here and refuses to overwrite one it did not write; in a RealTimeX loops workspace pass `--append` so the loops shim stays. When a project misbehaves, run `doctor` before anything else: it says whether the guidance is stale and what is in `specs/`.
-1. **Interview before writing.** Get the claim sentence, the domain, the primary method family, at least two named closest works, the blocking materials, and the kill condition from the user. If any is missing, leave the field empty and say so; an empty field is a `block` the author can see, a plausible invention is not.
+1. **Interview before writing.** Get the claim sentence, the domain, the primary method family, at least two named closest works, the blocking materials, and the kill condition from the user. For each closest work, the interview must yield both a BibTeX key and an entry copied from publisher or DOI metadata into `references.bib`, not only a name and year. If any is missing, leave the field empty and say so; an empty field is a visible finding, a plausible invention is not. The tool never writes or fetches a bibliography entry.
 2. **`qspec new <Q-id> --domain <d> --slug <short-name>`** copies the template with the id and date set; fill it and run `lint` until nothing blocks. Each `lint` inside a project records a run with the spec as it stood; before a review round, `--label` it. When handing findings back, cite the run name, say `qspec runs --diff <before>,<after>` so the next role sees what changed rather than a paraphrase, and `qspec attach <run> <handoff.md> --by <you> --role <role> --kind handoff` so what you concluded stays beside the text it was about. Do not summarise a note for the tool; it copies the file whole. Profile field lists are in the overlay's section 4.
 3. **Signing is a person's act.** When lint is clean, run `qspec sign --show` and put the seven rules in front of the reviewer: J7 is the overlay's rule for this profile, and it is the one nobody remembers. Then tell the user which reviewer must reread the spec and run `qspec sign --by <reviewer> --run <the run they read>`; the tool refuses a run whose text has moved since. A note attached to a run is not an act: `lint` reports `notes-without-act` until a person signs or transitions, and an agent review loop that closes as "approved" has changed nothing in the record. Do not sign as the reviewer yourself unless the user, acting as that reviewer, says the invariants hold.
 4. **Offer, choose, freeze** with `transition`, and render the Selection Sheet for the decision-maker. A decision-maker act must declare `--index <round>`, which checks the actor against the committee that round names and holds the one-freeze-per-round cap, or `--unbound`, which records that nothing checked it and leaves `unbound-decision` on the record for good. Reach for `--index`; offer `--unbound` only when the user says there is no round, which for a single candidate is normal.
@@ -111,7 +111,7 @@ question_type:
   secondary_method: null        # a second family, never "mixed"
   rescue_rule: null             # required when secondary_method is set
 increment:
-  closest_work: [ {cite, settled, still_open}, {cite, settled, still_open} ]
+  closest_work: [ {cite, key, settled, still_open}, {cite, key, settled, still_open} ]
   vehicle_is_not_the_contribution: ""
 success_and_failure:
   kill_condition: ""            # a stop rule, not "collect more"

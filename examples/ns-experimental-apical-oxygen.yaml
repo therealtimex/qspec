@@ -1,4 +1,4 @@
-# Illustrative instance. Citations are placeholders, not real references.
+# Illustrative instance. Citations are illustrative, not real references.
 spec_schema: QSPEC/1.0
 domain: natural
 id: Q-201
@@ -30,9 +30,11 @@ question_type:
 increment:
   closest_work:
     - cite: "[Illustrative work 1: cross-family correlation of apical distance with maximum Tc]"
+      key: q201-work-1
       settled: "Across families, apical distance correlates with dome maximum."
       still_open: "Correlation is across families with doping uncontrolled."
     - cite: "[Illustrative work 2: strain-tuning study of Tc in one cuprate film]"
+      key: q201-work-2
       settled: "Epitaxial strain shifts Tc."
       still_open: "Strain changes several structural parameters at once; apical height not isolated."
   increment_if_this_works: "A within-family, fixed-doping test that isolates apical height from the other strain-coupled parameters."

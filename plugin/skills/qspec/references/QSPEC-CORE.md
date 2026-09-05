@@ -1,9 +1,9 @@
-# QSPEC-CORE 1.7.0
+# QSPEC-CORE 1.8.0
 # Question Spec: shared core for all research domains
 
 **Spec-ID:** QSPEC-CORE
-**Schema-Version:** 1.7.0
-**Date:** 2026-09-04
+**Schema-Version:** 1.8.0
+**Date:** 2026-09-05
 **Status:** released
 **Instance format:** `spec_schema: QSPEC/1.0` plus a `domain` key
 **Domain overlays:** [QSPEC-SS](QSPEC-SS.md) (social sciences), [QSPEC-NS](QSPEC-NS.md) (natural sciences), [QSPEC-ENG](QSPEC-ENG.md) (engineering)
@@ -175,9 +175,11 @@ question_type:
 increment:
   closest_work:           # at least two entries
     - cite: ""
+      key: ""             # optional; resolves in the project's references.bib
       settled: ""
       still_open: ""
     - cite: ""
+      key: ""             # optional; resolves in the project's references.bib
       settled: ""
       still_open: ""
   increment_if_this_works: ""
@@ -236,6 +238,7 @@ handoff:                  # not fingerprinted: first_check is filled between sig
 | `secondary_method` | A second family that contributes without carrying the claim. |
 | `rescue_rule` | What the secondary method is not allowed to fix. Example: a simulation cannot replace a failed control. |
 | `closest_work` | At least two named works, designs, or standards, with what each settled and left open. |
+| `closest_work[].key` | Optional BibTeX key for the work. In a QSPEC project with `references.bib`, `qspec lint` warns when the key is empty, unresolved, or resolves to an incomplete entry. |
 | `increment_if_this_works` | What becomes known that the closest work does not already establish. |
 | `vehicle_is_not_the_contribution` | Why the setting, dataset, organism, instrument, prototype, or code is a means, not the novelty. |
 | `in_hand` | Materials already usable. |
@@ -324,6 +327,10 @@ These come from the record, the Index, or a rendering rather than from the insta
 | `overlay-drift` | warn | the overlay's J7 rule changed since the signature recorded it |
 | `J7-unrecorded` | skip | signed before the rule was recorded, so drift cannot be checked |
 | `blocking-without-plan` | warn | blocking materials with no `obtainable` entry |
+| `cite-unkeyed` | warn | a closest-work entry has no BibTeX key in a project that carries `references.bib` |
+| `cite-unresolved` | warn | a closest-work key is absent from the project's `references.bib` |
+| `bib-incomplete` | warn | a resolved entry lacks `title`, `year`, or both `doi` and `url` |
+| `bib-parse` | skip | `references.bib` could not be parsed, so citation resolution did not run |
 | `index-committee` | block | an act claims a round whose Index names a different decision-maker |
 | `index-stale` | block | a listed spec's signature no longer covers its text, so the round may be showing a claim the spec does not make |
 | `gist-unrepresentable` | warn in `lint`, block in `paper` | `one_sentence` carries a double quote or a brace, which a downstream gist cannot hold |
@@ -396,6 +403,7 @@ Claim sentence
 Context (object and scope, or system and regime)
 Family and goal (+ secondary method and rescue rule, if any)
 Increment in one line
+Closest work, with a `[@key]` marker after each keyed citation
 Kill condition
 First check for the next stage
 Materials: in hand / blocking / obtainable with probability
@@ -472,6 +480,7 @@ Question development is finished when:
 - Overlays version with the core and declare the core version they target.
 - A change that removes a field, renames a field, or tightens an M invariant on the instance fields is a major release and a new `spec_schema` string.
 - 1.1.0 added M16, which tightens what leaving `draft` requires. That was taken as a minor release because no 1.0.0 instance existed outside this repository. It is the last time that exception applies.
+- 1.8.0 adds optional `closest_work[].key`, a project-owned `references.bib`, warning-only resolution checks when that file exists, and citation markers for Paperforge. No M invariant is added or tightened. A 1.7.0 project without `references.bib` has byte-for-byte identical lint findings.
 - 1.7.0 adds the human-readable dossier, aggregate `render`, a documented Paperforge manifest template, and `--spec` scoping for run labels that collide across questions. No instance field, M invariant, Decision Record shape, or Index shape changed. Every 1.6.0 project, spec, record, and Index is a valid 1.7.0 one.
 - 1.6.0 adds `run` as an optional field on Decision Record entries, notes attached to runs, and run records for every checking command. No instance field or M invariant changed; `notes-without-act` is a `warn`. Every 1.5.0 project, spec, record, and Index is a valid 1.6.0 one.
 - 1.5.0 adds run records: inside a project, `lint` and `index` write what they saw and the files as they stood under `.qspec/runs/`, `runs --diff` reads two of them, and `report` writes a friction note. No instance field, M invariant, record, or Index changed. Every 1.4.0 project, spec, record, and Index is a valid 1.5.0 one.

@@ -5,6 +5,7 @@ QSPEC decides which question is worth asking. Paperforge renders and gates the d
 ## The boundary
 
 - Paperforge is TOML-only and refused a YAML parser on principle. It must never read a spec directly. Everything it consumes from QSPEC is markdown that `qspec` rendered.
+- QSPEC never formats a bibliography. It checks keys in the project-owned `references.bib`, emits `[@key]` markers in sheets and dossiers, and copies the file beside the rendered corpus manifest. Paperforge alone formats the markers and appends the reference list.
 - Paperforge's project lint rules run over document lines, not over the request file. So the gate that only a frozen question reaches a project lives on the QSPEC side: `qspec request` refuses any status but `frozen`.
 - Paperforge's `todo` rule blocks the words TODO, TBD, FIXME, XXX, and PLACEHOLDER, case-insensitively, anywhere in a document. Do not use them in a spec field that a rendering carries. Attached notes are different: a dossier is a process record and copies each note whole, so dossiers are excluded from QSPEC's marker grep and are built with Paperforge's non-publishing `--draft` mode. Sheets, Indexes, and requests remain covered by the grep.
 
@@ -19,9 +20,24 @@ qspec render --out documents
 /path/to/paperforge/bin/paperforge all --draft --config documents/documents.toml
 ```
 
-The template declares `qspec-sheet` and `qspec-index` as brief layouts and `qspec-dossier` as a report-derived type. Every document is `publish = false`; dossiers request HTML, Typst PDF, and DOCX editions. `all --draft` runs the same lint and verification, reports every finding, builds what a person can inspect, stops before publication, and cannot publish.
+The template declares `qspec-sheet` and `qspec-index` as brief layouts and `qspec-dossier` as a report-derived type. The sheet and dossier types carry `bibliography = "references.bib"` and `citation_style = "apa"`. Every document is `publish = false`; dossiers request HTML, Typst PDF, and DOCX editions. `all --draft` runs the same lint and verification, reports every finding, builds what a person can inspect, stops before publication, and cannot publish.
 
-`render` writes `dossiers/<id>.md` for every parseable spec, `sheets/<id>.md` for `selectable`, `deferred`, and `frozen` specs, `index/<round>.md` for every Index, and `requests/<id>.md` for frozen specs. A draft's sheet is skipped with its reason while the other files continue. Existing unrelated files under `documents/` are untouched.
+`render` writes `dossiers/<id>.md` for every parseable spec, `sheets/<id>.md` for `selectable`, `deferred`, and `frozen` specs, `index/<round>.md` for every Index, and `requests/<id>.md` for frozen specs. When the project has `references.bib`, it is copied to `documents/references.bib`. Paperforge resolves a type-level bibliography from the collection root, so the same bytes are also mirrored into the rendered `dossiers/` and `sheets/` roots; the project bibliography remains the only writer-owned source. A draft's sheet is skipped with its reason while the other files continue. Existing unrelated files under `documents/` are untouched.
+
+The manifest keys belong on the document types, so every dossier and sheet uses
+the same project bibliography:
+
+```toml
+[types.qspec-sheet]
+layout = "brief"
+bibliography = "references.bib"
+citation_style = "apa"
+
+[types.qspec-dossier]
+extends = "report"
+bibliography = "references.bib"
+citation_style = "apa"
+```
 
 If the corpus has ids or rendered states not yet named by the installed manifest, ask for the missing TOML without editing it:
 

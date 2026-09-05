@@ -1,5 +1,50 @@
 # Changelog
 
+## 1.8.0 (2026-09-05)
+
+The readable citation in `closest_work[].cite` could drift away from the paper
+it claimed to describe. 1.8 keeps that text for people and adds an optional
+BibTeX `key` for resolution. The checks are warning-only and activate only when
+a QSPEC project carries `references.bib`; without that file a 1.7 project has
+the same lint findings byte for byte. No M invariant was added or tightened.
+
+### A citation is a key that resolves
+
+- `qspec init` creates one empty `references.bib` at the project root and never
+  writes an entry; `init --refresh` leaves it untouched. The generated guidance
+  tells the writer to copy each entry from publisher or DOI metadata.
+- The dependency-free reader accepts braced, quoted, and numeric fields, nested
+  braces, case-insensitive field names, line comments, and ignores `@string`,
+  `@preamble`, and `@comment`. An unreadable file reports one `bib-parse` skip
+  with the line instead of cascading unresolved warnings.
+- In a project with that file, `cite-unkeyed`, `cite-unresolved`, and
+  `bib-incomplete` are warnings. The last means a resolved entry lacks `title`,
+  `year`, or both `doi` and `url`. None is an M invariant or blocks an act.
+
+### QSPEC carries; Paperforge formats
+
+- Sheets and dossiers append `[@key]` to each keyed closest-work citation.
+  Requests are unchanged. `qspec render` copies `references.bib` beside the
+  corpus manifest, records it as an output, and does not create a References
+  section. Because Paperforge resolves the type setting from each collection
+  root, render mirrors the same bytes into rendered dossier and sheet roots;
+  the project file remains the one writer-owned source. A project lint run keeps
+  the bibliography it checked beside the spec.
+- `templates/documents.qspec.toml` gives the sheet and dossier types
+  `bibliography = "references.bib"` and APA citation style, so Paperforge formats
+  both editions and appends the reference list.
+- The six examples now carry twelve illustrative keys and a matching
+  `examples/references.bib`; the entries remain explicitly non-evidentiary.
+- `doctor` reports the bibliography entry count plus unresolved and unkeyed
+  citation counts, or explains that no project bibliography is present.
+
+### Version and guidance
+
+- `closest_work[].key` is documented as optional in the core and added to all
+  three templates. The schema string remains `QSPEC/1.0`.
+- The scaffold guidance fingerprint changes, and `init --refresh` clears the
+  expected `STALE` state without touching `references.bib`.
+
 ## 1.7.0 (2026-09-04)
 
 QSPEC's records were complete enough for a tool and still required a person to read YAML, JSON, and scattered markdown before signing or funding a question. 1.7 keeps the file boundary with Paperforge: qspec renders markdown, Paperforge renders and gates editions. No instance field, M invariant, Decision Record shape, or Index shape changed; every 1.6.0 project remains valid.

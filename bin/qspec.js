@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // qspec: lint specs, record acts, and render the documents people use to read
 // and choose questions. `qspec help` lists the commands.
-const { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } = require("node:fs");
+const { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } = require("node:fs");
 const { dirname, join, relative, resolve } = require("node:path");
 const yaml = require("../lib/vendor/js-yaml/js-yaml.js");
 const { J_INVARIANTS, J_TEXT, judgedRule } = require("../lib/catalogs.js");
@@ -18,14 +18,15 @@ const HELP = `usage: qspec <command> [args]
   init --into <dir> [--title text] [--round YYYY-MM] [--decision-maker name]
        [--brief path] [--domain d] [--append] [--no-git]
                                  prepare a directory: specs/ with the round's Index, AGENTS.md
-                                 and CLAUDE.md, sheets/, requests/, and a stamp of what wrote them
+                                 and CLAUDE.md, references.bib, sheets/, requests/, and a stamp
+                                 of what wrote them
   init --refresh --into <dir>    rewrite only the QSPEC block init wrote in AGENTS.md, and re-stamp;
                                  what doctor asks for when the guidance is STALE
   new <Q-id> --domain <social|natural|engineering> [--slug name] [--title text]
        [--owner name] [--specs dir]
                                  an empty spec from the domain template with id and date set
   doctor [--project dir]         tool and node versions, whether this project's guidance is
-                                 what init would write now, and what the runs have seen
+                                 current, bibliography resolution, and what the runs have seen
   runs [--project dir] [--only text] [--spec <id|path>]
        [--diff <a>,<b> [--sources]]
                                  every recorded run in this project: lint, index, sign, transition,
@@ -209,6 +210,12 @@ function notesWithoutAct(result) {
   return [{ severity: "warn", rule: "notes-without-act", message: `${notes.length} note(s) attached ${lastAct ? `since the last act on ${lastAct}` : "and no act recorded"}: ${who}. A note is not an act`, act: "a named reviewer signs, or the owner or decision-maker records a transition, citing the run with --run", file: result.file }];
 }
 
+function lintWithProject(file, opts = {}) {
+  const root = findRoot(dirname(resolve(file)));
+  const bibliography = root && existsSync(join(root, "references.bib")) ? join(root, "references.bib") : null;
+  return { ...lintFile(file, { ...opts, bibliography }), bibliography };
+}
+
 function emit(md, out) {
   if (out) { mkdirSync(dirname(resolve(out)), { recursive: true }); writeFileSync(out, md); console.log(`wrote ${out}`); } else process.stdout.write(md);
 }
@@ -372,7 +379,7 @@ switch (cmd) {
   case "lint": {
     if (!positional.length) die("lint needs at least one spec file");
     let exit = 0;
-    const results = positional.map((f) => lintFile(f, { record: flags.record }));
+    const results = positional.map((f) => lintWithProject(f, { record: flags.record }));
     for (const r of results) r.findings.push(...notesWithoutAct(r));
     for (const r of results) {
       const blocked = hasBlock(r.findings);
@@ -384,7 +391,10 @@ switch (cmd) {
       }
     }
     if (flags.json) console.log(JSON.stringify(results.map(({ file, findings }) => ({ file, findings })), null, 2));
-    recordRuns("lint", results.filter((r) => !r.kind || r.kind === "spec").map((r) => ({ file: r.file, kind: "spec", id: r.spec?.id, instance_version: r.spec?.instance_version, status: r.spec?.status, fingerprint: r.spec?.id ? fingerprint(r.spec) : null, findings: r.findings, recordFile: r.recordFile })), flags.label && flags.label !== true ? String(flags.label) : null);
+    const checkedResults = results.filter((r) => !r.kind || r.kind === "spec");
+    const runItems = checkedResults.map((r) => ({ file: r.file, kind: "spec", id: r.spec?.id, instance_version: r.spec?.instance_version, status: r.spec?.status, fingerprint: r.spec?.id ? fingerprint(r.spec) : null, findings: r.findings, recordFile: r.recordFile }));
+    for (const bibliography of new Set(checkedResults.map((r) => r.bibliography).filter(Boolean))) runItems.push({ file: bibliography, kind: "bibliography", findings: [] });
+    recordRuns("lint", runItems, flags.label && flags.label !== true ? String(flags.label) : null);
     process.exit(exit);
   }
   case "fingerprint": {
@@ -622,6 +632,22 @@ switch (cmd) {
       }
       const output = writeRendering(outDir, "index", idx.round, rendered.md);
       remember({ source: file, output, kind: "index", id: idx.round, findings: rendered.findings, md: rendered.md });
+    }
+
+    const bibliography = renderRoot ? join(renderRoot, "references.bib") : null;
+    if (bibliography && existsSync(bibliography)) {
+      // Paperforge resolves a type-level bibliography from each collection
+      // root. Keep the canonical copy beside documents.toml as promised, then
+      // mirror the same bytes only into collection roots that were rendered.
+      const targets = [join(resolve(outDir), "references.bib")];
+      if (written.some((x) => x.kind === "dossier")) targets.push(join(resolve(outDir), "dossiers", "references.bib"));
+      if (written.some((x) => x.kind === "sheet")) targets.push(join(resolve(outDir), "sheets", "references.bib"));
+      for (const output of targets) {
+        mkdirSync(dirname(output), { recursive: true });
+        if (resolve(bibliography) !== output) copyFileSync(bibliography, output);
+        console.log(`wrote ${output}`);
+        runItems.push({ file: bibliography, kind: "bibliography", id: null, findings: [], output });
+      }
     }
 
     recordRuns("render", runItems.map((item) => ({ ...item, root: renderRoot })), flagText("label"));

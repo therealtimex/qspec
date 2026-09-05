@@ -7,6 +7,7 @@
 // Judged (J) invariants are never evaluated here; they are signed by a reviewer.
 const { existsSync, readFileSync } = require("node:fs");
 const yaml = require("./vendor/js-yaml/js-yaml.js");
+const { readBib } = require("./bib.js");
 const { catalogs, resolveProfile } = require("./catalogs.js");
 const { checkRecord, checkSignature, loadRecord, recordPath } = require("./record.js");
 
@@ -111,6 +112,41 @@ function lintSpec(spec, file = "<spec>") {
   return out;
 }
 
+// Citation checks are project-scoped. The caller supplies a bibliography only
+// after resolving the nearest QSPEC root; without one, old projects and scratch
+// specs retain exactly their earlier findings.
+function lintCitations(spec, file, bibliography) {
+  if (!bibliography) return [];
+  let bib;
+  try { bib = readBib(bibliography); }
+  catch (e) {
+    return [{ severity: "skip", rule: "bib-parse", message: `${bibliography} could not be read: ${e.message}`, file }];
+  }
+  if (bib.error) {
+    return [{ severity: "skip", rule: "bib-parse", message: `${bibliography} cannot be parsed at line ${bib.error.line}: ${bib.error.message}`, file }];
+  }
+  const findings = [];
+  const works = Array.isArray(spec?.increment?.closest_work) ? spec.increment.closest_work : [];
+  for (const [i, work] of works.entries()) {
+    const key = typeof work?.key === "string" ? work.key.trim() : "";
+    if (!key) {
+      findings.push({ severity: "warn", rule: "cite-unkeyed", message: `closest_work[${i}] key '(empty)' does not resolve in references.bib`, file });
+      continue;
+    }
+    const entry = bib.entries.get(key);
+    if (!entry) {
+      findings.push({ severity: "warn", rule: "cite-unresolved", message: `closest_work[${i}] key '${key}' does not resolve in references.bib`, file });
+      continue;
+    }
+    const missing = [];
+    if (!entry.fields.title?.trim()) missing.push("title");
+    if (!entry.fields.year?.trim()) missing.push("year");
+    if (!entry.fields.doi?.trim() && !entry.fields.url?.trim()) missing.push("doi or url");
+    if (missing.length) findings.push({ severity: "warn", rule: "bib-incomplete", message: `closest_work[${i}] key '${key}' resolves to an entry missing ${missing.join(", ")}`, file });
+  }
+  return findings;
+}
+
 // Full check of one file: M invariants, then the record and signature (M16).
 function kindOf(doc) {
   if (doc?.record_schema) return "record";
@@ -125,6 +161,7 @@ function lintFile(file, opts = {}) {
   if (kind === "record") return { file, spec: null, kind, findings: [{ severity: "skip", rule: "not-a-spec", message: "a Decision Record; it is checked alongside its spec", file }] };
   if (kind === "index") return { file, spec: null, kind, findings: [{ severity: "skip", rule: "not-a-spec", message: "a Portfolio Index; check it with: qspec index " + file, file }] };
   const findings = lintSpec(spec, file);
+  findings.push(...lintCitations(spec, file, opts.bibliography));
   if (!catalogs.domains[spec?.domain]) return { file, spec, findings };
   const rp = recordPath(file, spec, opts.record);
   const record = existsSync(rp) ? loadRecord(rp) : null;
@@ -147,4 +184,4 @@ function format(result) {
   return lines.join("\n");
 }
 
-module.exports = { loadSpec, lintSpec, kindOf, lintFile, hasBlock, format };
+module.exports = { loadSpec, lintSpec, lintCitations, kindOf, lintFile, hasBlock, format };

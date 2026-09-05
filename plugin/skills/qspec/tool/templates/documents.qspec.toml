@@ -9,12 +9,16 @@ paper = "A4"
 
 [types.qspec-sheet]
 layout = "brief"
+bibliography = "references.bib"
+citation_style = "apa"
 
 [types.qspec-index]
 layout = "brief"
 
 [types.qspec-dossier]
 extends = "report"
+bibliography = "references.bib"
+citation_style = "apa"
 
 [[collection]]
 slug = "qspec-dossiers"

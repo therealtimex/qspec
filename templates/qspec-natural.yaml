@@ -31,9 +31,11 @@ question_type:
 increment:
   closest_work:
     - cite: ""
+      key: ""              # must resolve in references.bib
       settled: ""
       still_open: ""
     - cite: ""
+      key: ""              # must resolve in references.bib
       settled: ""
       still_open: ""
   increment_if_this_works: ""

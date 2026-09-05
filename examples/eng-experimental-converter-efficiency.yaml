@@ -1,4 +1,4 @@
-# Illustrative instance. Citations are placeholders, not real references.
+# Illustrative instance. Citations are illustrative, not real references.
 spec_schema: QSPEC/1.0
 domain: engineering
 id: Q-301
@@ -31,9 +31,11 @@ question_type:
 increment:
   closest_work:
     - cite: "[Illustrative work 1: simulation comparison of topologies A and B at a single operating point]"
+      key: q301-work-1
       settled: "A has lower switching loss at one operating point in simulation."
       still_open: "No drive-cycle weighting; no hardware; magnetics volume not held equal."
     - cite: "[Illustrative work 2: hardware paper on topology B at rated power]"
+      key: q301-work-2
       settled: "Measured efficiency of B at rated power on a reference bench."
       still_open: "No head-to-head against A on the same platform."
   increment_if_this_works: "A same-bench, same-volume, drive-cycle-weighted comparison with switch-stress measurement, which neither closest work provides."

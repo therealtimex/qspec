@@ -17,7 +17,7 @@ entries:
       - J5
       - J6
       - J7
-    spec_fingerprint: sha256:8ac1037eb1c002aac9dd981a8aaa8127e8ec439f5e8e6772435c3b4bbf4a8c29
+    spec_fingerprint: sha256:c8ed72e2712fb11a2ef19448f787f21d6f5229bc3b82d12189d67113c53754d7
     judged_rules:
       J7: >-
         `positive_or_negative_controls` names a control or states why one is impossible; the kill

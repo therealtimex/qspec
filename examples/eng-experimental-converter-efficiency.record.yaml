@@ -17,7 +17,7 @@ entries:
       - J5
       - J6
       - J7
-    spec_fingerprint: sha256:9cd939cb77148e69d82c6611f1fe9603eab3620fa9a455d96beec4d96bb335d1
+    spec_fingerprint: sha256:ae2eb0501a291869de32dd17774d48b68cef503737be04d5d8432a2b924b318c
     judged_rules:
       J7: >-
         the kill condition refers to an unusable measurement, an unreachable regime, or a failed

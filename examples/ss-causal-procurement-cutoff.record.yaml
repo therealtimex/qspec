@@ -17,7 +17,7 @@ entries:
       - J5
       - J6
       - J7
-    spec_fingerprint: sha256:1ef922706579c8cd239425aecbf583aca812c1fb82c54a29a07fca06dc639b3f
+    spec_fingerprint: sha256:7434021de793cb61a5e499d98fbc4df64195be936c88cd2bbd71aac8bbb86f5a
     judged_rules:
       J7: >-
         the kill condition refers to a failed identifying or design check, not to an inconvenient

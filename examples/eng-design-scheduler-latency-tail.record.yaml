@@ -17,7 +17,7 @@ entries:
       - J5
       - J6
       - J7
-    spec_fingerprint: sha256:ee570dddc790ff11abf8166df3f53b443267e564239e947d77076cd3d6182650
+    spec_fingerprint: sha256:3ebbbc0c89f881140b3602a0ac6785f5b0edfbf67c5db3598b3700f3be2eb3ee
     judged_rules:
       J7: >-
         if `knowledge_goal` is `feasibility`, `acceptance_criterion` is numeric or pass/fail, not

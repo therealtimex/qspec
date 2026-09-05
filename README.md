@@ -2,7 +2,7 @@
 
 A Question Spec is a short contract that turns a research topic, technique, or platform into a claim that can be wrong, so that questions from different methods and domains can be compared, selected, frozen, or killed on the same terms.
 
-Version 1.7.0, released 2026-09-04. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
+Version 1.8.0, released 2026-09-05. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
 
 The tool renders and checks; it does not author. A field is written by a person, a judgment is signed by a person, and the tool notices when a signature no longer covers the text. It pairs with [Paperforge](docs/paperforge-integration.md) downstream, which applies the same rule to the documents that answer the question.
 
@@ -14,11 +14,11 @@ The tool renders and checks; it does not author. A field is written by a person,
 | `QSPEC-SS.md`, `QSPEC-NS.md`, `QSPEC-ENG.md` | Domain overlays for social sciences, natural sciences, and engineering: claim fields, catalogs, method profiles. Software is in scope for engineering. |
 | `schema/catalogs.json` | Machine-readable catalogs and profile field lists. The single source of truth for the tool. |
 | `bin/qspec.js` | The tool. `qspec help` lists commands. No dependencies; js-yaml is vendored under `lib/vendor/`. |
-| `lib/` | `lint` (M invariants), `record` (fingerprint, transitions, acts), `render` (sheet, index, dossier, request), `paper` (gist check), `scaffold` (init, new, doctor), `runs` (run records and diffs), `friction` (report notes). |
+| `lib/` | `lint` (M invariants and project-scoped citation findings), `bib` (read-only BibTeX keys), `record` (fingerprint, transitions, acts), `render` (sheet, index, dossier, request), `paper` (gist check), `scaffold` (init, new, doctor), `runs` (run records and diffs), `friction` (report notes). |
 | `templates/` | Empty instances per domain, Decision Record and Index templates, and `documents.qspec.toml` for a Paperforge document corpus. |
 | `.qspec/scaffold.json` | In a project `init` prepared: what wrote it, and a fingerprint of the guidance so `doctor` can say when it has gone stale. |
 | `.qspec/runs/`, `.qspec/friction/` | In a project: what every check saw, with the files as they stood, the notes roles attached to each run, and the notes `report` wrote. See [docs/runs.md](docs/runs.md). Not gitignored. |
-| `examples/` | Two complete instances per domain with their Decision Records, one Index, one downstream paper. Citations are illustrative, not real. |
+| `examples/` | Two complete instances per domain with their Decision Records, one Index, one downstream paper, and `references.bib`. Citations and bibliography entries are illustrative, not real. |
 | `examples/negative/` | Instances that must block, including a stale signature. `round/` holds a freeze taken by someone the round does not name: the spec lints clean, and its round refuses it. |
 | `docs/paperforge-integration.md` | The file contract with Paperforge. |
 | `docs/runs.md` | Run records and friction notes: why they exist, what they hold, how to read a diff. |
@@ -31,7 +31,7 @@ The tool renders and checks; it does not author. A field is written by a person,
 
 No install: the tool runs on Node 22 with no dependencies.
 
-Prepare a directory first. `init` writes `specs/` with the round's empty Index, `AGENTS.md` and `CLAUDE.md` telling any agent what the directory is and how to invoke the tool, and a stamp of what wrote them; `doctor` says whether that guidance is still what `init` would write.
+Prepare a directory first. `init` writes `specs/` with the round's empty Index, an empty project-owned `references.bib`, `AGENTS.md` and `CLAUDE.md` telling any agent what the directory is and how to invoke the tool, and a stamp of what wrote them; `doctor` says whether that guidance is still what `init` would write.
 
 ```sh
 node bin/qspec.js init --into ~/research/procurement --title "Procurement questions" \
@@ -75,6 +75,14 @@ note exactly as written. Because those notes can contain publication markers,
 dossiers are built in Paperforge draft mode, which reports findings and cannot
 publish. See [docs/paperforge-integration.md](docs/paperforge-integration.md).
 
+For each closest work, keep the readable `cite` text and add a `key` that
+resolves in the project's `references.bib`. QSPEC warns about missing,
+unresolved, or incomplete entries and emits `[@key]` in sheets and dossiers;
+Paperforge formats the citations and appends the reference list. QSPEC never
+writes or fetches a bibliography entry. `render` copies that one source beside
+the manifest and mirrors its bytes into rendered sheet and dossier collection
+roots, where Paperforge resolves a type-level bibliography.
+
 To pull a spec out of a round without ending it, the owner withdraws it rather than killing it:
 
 ```sh
@@ -89,7 +97,7 @@ qspec init --into <dir>               prepare a directory: specs/ with the round
 qspec new <Q-id> --domain <d>         an empty spec from the domain template, id and date set
      [--slug] [--title] [--owner] [--specs dir]
 qspec init --refresh --into <dir>     rewrite only the QSPEC block in AGENTS.md and re-stamp; what doctor asks for on STALE
-qspec doctor [--project dir]          tool and node versions; is this project's guidance current; runs since the last act
+qspec doctor [--project dir]          tool and node versions; guidance, bibliography, and runs since the last act
 qspec runs [--project dir] [--spec <id|path>]
                                       every recorded run in the project, optionally scoped to one spec
      [--diff <a>,<b> [--sources]]     what changed between two runs: reworded or rewritten, findings appeared or cleared
@@ -142,6 +150,7 @@ Tag `vX.Y.Z`. The release workflow refuses the tag unless it matches the version
 - Instances declare `spec_schema: QSPEC/1.0` and a `domain`. All 1.x core releases accept that string.
 - Schema documents carry their version in the header, not the filename.
 - A field removal, rename, or tightened M invariant on instance fields is a major release with a new `spec_schema` string.
+- Every 1.7.0 project, spec, record, and Index is valid under 1.8.0. Citation keys are optional, and the three citation findings run only inside a project that has `references.bib`; without that file, lint findings are unchanged. 1.8.0 adds the read-only bibliography checks and Paperforge markers.
 - Every 1.6.0 project, spec, record, and Index is valid under 1.7.0. 1.7.0 adds dossiers, aggregate rendering, a Paperforge manifest template, and spec-scoped run lookup; no instance field, M invariant, record shape, or Index shape changed.
 - Every 1.5.0 project, spec, record, and Index is valid under 1.6.0. 1.6.0 adds an optional `run` on Decision Record entries, notes attached to runs, and run records for every checking command; `notes-without-act` is a warning.
 - Every 1.4.0 project, spec, record, and Index is valid under 1.5.0. 1.5.0 adds run records, `runs`, `report`, and doctor lines; a project scaffolded by 1.4.0 reports `STALE` guidance because the guidance now names `runs` and `report`.

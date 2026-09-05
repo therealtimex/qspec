@@ -1,0 +1,17 @@
+% The reader ignores this line comment and the string definition below.
+@string{journal = "Journal of Fixtures"}
+
+@article{nested-braces,
+  TITLE = {An {Outer {and Inner}} Title},
+  YEAR = 2024,
+  doi = "10.0000/example"
+}
+
+@report{quoted-fields,
+  title = "A quoted title",
+  year = {2025},
+  url = "https://example.invalid/quoted"
+}
+
+@preamble{"ignored"}
+@comment{Ignored {even with nesting}.}

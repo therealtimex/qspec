@@ -4,6 +4,9 @@ set -e
 Q="node bin/qspec.js"
 echo "== specs pass, records agree, signatures current"
 $Q lint examples/*.yaml
+if $Q lint examples/*.yaml | grep -q 'cite-'; then echo "UNEXPECTED: a spec outside a project produced a cite-* finding"; exit 1; fi
+echo "== the BibTeX reader handles the supported surface and names a malformed line"
+node -e 'const a=require("node:assert/strict"),{readBib}=require("./lib/bib.js"); const good=readBib("test/fixtures/references-mixed.bib"); a.equal(good.error,null); a.equal(good.entries.size,2); a.equal(good.entries.get("nested-braces").fields.title,"An {Outer {and Inner}} Title"); a.equal(good.entries.get("nested-braces").fields.year,"2024"); a.equal(good.entries.get("quoted-fields").fields.url,"https://example.invalid/quoted"); const bad=readBib("test/fixtures/references-unparseable.bib"); a.equal(bad.entries.size,0); a.equal(bad.error.line,3)'
 echo "== negatives block"
 $Q lint --expect-fail examples/negative/*.yaml
 echo "== empty templates block"
@@ -12,10 +15,13 @@ echo "== index checks and renders"
 $Q index examples/index-round-2026-09.yaml --specs examples --out /tmp/qspec-index.md
 echo "== sheet renders for a selectable spec"
 $Q sheet examples/ss-causal-procurement-cutoff.yaml --index examples/index-round-2026-09.yaml --out /tmp/qspec-sheet.md
+grep -q '\[@q101-work-1\]' /tmp/qspec-sheet.md || { echo "UNEXPECTED: a keyed closest work did not reach the sheet"; exit 1; }
+node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); delete s.increment.closest_work[0].key; const sheet=r.sheet(s).md,dossier=r.dossier(s).md; a.ok(sheet.includes(s.increment.closest_work[0].cite)); a.ok(dossier.includes(s.increment.closest_work[0].cite)); a.ok(!sheet.includes("[@q101-work-1]")); a.ok(!dossier.includes("[@q101-work-1]")); a.ok(sheet.includes("[@q101-work-2]")); a.ok(dossier.includes("[@q101-work-2]"))'
 echo "== sheet refused for a specified spec"
 if $Q sheet examples/ss-ethnographic-scoring-weights.yaml >/dev/null 2>&1; then echo "UNEXPECTED: sheet rendered for a specified spec"; exit 1; fi
 echo "== request exports for a frozen spec and is refused otherwise"
 $Q request examples/ns-experimental-apical-oxygen.yaml --out /tmp/qspec-request.md
+if grep -q '\[@q201-work-' /tmp/qspec-request.md; then echo "UNEXPECTED: request gained a citation marker"; exit 1; fi
 if $Q request examples/ss-causal-procurement-cutoff.yaml >/dev/null 2>&1; then echo "UNEXPECTED: request exported for a selectable spec"; exit 1; fi
 echo "== paper carries the frozen claim"
 $Q paper examples/ns-experimental-apical-oxygen.yaml examples/paper/Q-201-report.md
@@ -63,9 +69,10 @@ echo "== init prepares a project that passes its own checks"
 ROOT="$PWD"
 rm -rf /tmp/qspec-init
 $Q init --into /tmp/qspec-init --title "Init Probe" --round 2026-09 --decision-maker "Group lead" --domain social --no-git >/dev/null
-test -f /tmp/qspec-init/AGENTS.md && test -L /tmp/qspec-init/CLAUDE.md && test -f /tmp/qspec-init/.qspec/scaffold.json && test -f /tmp/qspec-init/specs/index-2026-09.yaml || { echo "UNEXPECTED: init did not write the project"; exit 1; }
+test -f /tmp/qspec-init/AGENTS.md && test -L /tmp/qspec-init/CLAUDE.md && test -f /tmp/qspec-init/.qspec/scaffold.json && test -f /tmp/qspec-init/specs/index-2026-09.yaml && test -f /tmp/qspec-init/references.bib || { echo "UNEXPECTED: init did not write the project"; exit 1; }
 test ! -e /tmp/qspec-init/.git || { echo "UNEXPECTED: --no-git initialised a repository"; exit 1; }
 $Q doctor --project /tmp/qspec-init >/dev/null
+$Q doctor --project /tmp/qspec-init | grep -q 'bibliography.*0 unresolved, 0 unkeyed' || { echo "UNEXPECTED: doctor did not report the empty bibliography"; exit 1; }
 $Q index /tmp/qspec-init/specs/index-2026-09.yaml --specs /tmp/qspec-init/specs --out /tmp/qspec-init-round.md >/dev/null
 (cd /tmp/qspec-init/specs && node "$ROOT/bin/qspec.js" doctor | grep -q "scaffold   ok") || { echo "UNEXPECTED: doctor did not find the project from inside it"; exit 1; }
 echo "== init refuses to run twice, refuses guidance it did not write, and appends below a shim on --append"
@@ -88,14 +95,45 @@ if $Q doctor --project /tmp/qspec-init >/dev/null 2>&1; then echo "UNEXPECTED: d
 $Q doctor --project /tmp/qspec-init | grep -q "STALE" || { echo "UNEXPECTED: doctor did not say STALE"; exit 1; }
 echo "== init --refresh rewrites only the block init wrote, re-stamps, and clears STALE"
 printf '\nMy own note below the block.\n' >> /tmp/qspec-init/AGENTS.md
+printf '%% Writer-owned bibliography content.\n' >> /tmp/qspec-init/references.bib
+REFERENCES_SHA=$(shasum -a 256 /tmp/qspec-init/references.bib | awk '{print $1}')
 $Q init --refresh --into /tmp/qspec-init >/dev/null
 $Q doctor --project /tmp/qspec-init | grep -q "scaffold   ok" || { echo "UNEXPECTED: refresh did not clear STALE"; exit 1; }
 grep -q "My own note below the block" /tmp/qspec-init/AGENTS.md && head -1 /tmp/qspec-init/AGENTS.md | grep -q "Init Probe" || { echo "UNEXPECTED: refresh touched text outside the markers"; exit 1; }
 test "$(grep -c -F -- "<!-- qspec:project-guidance -->" /tmp/qspec-init/AGENTS.md)" = "1" || { echo "UNEXPECTED: refresh duplicated the block"; exit 1; }
 grep -q '"created"' /tmp/qspec-init/.qspec/scaffold.json && grep -q '"refreshed"' /tmp/qspec-init/.qspec/scaffold.json || { echo "UNEXPECTED: the stamp lost its creation date or gained no refresh date"; exit 1; }
+test "$REFERENCES_SHA" = "$(shasum -a 256 /tmp/qspec-init/references.bib | awk '{print $1}')" || { echo "UNEXPECTED: init --refresh touched references.bib"; exit 1; }
 $Q init --refresh --into /tmp/qspec-shim >/dev/null
 head -1 /tmp/qspec-shim/AGENTS.md | grep -q "Workspace Agent Guide" || { echo "UNEXPECTED: refresh disturbed the shim above the block"; exit 1; }
 if $Q init --refresh --into /tmp/qspec-nonesuch >/dev/null 2>&1; then echo "UNEXPECTED: refresh ran where there is no project"; exit 1; fi
+echo "== citation findings are project-scoped warnings and malformed BibTeX is one skip"
+rm -rf /tmp/qspec-citations && $Q init --into /tmp/qspec-citations --title "Citation Probe" --round 2026-09 --no-git >/dev/null
+cp examples/ss-causal-procurement-cutoff.yaml examples/ss-causal-procurement-cutoff.record.yaml /tmp/qspec-citations/specs/
+cp examples/references.bib /tmp/qspec-citations/references.bib
+$Q lint /tmp/qspec-citations/specs/ss-causal-procurement-cutoff.yaml > /tmp/qspec-citations/clean.out
+if grep -qE 'cite-unkeyed|cite-unresolved|bib-incomplete' /tmp/qspec-citations/clean.out; then echo "UNEXPECTED: keyed examples produced a citation warning"; exit 1; fi
+cp examples/ss-causal-procurement-cutoff.yaml /tmp/qspec-citations/specs/probe.yaml
+node -e 'const fs=require("node:fs"),p=process.argv[1]; let s=fs.readFileSync(p,"utf8"); fs.writeFileSync(p,s.replace("key: q101-work-1","key: \"\""))' /tmp/qspec-citations/specs/probe.yaml
+CITE_OUT=$($Q lint /tmp/qspec-citations/specs/probe.yaml 2>&1 || true)
+test "$(printf '%s\n' "$CITE_OUT" | grep -c cite-unkeyed)" = 1 || { echo "UNEXPECTED: an empty key did not produce exactly one cite-unkeyed warning"; exit 1; }
+if printf '%s\n' "$CITE_OUT" | grep -qE 'cite-unresolved|bib-incomplete'; then echo "UNEXPECTED: an empty key cascaded into another citation warning"; exit 1; fi
+cp examples/ss-causal-procurement-cutoff.yaml /tmp/qspec-citations/specs/probe.yaml
+node -e 'const fs=require("node:fs"),p=process.argv[1]; let s=fs.readFileSync(p,"utf8"); fs.writeFileSync(p,s.replace("key: q101-work-1","key: no-such-work"))' /tmp/qspec-citations/specs/probe.yaml
+CITE_OUT=$($Q lint /tmp/qspec-citations/specs/probe.yaml 2>&1 || true)
+test "$(printf '%s\n' "$CITE_OUT" | grep -c cite-unresolved)" = 1 || { echo "UNEXPECTED: a missing entry did not produce exactly one cite-unresolved warning"; exit 1; }
+printf '\n@misc{q101-incomplete, title = {Incomplete example}}\n' >> /tmp/qspec-citations/references.bib
+cp examples/ss-causal-procurement-cutoff.yaml /tmp/qspec-citations/specs/probe.yaml
+node -e 'const fs=require("node:fs"),p=process.argv[1]; let s=fs.readFileSync(p,"utf8"); fs.writeFileSync(p,s.replace("key: q101-work-1","key: q101-incomplete"))' /tmp/qspec-citations/specs/probe.yaml
+CITE_OUT=$($Q lint /tmp/qspec-citations/specs/probe.yaml 2>&1 || true)
+test "$(printf '%s\n' "$CITE_OUT" | grep -c bib-incomplete)" = 1 || { echo "UNEXPECTED: an incomplete entry did not produce exactly one bib-incomplete warning"; exit 1; }
+cp test/fixtures/references-unparseable.bib /tmp/qspec-citations/references.bib
+CITE_OUT=$($Q lint /tmp/qspec-citations/specs/probe.yaml 2>&1 || true)
+test "$(printf '%s\n' "$CITE_OUT" | grep -c bib-parse)" = 1 && printf '%s\n' "$CITE_OUT" | grep -q 'line 3' || { echo "UNEXPECTED: malformed BibTeX did not produce one line-numbered skip"; exit 1; }
+if printf '%s\n' "$CITE_OUT" | grep -qE 'cite-unkeyed|cite-unresolved|bib-incomplete'; then echo "UNEXPECTED: malformed BibTeX cascaded into citation warnings"; exit 1; fi
+rm -rf /tmp/qspec-no-bib && cp -R /tmp/qspec-citations /tmp/qspec-no-bib && rm /tmp/qspec-no-bib/references.bib
+CITE_OUT=$($Q lint /tmp/qspec-no-bib/specs/probe.yaml 2>&1 || true)
+if printf '%s\n' "$CITE_OUT" | grep -qE 'cite-unkeyed|cite-unresolved|bib-incomplete|bib-parse'; then echo "UNEXPECTED: a project without references.bib produced a citation finding"; exit 1; fi
+$Q doctor --project /tmp/qspec-no-bib | grep -q 'bibliography.*none.*references.bib at the project root' || { echo "UNEXPECTED: doctor did not report the absent bibliography"; exit 1; }
 echo "== lint and index record a run inside a project, and nothing outside one"
 test ! -e .qspec || { echo "UNEXPECTED: a run was recorded in this repository, which is not a project"; exit 1; }
 rm -rf /tmp/qspec-runs && $Q init --into /tmp/qspec-runs --title "Runs Probe" --round 2026-09 --domain social --no-git >/dev/null
@@ -137,6 +175,7 @@ if $Q attach nonesuch /tmp/qspec-notes/handoff.md --by X --role reviewer --proje
 if $Q attach baseline /tmp/qspec-notes/handoff.md --by X --role reviewer --kind verdict --project /tmp/qspec-notes >/dev/null 2>&1; then echo "UNEXPECTED: attach accepted an unlisted kind"; exit 1; fi
 echo "== dossiers preserve notes, frozen claims carry gists, and run labels scope by spec"
 rm -rf /tmp/qspec-render && $Q init --into /tmp/qspec-render --title "Render Probe" --round 2026-09 --decision-maker "Group lead" --no-git >/dev/null
+cp examples/references.bib /tmp/qspec-render/references.bib
 cp examples/ss-ethnographic-scoring-weights.yaml /tmp/qspec-render/specs/Q-102.yaml
 sed -i.bak 's/^status: specified$/status: draft/' /tmp/qspec-render/specs/Q-102.yaml && rm -f /tmp/qspec-render/specs/*.bak
 cp examples/ss-causal-procurement-cutoff.yaml examples/ss-causal-procurement-cutoff.record.yaml /tmp/qspec-render/specs/
@@ -155,13 +194,17 @@ node -e 'const fs=require("node:fs"); const note=fs.readFileSync(process.argv[1]
 if grep -q 'claim-q-102' /tmp/qspec-render/Q-102-dossier.md; then echo "UNEXPECTED: a draft dossier carried a frozen claim label"; exit 1; fi
 $Q dossier /tmp/qspec-render/specs/ns-experimental-apical-oxygen.yaml --out /tmp/qspec-render/Q-201-dossier.md >/dev/null
 grep -q '{#claim-q-201 gist="In the studied cuprate family' /tmp/qspec-render/Q-201-dossier.md || { echo "UNEXPECTED: a frozen dossier did not carry the frozen claim gist"; exit 1; }
+grep -q '\[@q201-work-1\]' /tmp/qspec-render/Q-201-dossier.md || { echo "UNEXPECTED: a keyed closest work did not reach the dossier"; exit 1; }
 $Q runs --project /tmp/qspec-render --diff reviewer-round-1,draft-dossier --spec Q-102 >/dev/null || { echo "UNEXPECTED: --spec did not scope runs --diff"; exit 1; }
 echo "== render writes the state-appropriate corpus and one run names every output"
 $Q render --specs /tmp/qspec-render/specs --out /tmp/qspec-render/documents --index /tmp/qspec-render/specs/index-2026-09.yaml --label render-probe > /tmp/qspec-render/render.out
 grep -q 'skip.*Q-102.yaml.*status is draft' /tmp/qspec-render/render.out || { echo "UNEXPECTED: render did not name the skipped draft sheet"; exit 1; }
 test "$(find /tmp/qspec-render/documents -type f -name '*.md' | wc -l | tr -d ' ')" = "7" || { echo "UNEXPECTED: render did not write exactly three dossiers, two sheets, one request, and one Index"; exit 1; }
-node -e 'const r=require("./lib/runs.js").load("/tmp/qspec-render", "render-probe").record; const outputs=r.files.map(f=>f.output).filter(Boolean); if(r.command!=="render" || outputs.length!==7 || new Set(outputs).size!==7) process.exit(1)' || { echo "UNEXPECTED: the render run did not name every written file exactly once"; exit 1; }
+node -e 'const r=require("./lib/runs.js").load("/tmp/qspec-render", "render-probe").record; const outputs=r.files.map(f=>f.output).filter(Boolean); if(r.command!=="render" || outputs.length!==10 || new Set(outputs).size!==10 || r.files.filter(f=>f.kind==="bibliography").length!==3) process.exit(1)' || { echo "UNEXPECTED: the render run did not name every written file exactly once"; exit 1; }
+cmp -s /tmp/qspec-render/references.bib /tmp/qspec-render/documents/references.bib || { echo "UNEXPECTED: render did not copy references.bib beside the manifest"; exit 1; }
+cmp -s /tmp/qspec-render/references.bib /tmp/qspec-render/documents/dossiers/references.bib && cmp -s /tmp/qspec-render/references.bib /tmp/qspec-render/documents/sheets/references.bib || { echo "UNEXPECTED: render did not mirror references.bib into Paperforge collection roots"; exit 1; }
 cp templates/documents.qspec.toml /tmp/qspec-render/documents/documents.toml
+test "$(grep -c '^bibliography = "references.bib"$' templates/documents.qspec.toml)" = 2 && test "$(grep -c '^citation_style = "apa"$' templates/documents.qspec.toml)" = 2 || { echo "UNEXPECTED: the sheet and dossier types do not both declare bibliography and style"; exit 1; }
 MANIFEST_SHA=$(shasum -a 256 /tmp/qspec-render/documents/documents.toml | awk '{print $1}')
 $Q render --specs /tmp/qspec-render/specs --out /tmp/qspec-render/documents --index /tmp/qspec-render/specs/index-2026-09.yaml --manifest /tmp/qspec-render/documents/documents.toml --label manifest-probe > /tmp/qspec-render/manifest.out
 grep -q 'root = "dossiers"' /tmp/qspec-render/manifest.out && grep -q 'source = "Q-102.md"' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not print a dossier collection with sources relative to its root"; exit 1; }

@@ -1,4 +1,4 @@
-# Illustrative instance. Citations are placeholders, not real references.
+# Illustrative instance. Citations are illustrative, not real references.
 spec_schema: QSPEC/1.0
 domain: engineering
 id: Q-302
@@ -31,9 +31,11 @@ question_type:
 increment:
   closest_work:
     - cite: "[Illustrative work 1: tail-latency-aware scheduler with unreported energy cost]"
+      key: q302-work-1
       settled: "Tail latency can be bounded by admission control."
       still_open: "Energy overhead not measured."
     - cite: "[Illustrative work 2: energy-proportional scheduler evaluated on a different suite]"
+      key: q302-work-2
       settled: "Energy per request can be reduced under low load."
       still_open: "Tail latency degrades at the load studied here."
   increment_if_this_works: "A policy with an analytic tail bound and a measured energy overhead on the same suite and stack, which neither closest work provides."

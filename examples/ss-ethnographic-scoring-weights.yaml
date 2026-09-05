@@ -1,4 +1,4 @@
-# Illustrative instance. Citations are placeholders, not real references.
+# Illustrative instance. Citations are illustrative, not real references.
 spec_schema: QSPEC/1.0
 domain: social
 id: Q-102
@@ -29,9 +29,11 @@ question_type:
 increment:
   closest_work:
     - cite: "[Illustrative work 1: quantitative study linking discretionary weights to single-bid outcomes]"
+      key: q102-work-1
       settled: "Discretion correlates with single-bid tenders."
       still_open: "What officers are doing when they set weights."
     - cite: "[Illustrative work 2: ethnography of street-level bureaucrats and rule discretion]"
+      key: q102-work-2
       settled: "Discretion is exercised as professional judgment under constraint."
       still_open: "No procurement setting; no scoring-weight practice observed."
   increment_if_this_works: "A first-hand account of how weights are argued, set, and defended, with a contrast between routine and contested tenders."

@@ -17,7 +17,7 @@ entries:
       - J5
       - J6
       - J7
-    spec_fingerprint: sha256:ebd0f6a9b1b7dd50f2beacb7edeb1183be772388d5db423b8d2adac1d5dc48e4
+    spec_fingerprint: sha256:b2440477ffab85152baacc1d8687c3802d6066a93d99b5677fb6be00a806b232
     judged_rules:
       J7: >-
         `overturning_observation` is a kind of evidence that would force revision, not "more time in

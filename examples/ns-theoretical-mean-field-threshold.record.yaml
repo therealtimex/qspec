@@ -17,7 +17,7 @@ entries:
       - J5
       - J6
       - J7
-    spec_fingerprint: sha256:303823ac0d21e735d240bc4a62018288b0fcb2384611d27f198983fa516d0875
+    spec_fingerprint: sha256:22be636d307158bb4868ec04b2bcfce5d22c1124f3029bbe3cc17f2f259115d8
     judged_rules:
       J7: >-
         the kill condition is a counterexample, a reduction to a known result, or a broken regime,

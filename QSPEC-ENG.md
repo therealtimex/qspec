@@ -1,10 +1,10 @@
-# QSPEC-ENG 1.7.0
+# QSPEC-ENG 1.8.0
 # Question Spec overlay for engineering
 
 **Spec-ID:** QSPEC-ENG
-**Schema-Version:** 1.7.0
-**Targets core:** QSPEC-CORE 1.7.0
-**Date:** 2026-09-04
+**Schema-Version:** 1.8.0
+**Targets core:** QSPEC-CORE 1.8.0
+**Date:** 2026-09-05
 **Status:** released
 **Instance header:** `spec_schema: QSPEC/1.0` and `domain: engineering`
 
