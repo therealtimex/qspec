@@ -28,12 +28,27 @@ function englishLabel(entry) {
   return typeof entry?.en === "string" && entry.en.trim() ? entry.en.trim() : null;
 }
 
+function sentenceLabel(entry) {
+  if (typeof entry?.sentence === "string" && entry.sentence.trim()) return entry.sentence.trim();
+  const label = englishLabel(entry);
+  if (!label || /^[A-Z]{2}/.test(label)) return label;
+  return label[0].toLowerCase() + label.slice(1);
+}
+
 function valueLabel(value) {
   return englishLabel(catalogs.labels?.values?.[value]);
 }
 
+function valueSentence(value) {
+  return sentenceLabel(catalogs.labels?.values?.[value]);
+}
+
 function profileFieldLabel(field) {
   return englishLabel(catalogs.labels?.profile_fields?.[field]);
+}
+
+function profileFieldSentence(field) {
+  return sentenceLabel(catalogs.labels?.profile_fields?.[field]);
 }
 
 // The overlay's judged (J7) rule for a spec's profile, or null when the spec
@@ -45,4 +60,4 @@ function judgedRule(spec) {
   return def?.judged ?? null;
 }
 
-module.exports = { catalogs, J_INVARIANTS, J_TEXT, SEVERITIES, resolveProfile, judgedRule, profileFieldLabel, valueLabel };
+module.exports = { catalogs, J_INVARIANTS, J_TEXT, SEVERITIES, resolveProfile, judgedRule, profileFieldLabel, profileFieldSentence, valueLabel, valueSentence };

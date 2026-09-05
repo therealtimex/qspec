@@ -30,16 +30,17 @@ for (const domain of Object.values(catalogs.domains ?? {})) {
 }
 
 let bad = 0;
-const labelled = (entry) => typeof entry?.en === "string" && entry.en.trim();
+const labelled = (entry) => typeof entry?.en === "string" && entry.en.trim()
+  && typeof entry?.sentence === "string" && entry.sentence.trim();
 for (const value of [...values].sort()) {
   if (!labelled(catalogs.labels?.values?.[value])) {
-    console.error(`catalog value '${value}' has no English committee label`);
+    console.error(`catalog value '${value}' has no complete English committee label (en and sentence)`);
     bad++;
   }
 }
 for (const field of [...profileFields].sort()) {
   if (!labelled(catalogs.labels?.profile_fields?.[field])) {
-    console.error(`profile field '${field}' has no English committee label`);
+    console.error(`profile field '${field}' has no complete English committee label (en and sentence)`);
     bad++;
   }
 }

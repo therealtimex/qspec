@@ -378,6 +378,7 @@ switch (cmd) {
     if (!root || !existsSync(join(root, STAMP))) die(`no QSPEC project here or above (no ${STAMP}); pass --project <dir>`);
     let done;
     try { done = runs.attach(root, runName, file, { actor: flags.by, role: flags.role, kind: flags.kind && flags.kind !== true ? String(flags.kind) : "note" }); } catch (e) { die(e.message); }
+    if (done.warning) console.error(done.warning);
     console.log(`attached ${done.note.kind} by ${done.note.actor} (${done.note.role}) to ${done.run} as ${done.note.path}`);
     break;
   }

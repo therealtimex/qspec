@@ -67,6 +67,13 @@ qspec runs --diff reviewer-round-1,reviewer-round-2 --spec specs/Q-003.yaml
 Resolution considers only runs whose `files` include that spec. qspec does not
 prefix or rewrite the label the person chose.
 
+For routed work, use `<spec>-<role>-round-<n>`: for example,
+`q001-reviewer-round-1` followed by `q001-approver-round-1`. Before attaching a
+note, each role lints under its own label and attaches to that run, so the run
+carries the file as that role saw it. `attach` warns, without refusing or
+discarding the note, when `--role` differs from the role named by a conventional
+run label.
+
 ## Reading a diff
 
 ```

@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.10.0 (2026-09-05)
+
+Citation keys can now travel with literature named anywhere in a spec, while
+the nearest-work block stays focused on the three to five works closest to the
+increment. Four rendering and workflow defects found in live question loops
+are fixed. No instance field, M invariant, Decision Record shape, or Index shape
+changed.
+
+### Citations in prose and focused closest work
+
+- In a project with `references.bib`, `lint` resolves `[@key]` and
+  `[@key; @key2]` markers in every string field, including list items and
+  profile fields. `cite-unresolved` and `bib-incomplete` name the field path.
+  Outside a project, or without the bibliography, findings remain unchanged.
+- Sheets, dossiers, Indexes, and requests preserve prose markers for
+  Paperforge. `committee-clean` treats a marker as citation syntax rather than
+  a catalog token.
+- Core guidance recommends three to five nearest works in practice, not a
+  survey, while M6's floor remains two and no maximum is introduced. Each
+  domain template now starts with three closest-work slots.
+
+### Rendering and role fixes
+
+- Dossiers escape bare angle brackets in their rendered copy of an attached
+  note while leaving the source note untouched, so CLI text such as `<run>`
+  passes Paperforge verification. Deliberate HTML tags remain markup.
+- Catalog entries now carry both a display label and a sentence form. Design
+  and constraint sentences use the latter; the completeness check requires
+  both forms.
+- Sentence framing removes one trailing `.`, `!`, or `?` from a field before
+  adding its own punctuation, preventing doubled endings.
+- Routed guidance uses `<spec>-<role>-round-<n>` labels. Each role lints under
+  its own label before attaching, and `attach` warns without refusing when the
+  selected run's label names a different role.
+
 ## 1.9.0 (2026-09-05)
 
 The Selection Sheet is now the document a research committee reads, rather

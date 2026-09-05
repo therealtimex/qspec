@@ -1,8 +1,8 @@
-# QSPEC-CORE 1.9.0
+# QSPEC-CORE 1.10.0
 # Question Spec: shared core for all research domains
 
 **Spec-ID:** QSPEC-CORE
-**Schema-Version:** 1.9.0
+**Schema-Version:** 1.10.0
 **Date:** 2026-09-05
 **Status:** released
 **Instance format:** `spec_schema: QSPEC/1.0` plus a `domain` key
@@ -173,7 +173,11 @@ question_type:
   rescue_rule: null       # required when secondary_method is set
 
 increment:
-  closest_work:           # at least two entries
+  closest_work:           # three to five in practice; M6 requires at least two
+    - cite: ""
+      key: ""             # optional; resolves in the project's references.bib
+      settled: ""
+      still_open: ""
     - cite: ""
       key: ""             # optional; resolves in the project's references.bib
       settled: ""
@@ -237,7 +241,7 @@ handoff:                  # not fingerprinted: first_check is filled between sig
 | `knowledge_goal` | What kind of knowledge the claim is for. Exactly one primary. |
 | `secondary_method` | A second family that contributes without carrying the claim. |
 | `rescue_rule` | What the secondary method is not allowed to fix. Example: a simulation cannot replace a failed control. |
-| `closest_work` | At least two named works, designs, or standards, with what each settled and left open. |
+| `closest_work` | The nearest works, three to five in practice, with what each settled and left open. Not a literature review; cite the wider literature from prose with `[@key]`. M6's floor remains two and there is no maximum. |
 | `closest_work[].key` | Optional BibTeX key for the work. In a QSPEC project with `references.bib`, `qspec lint` warns when the key is empty, unresolved, or resolves to an incomplete entry. |
 | `increment_if_this_works` | What becomes known that the closest work does not already establish. |
 | `vehicle_is_not_the_contribution` | Why the setting, dataset, organism, instrument, prototype, or code is a means, not the novelty. |
@@ -328,8 +332,8 @@ These come from the record, the Index, or a rendering rather than from the insta
 | `J7-unrecorded` | skip | signed before the rule was recorded, so drift cannot be checked |
 | `blocking-without-plan` | warn | blocking materials with no `obtainable` entry |
 | `cite-unkeyed` | warn | a closest-work entry has no BibTeX key in a project that carries `references.bib` |
-| `cite-unresolved` | warn | a closest-work key is absent from the project's `references.bib` |
-| `bib-incomplete` | warn | a resolved entry lacks `title`, `year`, or both `doi` and `url` |
+| `cite-unresolved` | warn | a closest-work key or a `[@key]` marker in any string field is absent from the project's `references.bib`; prose-marker findings name the field path |
+| `bib-incomplete` | warn | a resolved closest-work key or prose marker points to an entry lacking `title`, `year`, or both `doi` and `url`; prose-marker findings name the field path |
 | `bib-parse` | skip | `references.bib` could not be parsed, so citation resolution did not run |
 | `index-committee` | block | an act claims a round whose Index names a different decision-maker |
 | `index-stale` | block | a listed spec's signature no longer covers its text, so the round may be showing a claim the spec does not make |
@@ -412,7 +416,7 @@ The labelled recommended action and rank, when the Index has an entry
 Unresolved dissent as “A reviewer dissents:”, with the point verbatim
 ```
 
-The sheet carries no status, schema version, fingerprint, run, note, invariant code, or next-stage first check. Human labels are read from `schema/catalogs.json`; every catalog value and profile field the renderer can emit must have one. `committee-clean` checks the completed markdown, including prose a person supplied, and blocks on a raw catalog identifier or internal tool vocabulary while naming the token and line. An empty field renders as `(not stated)` and the tool reports it. An empty `ask` is a `manual` finding. The spec and its Decision Record sit behind the sheet; a decision-maker who needs detail opens them.
+The sheet carries no status, schema version, fingerprint, run, note, invariant code, or next-stage first check. Human labels are read from `schema/catalogs.json`; every catalog value and profile field the renderer can emit has both a display label and a sentence form. `committee-clean` checks the completed markdown, including prose a person supplied, and blocks on a raw catalog identifier or internal tool vocabulary while naming the token and line; Paperforge citation markers such as `[@key; @key2]` are permitted text. When the renderer adds punctuation after a field, one trailing period, exclamation mark, or question mark in that field is removed first. An empty field renders as `(not stated)` and the tool reports it. An empty `ask` is a `manual` finding. The spec and its Decision Record sit behind the sheet; a decision-maker who needs detail opens them.
 
 ---
 
@@ -481,6 +485,7 @@ Question development is finished when:
 - Overlays version with the core and declare the core version they target.
 - A change that removes a field, renames a field, or tightens an M invariant on the instance fields is a major release and a new `spec_schema` string.
 - 1.1.0 added M16, which tightens what leaving `draft` requires. That was taken as a minor release because no 1.0.0 instance existed outside this repository. It is the last time that exception applies.
+- 1.10.0 resolves Paperforge `[@key]` markers in every prose field when a project bibliography exists, recommends three to five nearest works without changing M6's floor, adds sentence-form labels and rendering fixes, safely escapes bare angle brackets in rendered dossier notes, and warns on cross-role attachments. No instance field, M invariant, Decision Record shape, or Index shape changes.
 - 1.9.0 adds catalog-backed reader labels, rewrites the Selection Sheet and Portfolio Index as committee documents, adds `committee-clean` to those renderings, adds `--draft` previews, and moves dossiers to Paperforge's internal list. No instance field, M invariant, Decision Record shape, or Index shape changes.
 - 1.8.0 adds optional `closest_work[].key`, a project-owned `references.bib`, warning-only resolution checks when that file exists, and citation markers for Paperforge. No M invariant is added or tightened. A 1.7.0 project without `references.bib` has byte-for-byte identical lint findings.
 - 1.7.0 adds the human-readable dossier, aggregate `render`, a documented Paperforge manifest template, and `--spec` scoping for run labels that collide across questions. No instance field, M invariant, Decision Record shape, or Index shape changed. Every 1.6.0 project, spec, record, and Index is a valid 1.7.0 one.
@@ -496,7 +501,7 @@ Question development is finished when:
 
 `qspec` ships in this repository as a Node package with no npm dependencies; its YAML reader is vendored in the bundle. Every command is a resolution procedure over files, an act recorded to a file, a file laid down for a person to fill, or a record of what a check saw. None writes a field of a spec other than `status`, and that only as the consequence of a recorded act; `new` sets `id` and `date`, which are the spec's name and its birthday, not its content.
 
-Inside a project, every command that reads a spec records a run under `.qspec/runs/` with the files as they stood, passing or failing: `lint`, `index`, `sign`, `transition`, `sheet`, `dossier`, `request`, `render`, and `paper`. A rendering keeps the markdown it produced; aggregate `render` records one entry naming each output. A document checked from outside the project is kept under `external/`. The Decision Record is the audit trail for acts; a run is the audit trail for looking; a note attached to a run with `attach` is what a role concluded about it, copied whole and never summarised. None of the three is an act of discipline on the tool's side: the run is written because the check ran, and the note is written because somebody handed off.
+Inside a project, every command that reads a spec records a run under `.qspec/runs/` with the files as they stood, passing or failing: `lint`, `index`, `sign`, `transition`, `sheet`, `dossier`, `request`, `render`, and `paper`. A rendering keeps the markdown it produced; aggregate `render` records one entry naming each output. A document checked from outside the project is kept under `external/`. The Decision Record is the audit trail for acts; a run is the audit trail for looking; a note attached to a run with `attach` is what a role concluded about it, copied whole and never summarised. Before attaching, each role lints under its own `<spec>-<role>-round-<n>` label and attaches to that run; `attach` warns but still proceeds when the named run's label declares another role. None of the three is an act of discipline on the tool's side: the run is written because the check ran, and the note is written because somebody handed off.
 
 ```text
 qspec init --into <dir>               a project: specs/ with the round's Index, AGENTS.md, a stamp

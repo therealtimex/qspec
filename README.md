@@ -2,7 +2,7 @@
 
 A Question Spec is a short contract that turns a research topic, technique, or platform into a claim that can be wrong, so that questions from different methods and domains can be compared, selected, frozen, or killed on the same terms.
 
-Version 1.9.0, released 2026-09-05. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
+Version 1.10.0, released 2026-09-05. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
 
 The tool renders and checks; it does not author. A field is written by a person, a judgment is signed by a person, and the tool notices when a signature no longer covers the text. It pairs with [Paperforge](docs/paperforge-integration.md) downstream, which applies the same rule to the documents that answer the question.
 
@@ -12,7 +12,7 @@ The tool renders and checks; it does not author. A field is written by a person,
 |---|---|
 | `QSPEC-CORE.md` | The shared core: object model, life cycle, roles, fields, invariants, Decision Record, Selection Sheet, Index, downstream contact points, tooling. Read this first. |
 | `QSPEC-SS.md`, `QSPEC-NS.md`, `QSPEC-ENG.md` | Domain overlays for social sciences, natural sciences, and engineering: claim fields, catalogs, method profiles. Software is in scope for engineering. |
-| `schema/catalogs.json` | Machine-readable catalogs, profile field lists, and the English labels used in committee documents. The single source of truth for the tool. |
+| `schema/catalogs.json` | Machine-readable catalogs, profile field lists, and the English display and sentence-form labels used in committee documents. The single source of truth for the tool. |
 | `bin/qspec.js` | The tool. `qspec help` lists commands. No dependencies; js-yaml is vendored under `lib/vendor/`. |
 | `lib/` | `lint` (M invariants and project-scoped citation findings), `bib` (read-only BibTeX keys), `record` (fingerprint, transitions, acts), `render` (sheet, index, dossier, request), `paper` (gist check), `scaffold` (init, new, doctor), `runs` (run records and diffs), `friction` (report notes). |
 | `templates/` | Empty instances per domain, Decision Record and Index templates, and `documents.qspec.toml` for a Paperforge document corpus. |
@@ -73,17 +73,22 @@ node bin/qspec.js render --out documents
 ```
 
 A dossier includes the spec, Decision Record, run timeline, and every attached
-note exactly as written. It is listed under Paperforge's `[internal]` manifest
+note. The source note remains byte-identical; bare angle brackets such as
+`<run>` are escaped only in the rendered copy so Paperforge does not parse them
+as raw HTML. The dossier is listed under Paperforge's `[internal]` manifest
 section and is not a document type, so it cannot be published. The Selection
 Sheet goes to a committee; the dossier stays with the people inside the
 process. See [docs/paperforge-integration.md](docs/paperforge-integration.md).
 
-For each closest work, keep the readable `cite` text and add a `key` that
-resolves in the project's `references.bib`. QSPEC warns about missing,
-unresolved, or incomplete entries and emits `[@key]` in sheets and dossiers;
-Paperforge formats committee-sheet citations and appends the reference list.
+Use three to five nearest works in practice, not a survey. For each, keep the
+readable `cite` text and add a `key` that resolves in the project's
+`references.bib`. Cite wider literature from any prose field with `[@key]` or
+`[@key; @key2]`. QSPEC warns about missing, unresolved, or incomplete entries
+and names the prose field path; renderings preserve the markers for Paperforge,
+which formats citations and appends the reference list.
 QSPEC never writes or fetches a bibliography entry. `render` copies that one
-source beside the manifest and mirrors its bytes beside rendered sheets.
+source beside the manifest and mirrors its bytes beside rendered dossiers and
+sheets.
 
 To pull a spec out of a round without ending it, the owner withdraws it rather than killing it:
 
@@ -134,6 +139,10 @@ Nothing here authenticates anyone. `owner` and `reviewer` are checked against fi
 
 Inside a project, every check is recorded under `.qspec/runs/` with the files it saw, passing or failing; `qspec runs --diff a,b --sources` shows what changed between two of them, `qspec attach` keeps a handoff or review beside the run it is about, and an act can cite the run it read with `--run`. The reason is Paperforge's: a draft overwritten in place is gone, and git did not help because nobody committed. See [docs/runs.md](docs/runs.md).
 
+Before attaching a note, lint under your own `<spec>-<role>-round-<n>` label
+and attach to that run. `attach` warns but still copies the note when the label
+names a different role.
+
 ## Installing as a plugin
 
 `plugin/` is a RealTimeX declarative skill plugin: no entry point, the skill carries the tool. `npm run plugin` re-syncs the bundle from the repo; `node scripts/plugin.mjs --check` fails if it has drifted, so a stale plugin is a visible failure.
@@ -153,6 +162,7 @@ Tag `vX.Y.Z`. The release workflow refuses the tag unless it matches the version
 - Instances declare `spec_schema: QSPEC/1.0` and a `domain`. All 1.x core releases accept that string.
 - Schema documents carry their version in the header, not the filename.
 - A field removal, rename, or tightened M invariant on instance fields is a major release with a new `spec_schema` string.
+- Every 1.9.0 project, spec, record, and Index is valid under 1.10.0. The release resolves citation markers in prose, recommends three to five nearest works, adds sentence-form labels and rendering fixes, and warns on cross-role attachments; no instance field, M invariant, record shape, or Index shape changed.
 - Every 1.8.0 project, spec, record, and Index is valid under 1.9.0. The release adds labels and gates on rendered committee text, `--draft` previews, and internal-only dossiers; no instance field, M invariant, record shape, or Index shape changed.
 - Every 1.7.0 project, spec, record, and Index is valid under 1.8.0. Citation keys are optional, and the three citation findings run only inside a project that has `references.bib`; without that file, lint findings are unchanged. 1.8.0 adds the read-only bibliography checks and Paperforge markers.
 - Every 1.6.0 project, spec, record, and Index is valid under 1.7.0. 1.7.0 adds dossiers, aggregate rendering, a Paperforge manifest template, and spec-scoped run lookup; no instance field, M invariant, record shape, or Index shape changed.

@@ -12,16 +12,19 @@ echo "== negatives block"
 $Q lint --expect-fail examples/negative/*.yaml
 echo "== empty templates block"
 $Q lint --expect-fail templates/qspec-*.yaml
+node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"); for(const p of process.argv.slice(1)){const s=y.load(fs.readFileSync(p,"utf8"),{schema:y.CORE_SCHEMA}); a.equal(s.increment.closest_work.length,3,p)}' templates/qspec-*.yaml
 echo "== index checks and renders"
 $Q index examples/index-round-2026-09.yaml --specs examples --out /tmp/qspec-index.md
 grep -q '| Rank | Question | Field | Design | Claim | Blocked | Recommended |' /tmp/qspec-index.md && grep -q 'Social science' /tmp/qspec-index.md && grep -q 'Causal empirical study' /tmp/qspec-index.md && grep -q 'Keep as a backup' /tmp/qspec-index.md || { echo "UNEXPECTED: the Index did not carry labelled committee cells"; exit 1; }
 node -e 'const a=require("node:assert/strict"),fs=require("node:fs"),r=require("./lib/render.js"); a.deepEqual(r.committeeClean(fs.readFileSync("/tmp/qspec-index.md","utf8")),[])'
+node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const i=y.load(fs.readFileSync("examples/index-round-2026-09.yaml","utf8"),{schema:y.CORE_SCHEMA}); i.entries[0].claim_20_words += " [@q101-work-1]"; const out=r.index(i); a.ok(out.md.includes("[@q101-work-1]")); a.deepEqual(out.findings,[])'
 echo "== sheet renders for a selectable spec"
 $Q sheet examples/ss-causal-procurement-cutoff.yaml --index examples/index-round-2026-09.yaml --out /tmp/qspec-sheet.md
 grep -q '\[@q101-work-1\]' /tmp/qspec-sheet.md || { echo "UNEXPECTED: a keyed closest work did not reach the sheet"; exit 1; }
-grep -q 'Causal empirical study' /tmp/qspec-sheet.md && grep -q 'Effect estimation' /tmp/qspec-sheet.md && grep -q 'Handles sensitive data' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not use catalog labels for its family, goal, and constraints"; exit 1; }
+grep -q 'The design is causal empirical study, with effect estimation as its knowledge goal' /tmp/qspec-sheet.md && grep -q 'handles sensitive data' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not use sentence-form catalog labels for its design and constraints"; exit 1; }
 grep -q '\*\*Intervention or exposure:\*\*' /tmp/qspec-sheet.md && grep -q '\*\*How units come to be treated:\*\*' /tmp/qspec-sheet.md && grep -q '\*\*Pre-committed checks:\*\*' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not use catalog labels for profile fields"; exit 1; }
 node -e 'const a=require("node:assert/strict"),fs=require("node:fs"),r=require("./lib/render.js"); a.deepEqual(r.committeeClean(fs.readFileSync("/tmp/qspec-sheet.md","utf8")),[])'
+node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); s.claim.object += "."; s.claim.scope += "."; s.increment.closest_work[0].cite += "."; const md=r.sheet(s).md; a.ok(!md.includes(`${s.claim.object}.`)); a.ok(!md.includes(`${s.claim.scope}.`)); a.ok(md.includes(s.claim.object)); a.ok(md.includes(s.claim.scope)); a.ok(!md.includes(`${s.increment.closest_work[0].cite} [@${s.increment.closest_work[0].key}].`))'
 node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); delete s.increment.closest_work[0].key; const sheet=r.sheet(s).md,dossier=r.dossier(s).md; a.ok(sheet.includes(s.increment.closest_work[0].cite)); a.ok(dossier.includes(s.increment.closest_work[0].cite)); a.ok(!sheet.includes("[@q101-work-1]")); a.ok(!dossier.includes("[@q101-work-1]")); a.ok(sheet.includes("[@q101-work-2]")); a.ok(dossier.includes("[@q101-work-2]"))'
 echo "== profile labels apply only to declared enums; free prose stays visible to committee-clean"
 node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); s.profile.comparison="none"; let out=r.sheet(s); a.match(out.md,/\*\*Comparison:\*\* none/); a.ok(!out.md.includes("**Comparison:** No empirical role")); s.profile.design_risk="empirical_causal"; out=r.sheet(s); a.ok(out.md.includes("**Design risk:** empirical_causal")); a.ok(out.findings.some((f)=>f.rule==="committee-clean" && /empirical_causal.*line/.test(f.message)))'
@@ -31,6 +34,7 @@ node -e 'const fs=require("node:fs"),p=process.argv[1]; let text=fs.readFileSync
 DIRTY_OUT=$($Q sheet /tmp/qspec-committee-dirty.yaml 2>&1 || true)
 printf '%s\n' "$DIRTY_OUT" | grep -q 'committee-clean.*empirical_causal.*line' || { echo "UNEXPECTED: committee-clean did not name the token and rendered line"; exit 1; }
 node -e 'const a=require("node:assert/strict"),r=require("./lib/render.js"); for(const rule of r.COMMITTEE_DENYLIST){const findings=r.committeeClean(rule.example); a.ok(findings.some((f)=>f.rule==="committee-clean" && /line 1/.test(f.message)),rule.id)}'
+node -e 'const a=require("node:assert/strict"),r=require("./lib/render.js"); a.deepEqual(r.committeeClean("The comparison follows [@empirical_causal; @q101-work-1]."),[])'
 echo "== sheet refused for a specified spec"
 if $Q sheet examples/ss-ethnographic-scoring-weights.yaml >/dev/null 2>&1; then echo "UNEXPECTED: sheet rendered for a specified spec"; exit 1; fi
 echo "== --draft previews any state and names empty fields for the owner"
@@ -44,6 +48,7 @@ grep -q '\*\*Role of empirical evidence:\*\* Later test' /tmp/qspec-draft-theory
 echo "== request exports for a frozen spec and is refused otherwise"
 $Q request examples/ns-experimental-apical-oxygen.yaml --out /tmp/qspec-request.md
 if grep -q '\[@q201-work-' /tmp/qspec-request.md; then echo "UNEXPECTED: request gained a citation marker"; exit 1; fi
+node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ns-experimental-apical-oxygen.yaml","utf8"),{schema:y.CORE_SCHEMA}); s.profile.intervention += " [@q201-work-1]"; a.ok(r.request(s,{record:y.load(fs.readFileSync("examples/ns-experimental-apical-oxygen.record.yaml","utf8"),{schema:y.CORE_SCHEMA})}).md.includes("[@q201-work-1]"))'
 if $Q request examples/ss-causal-procurement-cutoff.yaml >/dev/null 2>&1; then echo "UNEXPECTED: request exported for a selectable spec"; exit 1; fi
 echo "== paper carries the frozen claim"
 $Q paper examples/ns-experimental-apical-oxygen.yaml examples/paper/Q-201-report.md
@@ -60,6 +65,8 @@ node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalo
 if node scripts/check-catalog-labels.mjs /tmp/qspec-catalogs-missing-label.json >/dev/null 2>&1; then echo "UNEXPECTED: a fixture catalog with a missing emitted-value label passed"; exit 1; fi
 node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalogs.json","utf8")); delete c.labels.profile_fields.treatment; fs.writeFileSync("/tmp/qspec-catalogs-missing-label.json",JSON.stringify(c))'
 if node scripts/check-catalog-labels.mjs /tmp/qspec-catalogs-missing-label.json >/dev/null 2>&1; then echo "UNEXPECTED: a fixture catalog with a missing profile-field label passed"; exit 1; fi
+node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalogs.json","utf8")); delete c.labels.values.empirical_causal.sentence; fs.writeFileSync("/tmp/qspec-catalogs-missing-sentence.json",JSON.stringify(c))'
+if node scripts/check-catalog-labels.mjs /tmp/qspec-catalogs-missing-sentence.json >/dev/null 2>&1; then echo "UNEXPECTED: a fixture catalog with a missing sentence form passed"; exit 1; fi
 echo "== sign prints the seven rules it is about to assert, and --show signs nothing"
 $Q sign examples/ss-ethnographic-scoring-weights.yaml --by "D. Reviewer" --show | grep -q "overturning_observation" || { echo "UNEXPECTED: --show did not print this profile's J7 rule"; exit 1; }
 grep -q "judged_rules" examples/ss-ethnographic-scoring-weights.record.yaml || { echo "UNEXPECTED: the signature did not record the J7 rule"; exit 1; }
@@ -142,6 +149,16 @@ cp examples/ss-causal-procurement-cutoff.yaml examples/ss-causal-procurement-cut
 cp examples/references.bib /tmp/qspec-citations/references.bib
 $Q lint /tmp/qspec-citations/specs/ss-causal-procurement-cutoff.yaml > /tmp/qspec-citations/clean.out
 if grep -qE 'cite-unkeyed|cite-unresolved|bib-incomplete' /tmp/qspec-citations/clean.out; then echo "UNEXPECTED: keyed examples produced a citation warning"; exit 1; fi
+echo "== prose citation markers resolve in every string field and render unchanged"
+cp examples/ss-causal-procurement-cutoff.yaml /tmp/qspec-citations/specs/prose.yaml
+node -e 'const fs=require("node:fs"),y=require("./lib/vendor/js-yaml/js-yaml.js"),p=process.argv[1],s=y.load(fs.readFileSync(p,"utf8"),{schema:y.CORE_SCHEMA}); s.profile.comparison += " [@q101-work-1]"; s.claim.why_it_matters += " [@unknown]"; fs.writeFileSync(p,y.dump(s,{noRefs:true,lineWidth:-1}))' /tmp/qspec-citations/specs/prose.yaml
+CITE_OUT=$($Q lint /tmp/qspec-citations/specs/prose.yaml 2>&1 || true)
+test "$(printf '%s\n' "$CITE_OUT" | grep -c cite-unresolved)" = 1 && printf '%s\n' "$CITE_OUT" | grep -q "claim.why_it_matters marker '\[@unknown\]'" || { echo "UNEXPECTED: prose citation lint did not report exactly the unresolved marker and its field path"; exit 1; }
+if printf '%s\n' "$CITE_OUT" | grep -q 'profile.comparison.*cite-'; then echo "UNEXPECTED: the known prose citation did not resolve"; exit 1; fi
+node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync(process.argv[1],"utf8"),{schema:y.CORE_SCHEMA}); for(const out of [r.sheet(s),r.dossier(s)]){a.ok(out.md.includes("[@q101-work-1]")); a.ok(out.md.includes("[@unknown]")); a.deepEqual(out.findings,[])}' /tmp/qspec-citations/specs/prose.yaml
+cp /tmp/qspec-citations/specs/prose.yaml /tmp/qspec-prose-outside-project.yaml
+CITE_OUT=$($Q lint /tmp/qspec-prose-outside-project.yaml 2>&1 || true)
+if printf '%s\n' "$CITE_OUT" | grep -qE 'cite-unresolved|bib-incomplete'; then echo "UNEXPECTED: a prose marker outside a project produced a citation finding"; exit 1; fi
 cp examples/ss-causal-procurement-cutoff.yaml /tmp/qspec-citations/specs/probe.yaml
 node -e 'const fs=require("node:fs"),p=process.argv[1]; let s=fs.readFileSync(p,"utf8"); fs.writeFileSync(p,s.replace("key: q101-work-1","key: \"\""))' /tmp/qspec-citations/specs/probe.yaml
 CITE_OUT=$($Q lint /tmp/qspec-citations/specs/probe.yaml 2>&1 || true)
@@ -201,6 +218,9 @@ test -f /tmp/qspec-notes/.qspec/runs/*-baseline/notes/*-review-d-reviewer.md || 
 $Q runs show baseline --project /tmp/qspec-notes | grep -q "Finding 1: citation wording" || { echo "UNEXPECTED: runs show did not print the note as written"; exit 1; }
 $Q runs --project /tmp/qspec-notes | grep -q "1 note(s)" || { echo "UNEXPECTED: runs did not count the note"; exit 1; }
 $Q lint /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml | grep -q "notes-without-act" || { echo "UNEXPECTED: lint did not warn that a note is not an act"; exit 1; }
+$Q lint /tmp/qspec-notes/specs/ss-causal-procurement-cutoff.yaml --label q001-reviewer-round-1 >/dev/null
+ATTACH_OUT=$($Q attach q001-reviewer-round-1 /tmp/qspec-notes/handoff.md --by "A. Approver" --role approver --kind decision --project /tmp/qspec-notes 2>&1)
+printf '%s\n' "$ATTACH_OUT" | grep -q "warning:.*does not match --role 'approver'" && printf '%s\n' "$ATTACH_OUT" | grep -q '^attached decision' || { echo "UNEXPECTED: cross-role attach did not warn and still attach"; exit 1; }
 if $Q attach nonesuch /tmp/qspec-notes/handoff.md --by X --role reviewer --project /tmp/qspec-notes >/dev/null 2>&1; then echo "UNEXPECTED: attach accepted a run that does not exist"; exit 1; fi
 if $Q attach baseline /tmp/qspec-notes/handoff.md --by X --role reviewer --kind verdict --project /tmp/qspec-notes >/dev/null 2>&1; then echo "UNEXPECTED: attach accepted an unlisted kind"; exit 1; fi
 echo "== dossiers preserve notes, frozen claims carry gists, and run labels scope by spec"
@@ -213,14 +233,16 @@ cp examples/ns-experimental-apical-oxygen.yaml examples/ns-experimental-apical-o
 cp examples/index-round-2026-09.yaml /tmp/qspec-render/specs/index-2026-09.yaml
 sed -i.bak '/  - id: Q-301/,/    rank: 3/d' /tmp/qspec-render/specs/index-2026-09.yaml && rm -f /tmp/qspec-render/specs/*.bak
 $Q lint /tmp/qspec-render/specs/Q-102.yaml --label reviewer-round-1 >/dev/null
-printf '# Draft review\n\nKeep this line byte-for-byte, including TBD and  two spaces.\n' > /tmp/qspec-render/draft-review.md
+printf '# Draft review\n\nKeep this line byte-for-byte, including TBD, <run>, <strong>real HTML</strong>, and  two spaces.\n' > /tmp/qspec-render/draft-review.md
 $Q attach reviewer-round-1 /tmp/qspec-render/draft-review.md --by "D. Reviewer" --role reviewer --kind review --project /tmp/qspec-render >/dev/null
 $Q lint /tmp/qspec-render/specs/ss-causal-procurement-cutoff.yaml --label reviewer-round-1 >/dev/null
 if $Q runs show reviewer-round-1 --project /tmp/qspec-render >/dev/null 2>&1; then echo "UNEXPECTED: an ambiguous bare run label resolved"; exit 1; fi
 $Q runs show reviewer-round-1 --spec Q-102 --project /tmp/qspec-render | grep -q "Keep this line byte-for-byte" || { echo "UNEXPECTED: --spec did not resolve the draft's run label"; exit 1; }
 $Q dossier /tmp/qspec-render/specs/Q-102.yaml --out /tmp/qspec-render/Q-102-dossier.md --label draft-dossier >/dev/null
 NOTE=$(find /tmp/qspec-render/.qspec/runs -path '*/notes/*-review-d-reviewer.md' -print | head -1)
-node -e 'const fs=require("node:fs"); const note=fs.readFileSync(process.argv[1]); const dossier=fs.readFileSync(process.argv[2]); if (!dossier.includes(note)) process.exit(1)' "$NOTE" /tmp/qspec-render/Q-102-dossier.md || { echo "UNEXPECTED: dossier changed the attached note bytes"; exit 1; }
+NOTE_SHA=$(shasum -a 256 "$NOTE" | awk '{print $1}')
+node -e 'const a=require("node:assert/strict"),fs=require("node:fs"); const note=fs.readFileSync(process.argv[1],"utf8"),dossier=fs.readFileSync(process.argv[2],"utf8"),unescaped=dossier.replaceAll("&lt;","<").replaceAll("&gt;",">"); a.ok(dossier.includes("&lt;run&gt;")); a.ok(!dossier.includes("<run>")); a.ok(dossier.includes("<strong>real HTML</strong>")); a.ok(unescaped.includes(note))' "$NOTE" /tmp/qspec-render/Q-102-dossier.md || { echo "UNEXPECTED: dossier note was not identical after unescaping"; exit 1; }
+test "$NOTE_SHA" = "$(shasum -a 256 "$NOTE" | awk '{print $1}')" || { echo "UNEXPECTED: dossier rendering modified the attached note file"; exit 1; }
 if grep -q 'claim-q-102' /tmp/qspec-render/Q-102-dossier.md; then echo "UNEXPECTED: a draft dossier carried a frozen claim label"; exit 1; fi
 $Q dossier /tmp/qspec-render/specs/ns-experimental-apical-oxygen.yaml --out /tmp/qspec-render/Q-201-dossier.md >/dev/null
 grep -q '{#claim-q-201 gist="In the studied cuprate family' /tmp/qspec-render/Q-201-dossier.md || { echo "UNEXPECTED: a frozen dossier did not carry the frozen claim gist"; exit 1; }

@@ -38,6 +38,10 @@ increment:
       key: ""              # must resolve in references.bib
       settled: ""
       still_open: ""
+    - cite: ""
+      key: ""              # must resolve in references.bib
+      settled: ""
+      still_open: ""
   increment_if_this_works: ""
   vehicle_is_not_the_contribution: ""
 

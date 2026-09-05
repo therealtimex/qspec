@@ -65,6 +65,8 @@ The tool lives outside this project and is not on PATH. Invoke it by path:
   an invented citation or an estimated ask is not.
 - A citation is a key that resolves in \`references.bib\`. The writer adds the
   entry from publisher or DOI metadata; qspec never writes or fetches one.
+  Use three to five nearest works in \`closest_work\`, not a literature review;
+  cite wider literature from any prose field with \`[@key]\`.
 - {brief}
 - \`specs/\` holds one \`<Q-id>_<slug>.yaml\` per question and, beside it, the
   tool-written \`<Q-id>_<slug>.record.yaml\`. Never edit a record by hand; append
@@ -82,8 +84,10 @@ The tool lives outside this project and is not on PATH. Invoke it by path:
 - \`sheets/\`, \`drafts/\`, and \`requests/\` are renderings. Regenerate them; do not edit them.
 - Every check is recorded under \`.qspec/runs/\` with the files it saw, passing or
   failing. Do not delete or gitignore it: it is how a draft that was overwritten
-  can be put beside the one that replaced it. When you hand off, \`attach\` the
-  handoff to the run you cite, so the reasoning stays beside the text it was
+  can be put beside the one that replaced it. Before attaching, lint under your
+  own \`<spec>-<role>-round-<n>\` label and attach to that run, so it carries the
+  file as you saw it under your name. When you hand off, \`attach\` the handoff
+  to the run you cite, so the reasoning stays beside the text it was
   about; when a person signs or freezes, they cite that run with \`--run\`. A
   note is not an act: \`lint\` says so until someone acts. When you work around
   the tool, \`report\` it in a sentence; the note carries the facts.

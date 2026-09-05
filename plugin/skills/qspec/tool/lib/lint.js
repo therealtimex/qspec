@@ -126,6 +126,13 @@ function lintCitations(spec, file, bibliography) {
     return [{ severity: "skip", rule: "bib-parse", message: `${bibliography} cannot be parsed at line ${bib.error.line}: ${bib.error.message}`, file }];
   }
   const findings = [];
+  const incomplete = (entry) => {
+    const missing = [];
+    if (!entry.fields.title?.trim()) missing.push("title");
+    if (!entry.fields.year?.trim()) missing.push("year");
+    if (!entry.fields.doi?.trim() && !entry.fields.url?.trim()) missing.push("doi or url");
+    return missing;
+  };
   const works = Array.isArray(spec?.increment?.closest_work) ? spec.increment.closest_work : [];
   for (const [i, work] of works.entries()) {
     const key = typeof work?.key === "string" ? work.key.trim() : "";
@@ -138,12 +145,39 @@ function lintCitations(spec, file, bibliography) {
       findings.push({ severity: "warn", rule: "cite-unresolved", message: `closest_work[${i}] key '${key}' does not resolve in references.bib`, file });
       continue;
     }
-    const missing = [];
-    if (!entry.fields.title?.trim()) missing.push("title");
-    if (!entry.fields.year?.trim()) missing.push("year");
-    if (!entry.fields.doi?.trim() && !entry.fields.url?.trim()) missing.push("doi or url");
+    const missing = incomplete(entry);
     if (missing.length) findings.push({ severity: "warn", rule: "bib-incomplete", message: `closest_work[${i}] key '${key}' resolves to an entry missing ${missing.join(", ")}`, file });
   }
+
+  // Paperforge markers may appear anywhere a spec carries prose, including
+  // list items and profile fields. Walk the parsed document rather than naming
+  // today's fields so overlays and future additive fields get the same check.
+  const visit = (value, path = "") => {
+    if (typeof value === "string") {
+      const marker = /\[@[A-Za-z0-9_:.+\/-]+(?:\s*;\s*@[A-Za-z0-9_:.+\/-]+)*\]/g;
+      for (const match of value.matchAll(marker)) {
+        const keys = match[0].slice(1, -1).split(";").map((part) => part.trim().slice(1));
+        for (const key of keys) {
+          const entry = bib.entries.get(key);
+          if (!entry) {
+            findings.push({ severity: "warn", rule: "cite-unresolved", message: `${path} marker '[@${key}]' does not resolve in references.bib`, file });
+            continue;
+          }
+          const missing = incomplete(entry);
+          if (missing.length) findings.push({ severity: "warn", rule: "bib-incomplete", message: `${path} marker '[@${key}]' resolves to an entry missing ${missing.join(", ")}`, file });
+        }
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item, i) => visit(item, `${path}[${i}]`));
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const [key, child] of Object.entries(value)) visit(child, path ? `${path}.${key}` : key);
+    }
+  };
+  visit(spec);
   return findings;
 }
 
