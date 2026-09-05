@@ -38,6 +38,7 @@ const profileValue = (v, field, definition) => {
 const HTML_ELEMENTS = new Set((
   "a abbr address area article aside audio b base bdi bdo blockquote body br button canvas caption cite code col colgroup data datalist dd del details dfn dialog div dl dt em embed fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 head header hgroup hr html i iframe img input ins kbd label legend li link main map mark menu meta meter nav noscript object ol optgroup option output p picture pre progress q rp rt ruby s samp script search section select slot small source span strong style sub summary sup table tbody td template textarea tfoot th thead time title tr track u ul var video wbr"
 ).split(" "));
+const HTML_VOID_ELEMENTS = new Set("area base br col embed hr img input link meta source track wbr".split(" "));
 
 function htmlTokenAt(text, start) {
   if (text.startsWith("<!--", start)) {
@@ -82,6 +83,43 @@ function inDossierPlaceholderList(text, start, end) {
   return Boolean(right && isDossierPlaceholder(right[1]));
 }
 
+function hasMatchingDossierHtmlClose(text, start, token, name) {
+  let depth = 1;
+  let codeTicks = 0;
+  for (let i = start + token.length; i < text.length; i += 1) {
+    if (text[i] === "`") {
+      let end = i + 1;
+      while (text[end] === "`") end += 1;
+      const ticks = end - i;
+      if (codeTicks === 0) codeTicks = ticks;
+      else if (ticks === codeTicks) codeTicks = 0;
+      i = end - 1;
+    } else if (text[i] === "<" && codeTicks === 0) {
+      const next = htmlTokenAt(text, i);
+      if (!next) continue;
+      const tag = /^<\s*(\/?)\s*([A-Za-z][A-Za-z0-9-]*)\b/.exec(next);
+      if (tag?.[2].toLowerCase() === name) {
+        if (tag[1]) depth -= 1;
+        else if (!/\/\s*>$/.test(next) && !HTML_VOID_ELEMENTS.has(name)) depth += 1;
+        if (depth === 0) return true;
+      }
+      i += next.length - 1;
+    }
+  }
+  return false;
+}
+
+// Comma-list inference may override only an unmatched bare opening tag. Void
+// elements, paired tags, attributes, closing tags, and self-closing tags are
+// unambiguous authored HTML and remain byte-for-byte intact.
+function isDefiniteDossierHtml(text, start, token) {
+  const bare = /^<\s*([A-Za-z][A-Za-z0-9-]*)\s*>$/.exec(token);
+  if (!bare) return true;
+  const name = bare[1].toLowerCase();
+  if (HTML_VOID_ELEMENTS.has(name)) return true;
+  return hasMatchingDossierHtmlClose(text, start, token, name);
+}
+
 function protectDossierNote(value) {
   const text = String(value ?? "");
   let out = "";
@@ -100,7 +138,8 @@ function protectDossierNote(value) {
       const placeholder = end >= 0 ? text.slice(i, end + 1) : null;
       const content = placeholder?.slice(1, -1);
       const token = htmlTokenAt(text, i);
-      if (placeholder && isDossierPlaceholder(content) && (!token || inDossierPlaceholderList(text, i, end))) {
+      const listPlaceholder = token && inDossierPlaceholderList(text, i, end) && !isDefiniteDossierHtml(text, i, token);
+      if (placeholder && isDossierPlaceholder(content) && (!token || listPlaceholder)) {
         out += `‹${content}›`;
         i = end;
       } else if (token) { out += token; i += token.length - 1; }
