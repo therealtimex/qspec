@@ -64,8 +64,15 @@ function htmlTokenAt(text, start) {
 
 // Notes may quote CLI metavariables such as <run>. Paperforge treats unknown
 // ASCII angle-bracket forms as raw tags in HTML and PDF and rejects visible
-// entities. Render bare placeholders with single angle quotation marks while
-// preserving real HTML and placeholders the author already put in code.
+// entities. A bare placeholder starts with an ASCII letter and otherwise uses
+// ASCII letters, digits, dots, dashes, underscores, spaces, or pipes.
+// That deliberately excludes comparisons and Markdown URI/email autolinks.
+// Render those placeholders with single angle quotation marks while preserving
+// real HTML and placeholders the author already put in code.
+function isDossierPlaceholder(value) {
+  return /^[A-Za-z][A-Za-z0-9_.-]*(?:[ |]+[A-Za-z][A-Za-z0-9_.-]*)*$/.test(value);
+}
+
 function protectDossierNote(value) {
   const text = String(value ?? "");
   let out = "";
@@ -85,8 +92,9 @@ function protectDossierNote(value) {
       else {
         const end = text.indexOf(">", i + 1);
         const placeholder = end >= 0 ? text.slice(i, end + 1) : null;
-        if (placeholder && !/[<\r\n]/.test(placeholder.slice(1, -1)) && placeholder.slice(1, -1).trim()) {
-          out += `‹${placeholder.slice(1, -1)}›`;
+        const content = placeholder?.slice(1, -1);
+        if (placeholder && isDossierPlaceholder(content)) {
+          out += `‹${content}›`;
           i = end;
         } else out += text[i];
       }

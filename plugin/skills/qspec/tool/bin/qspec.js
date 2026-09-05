@@ -238,7 +238,7 @@ function missingManifestEntries(manifest, outputs) {
   let document = null;
   const finishDocument = () => {
     if (!document) return;
-    if (document.type === "qspec-dossier" && document.publish === true) {
+    if (document.type === "qspec-dossier" && document.publishable) {
       const name = document.id ? `'${document.id}'` : (document.source ? `'${document.source}'` : "block");
       warnings.push(`warning: dossier document ${name} has publish = true; process records must remain unpublished`);
     }
@@ -262,7 +262,9 @@ function missingManifestEntries(manifest, outputs) {
     const type = /^\s*type\s*=\s*"([^"]+)"/.exec(line);
     if (type && document) document.type = type[1];
     const publish = /^\s*publish\s*=\s*(true|false)\s*(?:#.*)?$/.exec(line);
-    if (publish && document) document.publish = publish[1] === "true";
+    // Sticky across the base document and every edition: a later unpublished
+    // edition must not hide an earlier publishable process record.
+    if (publish && document && publish[1] === "true") document.publishable = true;
   }
   finishDocument();
   const groups = new Map();

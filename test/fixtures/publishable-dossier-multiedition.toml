@@ -1,0 +1,27 @@
+[defaults]
+profile = "en"
+
+[types.qspec-dossier]
+extends = "report"
+publish = false
+
+[[collection]]
+slug = "qspec-dossiers"
+root = "dossiers"
+profile = "en"
+
+  [[collection.document]]
+  id = "qspec-dossier-multiedition"
+  type = "qspec-dossier"
+
+    [collection.document.en]
+    source = "Q-102.md"
+    publish = true
+
+    [collection.document.vi]
+    source = "Q-101.md"
+    publish = false
+
+[internal]
+files = []
+reason = "non-document process records"

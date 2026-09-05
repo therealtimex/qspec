@@ -73,9 +73,10 @@ node bin/qspec.js render --out documents
 ```
 
 A dossier includes the spec, Decision Record, run timeline, and every attached
-note. The source note remains byte-identical; bare angle-bracket placeholders
-such as `<run>` use single angle quotation marks such as `‹run›` only in the
-rendered copy so Paperforge does not parse them as raw HTML. A dossier is a `qspec-dossier`
+note. The source note remains byte-identical; CLI-style angle-bracket
+placeholders such as `<run>` and `<handoff.md>` use single angle quotation marks
+such as `‹run›` only in the rendered copy. Comparison prose and standard
+Markdown autolinks remain unchanged. A dossier is a `qspec-dossier`
 document with `publish = false`: Paperforge builds and verifies it in draft
 mode, but cannot publish it. Its cover identifies it as an internal process
 record. The Selection Sheet goes to a committee; the dossier stays with the
