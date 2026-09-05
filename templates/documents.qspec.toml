@@ -1,6 +1,6 @@
 # Paperforge project for the QSPEC documents rendered by `qspec render`.
-# Committee sheets and Indexes are declared unpublished documents. Dossiers
-# are process records under [internal], never document types.
+# Committee sheets, Indexes, and internal process-record dossiers are declared
+# as unpublished documents so Paperforge builds and verifies every edition.
 [defaults]
 profile = "en"
 organisation = "RealTimeX"
@@ -18,6 +18,37 @@ publish = false
 layout = "brief"
 publish = false
 
+[types.qspec-dossier]
+extends = "report"
+bibliography = "references.bib"
+citation_style = "apa"
+pdf = "typst"
+docx = true
+publish = false
+
+[[collection]]
+slug = "qspec-dossiers"
+root = "dossiers"
+profile = "en"
+
+  [[collection.document]]
+  id = "qspec-dossier-q-001"
+  type = "qspec-dossier"
+  source = "Q-001.md"
+  publish = false
+
+  [[collection.document]]
+  id = "qspec-dossier-q-002"
+  type = "qspec-dossier"
+  source = "Q-002.md"
+  publish = false
+
+  [[collection.document]]
+  id = "qspec-dossier-q-003"
+  type = "qspec-dossier"
+  source = "Q-003.md"
+  publish = false
+
 [[collection]]
 slug = "qspec-index"
 root = "index"
@@ -29,6 +60,7 @@ profile = "en"
   source = "2026-09.md"
   publish = false
 
+# Required because current Paperforge raises KeyError for a missing `internal` table.
 [internal]
-files = ["dossiers/Q-001.md", "dossiers/Q-002.md", "dossiers/Q-003.md"]
-reason = "process records: runs, review notes, decisions"
+files = []
+reason = "non-document process records; qspec-dossier documents are unpublished and buildable"

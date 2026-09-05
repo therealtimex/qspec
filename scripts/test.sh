@@ -233,15 +233,16 @@ cp examples/ns-experimental-apical-oxygen.yaml examples/ns-experimental-apical-o
 cp examples/index-round-2026-09.yaml /tmp/qspec-render/specs/index-2026-09.yaml
 sed -i.bak '/  - id: Q-301/,/    rank: 3/d' /tmp/qspec-render/specs/index-2026-09.yaml && rm -f /tmp/qspec-render/specs/*.bak
 $Q lint /tmp/qspec-render/specs/Q-102.yaml --label reviewer-round-1 >/dev/null
-printf '# Draft review\n\nKeep this line byte-for-byte, including TBD, <run>, <strong>real HTML</strong>, and  two spaces.\n' > /tmp/qspec-render/draft-review.md
+cp test/fixtures/dossier-note-placeholders.md /tmp/qspec-render/draft-review.md
 $Q attach reviewer-round-1 /tmp/qspec-render/draft-review.md --by "D. Reviewer" --role reviewer --kind review --project /tmp/qspec-render >/dev/null
 $Q lint /tmp/qspec-render/specs/ss-causal-procurement-cutoff.yaml --label reviewer-round-1 >/dev/null
 if $Q runs show reviewer-round-1 --project /tmp/qspec-render >/dev/null 2>&1; then echo "UNEXPECTED: an ambiguous bare run label resolved"; exit 1; fi
-$Q runs show reviewer-round-1 --spec Q-102 --project /tmp/qspec-render | grep -q "Keep this line byte-for-byte" || { echo "UNEXPECTED: --spec did not resolve the draft's run label"; exit 1; }
+$Q runs show reviewer-round-1 --spec Q-102 --project /tmp/qspec-render | grep -q "Re-run the check with" || { echo "UNEXPECTED: --spec did not resolve the draft's run label"; exit 1; }
 $Q dossier /tmp/qspec-render/specs/Q-102.yaml --out /tmp/qspec-render/Q-102-dossier.md --label draft-dossier >/dev/null
 NOTE=$(find /tmp/qspec-render/.qspec/runs -path '*/notes/*-review-d-reviewer.md' -print | head -1)
 NOTE_SHA=$(shasum -a 256 "$NOTE" | awk '{print $1}')
-node -e 'const a=require("node:assert/strict"),fs=require("node:fs"); const note=fs.readFileSync(process.argv[1],"utf8"),dossier=fs.readFileSync(process.argv[2],"utf8"),unescaped=dossier.replaceAll("&lt;","<").replaceAll("&gt;",">"); a.ok(dossier.includes("&lt;run&gt;")); a.ok(!dossier.includes("<run>")); a.ok(dossier.includes("<strong>real HTML</strong>")); a.ok(unescaped.includes(note))' "$NOTE" /tmp/qspec-render/Q-102-dossier.md || { echo "UNEXPECTED: dossier note was not identical after unescaping"; exit 1; }
+node -e 'const a=require("node:assert/strict"),fs=require("node:fs"); const note=fs.readFileSync(process.argv[1],"utf8"),dossier=fs.readFileSync(process.argv[2],"utf8"),restored=dossier.replaceAll("‹","<").replaceAll("›",">"); a.ok(dossier.startsWith("# Process record (internal)\n")); a.ok(dossier.includes("‹run›")); a.ok(dossier.includes("‹handoff.md›")); a.ok(!dossier.includes("&lt;") && !dossier.includes("&gt;")); a.ok(!dossier.includes("`<run>`") && !dossier.includes("`<handoff.md>`")); a.ok(restored.includes(note))' "$NOTE" /tmp/qspec-render/Q-102-dossier.md || { echo "UNEXPECTED: dossier note was not identical after restoring ASCII angle brackets"; exit 1; }
+node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"),s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}),md=r.dossier(s,{history:[{name:"probe",notes:[{kind:"review",actor:"A",role:"reviewer",attached:"2026-09-05",text:"Keep <strong>real HTML</strong> and already-coded `<run>` as written.\n"}]}]}).md; a.ok(md.includes("<strong>real HTML</strong>")); a.ok(md.includes("already-coded `<run>`")); a.ok(!md.includes("``<run>``"))'
 test "$NOTE_SHA" = "$(shasum -a 256 "$NOTE" | awk '{print $1}')" || { echo "UNEXPECTED: dossier rendering modified the attached note file"; exit 1; }
 if grep -q 'claim-q-102' /tmp/qspec-render/Q-102-dossier.md; then echo "UNEXPECTED: a draft dossier carried a frozen claim label"; exit 1; fi
 $Q dossier /tmp/qspec-render/specs/ns-experimental-apical-oxygen.yaml --out /tmp/qspec-render/Q-201-dossier.md >/dev/null
@@ -262,15 +263,19 @@ $Q render --draft --specs /tmp/qspec-render/specs --out /tmp/qspec-render-drafts
 test -f /tmp/qspec-render-drafts/drafts/Q-102.md || { echo "UNEXPECTED: render --draft omitted a draft-state preview"; exit 1; }
 if test -d /tmp/qspec-render-drafts/sheets && test -n "$(find /tmp/qspec-render-drafts/sheets -type f -name '*.md' -print -quit)"; then echo "UNEXPECTED: render --draft wrote a preview under sheets/"; exit 1; fi
 grep -q '^\*\*Draft:\*\* unsigned, not for submission$' /tmp/qspec-render-drafts/drafts/Q-102.md || { echo "UNEXPECTED: aggregate draft rendering omitted the draft warning"; exit 1; }
-cp templates/documents.qspec.toml /tmp/qspec-render/documents/documents.toml
-test "$(grep -c '^bibliography = "references.bib"$' templates/documents.qspec.toml)" = 1 && test "$(grep -c '^citation_style = "apa"$' templates/documents.qspec.toml)" = 1 || { echo "UNEXPECTED: the committee sheet type does not declare one bibliography and style"; exit 1; }
-grep -q '^pdf = "typst"$' templates/documents.qspec.toml && grep -q '^reason = "process records: runs, review notes, decisions"$' templates/documents.qspec.toml || { echo "UNEXPECTED: the sheet print edition or internal dossier reason is missing"; exit 1; }
-test "$(grep -c '^publish = false$' templates/documents.qspec.toml)" -ge 2 || { echo "UNEXPECTED: the committee types are not explicitly unpublished"; exit 1; }
-if grep -q 'qspec-dossier' templates/documents.qspec.toml; then echo "UNEXPECTED: dossiers remain a Paperforge document type"; exit 1; fi
+test "$(grep -c '^bibliography = "references.bib"$' templates/documents.qspec.toml)" = 2 && test "$(grep -c '^citation_style = "apa"$' templates/documents.qspec.toml)" = 2 || { echo "UNEXPECTED: the sheet and dossier types do not declare the bibliography and style"; exit 1; }
+grep -q '^\[types.qspec-dossier\]$' templates/documents.qspec.toml && grep -q '^  type = "qspec-dossier"$' templates/documents.qspec.toml || { echo "UNEXPECTED: dossiers are not Paperforge documents"; exit 1; }
+sed -n '/^\[types.qspec-dossier\]$/,/^$/p' templates/documents.qspec.toml | grep -q '^pdf = "typst"$' && sed -n '/^\[types.qspec-dossier\]$/,/^$/p' templates/documents.qspec.toml | grep -q '^docx = true$' || { echo "UNEXPECTED: the dossier type does not carry its PDF and DOCX editions"; exit 1; }
+grep -A2 '^\[internal\]$' templates/documents.qspec.toml | grep -q '^files = \[\]$' || { echo "UNEXPECTED: Paperforge's required internal table contains dossier files"; exit 1; }
+grep -B1 '^\[internal\]$' templates/documents.qspec.toml | grep -q 'KeyError.*internal' || { echo "UNEXPECTED: the required empty internal table is unexplained"; exit 1; }
+test "$(grep -c '^  publish = false$' templates/documents.qspec.toml)" -ge 4 || { echo "UNEXPECTED: dossier and committee documents are not explicitly unpublished"; exit 1; }
+# The shipped manifest carries illustrative dossier entries. Remove that sample
+# collection for this corpus so render can print entries for the actual ids.
+node -e 'const fs=require("node:fs"),p=process.argv[1],t=fs.readFileSync("templates/documents.qspec.toml","utf8"),a=t.indexOf("[[collection]]\nslug = \"qspec-dossiers\""),b=t.indexOf("[[collection]]\nslug = \"qspec-index\""); if(a<0||b<0||b<=a) process.exit(1); fs.writeFileSync(p,t.slice(0,a)+t.slice(b))' /tmp/qspec-render/documents/documents.toml
 MANIFEST_SHA=$(shasum -a 256 /tmp/qspec-render/documents/documents.toml | awk '{print $1}')
 $Q render --specs /tmp/qspec-render/specs --out /tmp/qspec-render/documents --index /tmp/qspec-render/specs/index-2026-09.yaml --manifest /tmp/qspec-render/documents/documents.toml --label manifest-probe > /tmp/qspec-render/manifest.out
-grep -q 'dossiers/Q-102.md' /tmp/qspec-render/manifest.out && grep -q '^\[internal\]$' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not print the missing dossier as an internal file"; exit 1; }
-grep -q 'root = "sheets"' /tmp/qspec-render/manifest.out && grep -q 'root = "requests"' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not give sheets and requests their own collection roots"; exit 1; }
+grep -q 'root = "dossiers"' /tmp/qspec-render/manifest.out && grep -q 'type = "qspec-dossier"' /tmp/qspec-render/manifest.out && grep -q 'source = "Q-102.md"' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not print the missing dossier as an unpublished document"; exit 1; }
+grep -q 'root = "sheets"' /tmp/qspec-render/manifest.out && grep -q 'root = "requests"' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not give each document kind its own collection root"; exit 1; }
 if grep -q 'source = "dossiers/Q-102.md"' /tmp/qspec-render/manifest.out; then echo "UNEXPECTED: render repeated a collection root inside a document source"; exit 1; fi
 if grep -q 'source = "index/2026-09.md"' /tmp/qspec-render/manifest.out; then echo "UNEXPECTED: render reported an Index already declared under its collection root"; exit 1; fi
 test "$MANIFEST_SHA" = "$(shasum -a 256 /tmp/qspec-render/documents/documents.toml | awk '{print $1}')" || { echo "UNEXPECTED: render edited the Paperforge manifest"; exit 1; }
@@ -280,10 +285,17 @@ PAPERFORGE_REPO="$ROOT/../paperforge"
 if test -f "$PAPERFORGE_REPO/paperforge/cli.py"; then
   PAPERFORGE_PYTHON="${PAPERFORGE_PYTHON:-python3}"
   if test -x /Applications/RealTimeX.AI.app/Contents/Resources/app/src/electron/features/pty/compat/macos/python3; then PAPERFORGE_PYTHON=/Applications/RealTimeX.AI.app/Contents/Resources/app/src/electron/features/pty/compat/macos/python3; fi
-  PYTHONPATH="$PAPERFORGE_REPO" "$PAPERFORGE_PYTHON" -c 'import sys; from paperforge.cli import load; _, docs = load(sys.argv[1]); missing = [str(d["source_path"]) for d in docs if not d["source_path"].is_file()]; assert len(docs) == 4, len(docs); assert not missing, missing; assert all(d["type"] != "qspec-dossier" and d["publish"] is False for d in docs)' /tmp/qspec-render/documents/documents.toml || { echo "UNEXPECTED: Paperforge could not resolve the unpublished committee documents without treating dossiers as documents"; exit 1; }
+  PYTHONPATH="$PAPERFORGE_REPO" "$PAPERFORGE_PYTHON" -c 'import sys; from paperforge.cli import load; _, docs = load(sys.argv[1]); missing = [str(d["source_path"]) for d in docs if not d["source_path"].is_file()]; assert len(docs) == 7, len(docs); assert not missing, missing; assert sum(d["type"] == "qspec-dossier" for d in docs) == 3; assert all(d["publish"] is False for d in docs)' /tmp/qspec-render/documents/documents.toml || { echo "UNEXPECTED: Paperforge could not resolve every unpublished document, including dossiers"; exit 1; }
 else
   echo "SKIP: sibling Paperforge checkout is absent; manifest structure assertions still ran"
 fi
+echo "== render --manifest warns when a dossier document is publishable and edits nothing"
+cp /tmp/qspec-render/documents/documents.toml /tmp/qspec-render/documents/publishable-dossier.toml
+node -e 'const fs=require("node:fs"),p=process.argv[1]; let t=fs.readFileSync(p,"utf8"),i=t.indexOf("type = \"qspec-dossier\""); if(i<0) process.exit(1); const j=t.indexOf("publish = false",i); if(j<0) process.exit(1); t=t.slice(0,j)+"publish = true"+t.slice(j+"publish = false".length); fs.writeFileSync(p,t)' /tmp/qspec-render/documents/publishable-dossier.toml
+PUBLISHABLE_SHA=$(shasum -a 256 /tmp/qspec-render/documents/publishable-dossier.toml | awk '{print $1}')
+$Q render --specs /tmp/qspec-render/specs --out /tmp/qspec-render/documents --index /tmp/qspec-render/specs/index-2026-09.yaml --manifest /tmp/qspec-render/documents/publishable-dossier.toml --label publish-warning-probe > /tmp/qspec-render/publish-warning.out
+grep -q "warning: dossier document .* has publish = true; process records must remain unpublished" /tmp/qspec-render/publish-warning.out || { echo "UNEXPECTED: render did not warn about a publishable dossier"; exit 1; }
+test "$PUBLISHABLE_SHA" = "$(shasum -a 256 /tmp/qspec-render/documents/publishable-dossier.toml | awk '{print $1}')" || { echo "UNEXPECTED: render edited the publishable Paperforge manifest"; exit 1; }
 echo "== a blocked selected Index writes no sheets or blocked Index document and exits nonzero"
 rm -rf /tmp/qspec-render-invalid
 if $Q render --specs /tmp/qspec-render/specs --out /tmp/qspec-render-invalid --index templates/index.yaml --label invalid-index-probe > /tmp/qspec-render-invalid.out 2>&1; then echo "UNEXPECTED: render exited zero for a blocked selected Index"; exit 1; fi

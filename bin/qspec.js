@@ -233,34 +233,41 @@ function writeRendering(outDir, subdir, name, md) {
 
 function missingManifestEntries(manifest, outputs) {
   const text = readFileSync(manifest, "utf8");
-  const declared = new Set(), internal = new Set(), slugs = new Set();
+  const declared = new Set(), slugs = new Set(), warnings = [];
   let collectionRoot = ".";
-  let section = null;
-  let internalReason = "process records: runs, review notes, decisions";
+  let document = null;
+  const finishDocument = () => {
+    if (!document) return;
+    if (document.type === "qspec-dossier" && document.publish === true) {
+      const name = document.id ? `'${document.id}'` : (document.source ? `'${document.source}'` : "block");
+      warnings.push(`warning: dossier document ${name} has publish = true; process records must remain unpublished`);
+    }
+    document = null;
+  };
   for (const line of text.split("\n")) {
-    if (/^\s*\[\[collection\]\]\s*$/.test(line)) { collectionRoot = "."; section = "collection"; }
-    else if (/^\s*\[internal\]\s*$/.test(line)) section = "internal";
-    else if (/^\s*\[/.test(line)) section = null;
+    if (/^\s*\[\[collection\]\]\s*$/.test(line)) { finishDocument(); collectionRoot = "."; }
+    else if (/^\s*\[\[collection\.document\]\]\s*$/.test(line)) { finishDocument(); document = {}; }
+    else if (/^\s*\[/.test(line) && !/^\s*\[collection\.document\.[^\]]+\]\s*$/.test(line)) finishDocument();
     const slug = /^\s*slug\s*=\s*"([^"]+)"/.exec(line);
     if (slug) slugs.add(slug[1]);
     const root = /^\s*root\s*=\s*"([^"]+)"/.exec(line);
     if (root) collectionRoot = root[1];
     const source = /^\s*source\s*=\s*"([^"]+)"/.exec(line);
-    if (source) declared.add(join(collectionRoot, source[1]).replace(/\\/g, "/"));
-    if (section === "internal" && /^\s*files\s*=/.test(line)) for (const match of line.matchAll(/"([^"]+)"/g)) internal.add(match[1]);
-    if (section === "internal") {
-      const reason = /^\s*reason\s*=\s*"([^"]+)"/.exec(line);
-      if (reason) internalReason = reason[1];
+    if (source) {
+      declared.add(join(collectionRoot, source[1]).replace(/\\/g, "/"));
+      if (document) document.source = source[1];
     }
+    const id = /^\s*id\s*=\s*"([^"]+)"/.exec(line);
+    if (id && document) document.id = id[1];
+    const type = /^\s*type\s*=\s*"([^"]+)"/.exec(line);
+    if (type && document) document.type = type[1];
+    const publish = /^\s*publish\s*=\s*(true|false)\s*(?:#.*)?$/.exec(line);
+    if (publish && document) document.publish = publish[1] === "true";
   }
+  finishDocument();
   const groups = new Map();
-  const missingInternal = [];
   for (const output of outputs) {
     const path = relative(dirname(resolve(manifest)), resolve(output.output)).replace(/\\/g, "/");
-    if (output.kind === "dossier") {
-      if (!internal.has(path)) missingInternal.push(path);
-      continue;
-    }
     if (declared.has(path)) continue;
     const root = dirname(path).replace(/\\/g, "/");
     const key = `${output.kind}\0${root}`;
@@ -268,12 +275,7 @@ function missingManifestEntries(manifest, outputs) {
     groups.get(key).documents.push({ ...output, source: relative(root, path).replace(/\\/g, "/") });
   }
   const toml = (value) => JSON.stringify(String(value));
-  const snippets = [];
-  if (missingInternal.length) {
-    const files = [...new Set([...internal, ...missingInternal])].sort();
-    snippets.push(["# Replace the existing [internal] block with this block:", "[internal]", `files = [${files.map(toml).join(", ")}]`, `reason = ${toml(internalReason)}`].join("\n"));
-  }
-  snippets.push(...[...groups.values()].map((group) => {
+  const snippets = [...groups.values()].map((group) => {
     const plural = group.kind === "index" ? "indexes" : `${group.kind}s`;
     const base = `qspec-render-${plural}`;
     let slug = base, suffix = 2;
@@ -287,8 +289,8 @@ function missingManifestEntries(manifest, outputs) {
       lines.push("  publish = false");
     }
     return lines.join("\n");
-  }));
-  return snippets;
+  });
+  return { snippets, warnings };
 }
 
 switch (cmd) {
@@ -674,7 +676,8 @@ switch (cmd) {
 
     recordRuns("render", runItems.map((item) => ({ ...item, root: renderRoot })), flagText("label"));
     if (manifest) {
-      const missing = missingManifestEntries(manifest, written);
+      const { snippets: missing, warnings } = missingManifestEntries(manifest, written);
+      for (const warning of warnings) console.log(warning);
       if (missing.length) console.log(`\nmanifest entries missing from ${manifest}:\n\n${missing.join("\n\n")}\n`);
       else console.log(`manifest already names all ${written.length} rendered file(s)`);
     }

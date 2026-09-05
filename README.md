@@ -73,12 +73,14 @@ node bin/qspec.js render --out documents
 ```
 
 A dossier includes the spec, Decision Record, run timeline, and every attached
-note. The source note remains byte-identical; bare angle brackets such as
-`<run>` are escaped only in the rendered copy so Paperforge does not parse them
-as raw HTML. The dossier is listed under Paperforge's `[internal]` manifest
-section and is not a document type, so it cannot be published. The Selection
-Sheet goes to a committee; the dossier stays with the people inside the
-process. See [docs/paperforge-integration.md](docs/paperforge-integration.md).
+note. The source note remains byte-identical; bare angle-bracket placeholders
+such as `<run>` use single angle quotation marks such as `‹run›` only in the
+rendered copy so Paperforge does not parse them as raw HTML. A dossier is a `qspec-dossier`
+document with `publish = false`: Paperforge builds and verifies it in draft
+mode, but cannot publish it. Its cover identifies it as an internal process
+record. The Selection Sheet goes to a committee; the dossier stays with the
+people inside the process. See
+[docs/paperforge-integration.md](docs/paperforge-integration.md).
 
 Use three to five nearest works in practice, not a survey. For each, keep the
 readable `cite` text and add a `key` that resolves in the project's

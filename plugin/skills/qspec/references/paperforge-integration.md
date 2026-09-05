@@ -7,7 +7,7 @@ QSPEC decides which question is worth asking. Paperforge renders and gates the d
 - Paperforge is TOML-only and refused a YAML parser on principle. It must never read a spec directly. Everything it consumes from QSPEC is markdown that `qspec` rendered.
 - QSPEC never formats a bibliography. It checks structured closest-work keys and `[@key]` or `[@key; @key2]` markers in every prose field against the project-owned `references.bib`. Sheets, dossiers, Indexes, and requests pass prose markers through untouched, and `render` copies the bibliography beside the corpus manifest and collection roots. Paperforge alone formats the markers and appends the reference list.
 - Paperforge's project lint rules run over document lines, not over the request file. So the gate that only a frozen question reaches a project lives on the QSPEC side: `qspec request` refuses any status but `frozen`.
-- Paperforge's `todo` rule blocks the words TODO, TBD, FIXME, XXX, and PLACEHOLDER, case-insensitively, anywhere in a document. Do not use them in a spec field that a rendering carries. Attached notes are different: a dossier is a process record, so dossiers are excluded from QSPEC's marker grep and listed under `[internal]`, never as documents. QSPEC leaves each source note untouched and escapes bare angle brackets such as `<run>` only in the dossier's rendered copy, preventing Paperforge from treating CLI metavariables as raw HTML. Sheets, Indexes, and requests remain covered by the grep.
+- Paperforge's `todo` rule blocks the words TODO, TBD, FIXME, XXX, and PLACEHOLDER, case-insensitively, anywhere in a document. Do not use them in a spec field that a rendering carries. Attached notes are different: a dossier is a process record and is excluded from QSPEC's marker grep. QSPEC leaves each source note untouched and renders bare angle-bracket placeholders such as `<run>` as `‹run›` only in the dossier's rendered copy. Single angle quotation marks are not HTML syntax in either HTML or extracted PDF text, and no entity is emitted. Sheets, Indexes, and requests remain covered by the grep.
 
 ## Documents from a QSPEC project
 
@@ -20,11 +20,11 @@ qspec render --out documents
 /path/to/paperforge/bin/paperforge all --draft --config documents/documents.toml
 ```
 
-The template declares `qspec-sheet` and `qspec-index` as unpublished brief layouts. The sheet type carries `bibliography = "references.bib"`, `citation_style = "apa"`, and a Typst PDF edition. Dossiers appear only in `[internal]`, with the reason `process records: runs, review notes, decisions`; Paperforge cannot publish them. In one sentence: the Selection Sheet goes to a committee, while the dossier stays inside the process. `all --draft` runs lint, builds and verifies the declared committee documents, stops before publication, and cannot publish.
+The template declares `qspec-sheet` and `qspec-index` as unpublished brief layouts and `qspec-dossier` as a report-derived layout. The sheet and dossier types carry `bibliography = "references.bib"` and `citation_style = "apa"`; both request Typst PDF editions, and dossiers also request DOCX. Every document says `publish = false`. The dossier's head reads `# Process record (internal)`, so its rendered cover identifies its role even though Paperforge builds it. In one sentence: the Selection Sheet goes to a committee, while the dossier stays inside the process. `all --draft` runs lint, builds and verifies all declared documents, stops before publication, and cannot publish.
 
 `render` writes `dossiers/<id>.md` for every parseable spec, `sheets/<id>.md` for `selectable`, `deferred`, and `frozen` specs, `index/<round>.md` for every Index, and `requests/<id>.md` for frozen specs. `render --draft` instead writes a preview for every state under `drafts/`, with an unsigned warning and the empty fields listed by label; it never mixes those previews into `sheets/`. When the project has `references.bib`, it is copied to `documents/references.bib` and beside rendered dossiers and committee sheets, where Paperforge resolves the type-level bibliography. Existing unrelated files under `documents/` are untouched.
 
-The bibliography keys and print format belong on the committee-sheet type:
+The bibliography keys belong on both reader-bearing types:
 
 ```toml
 [types.qspec-sheet]
@@ -34,10 +34,33 @@ citation_style = "apa"
 pdf = "typst"
 publish = false
 
+[types.qspec-dossier]
+extends = "report"
+bibliography = "references.bib"
+citation_style = "apa"
+pdf = "typst"
+docx = true
+publish = false
+
+[[collection]]
+slug = "qspec-dossiers"
+root = "dossiers"
+profile = "en"
+
+  [[collection.document]]
+  id = "qspec-dossier-q-001"
+  type = "qspec-dossier"
+  source = "Q-001.md"
+  publish = false
+
 [internal]
-files = ["dossiers/Q-001.md"]
-reason = "process records: runs, review notes, decisions"
+files = []
+reason = "non-document process records; qspec-dossier documents are unpublished and buildable"
 ```
+
+The empty `[internal]` table is intentional: current Paperforge raises a
+`KeyError` when the table is absent. Dossiers are still declared documents, not
+members of `internal.files`.
 
 If the corpus has ids or rendered states not yet named by the installed manifest, ask for the missing TOML without editing it:
 
@@ -45,12 +68,12 @@ If the corpus has ids or rendered states not yet named by the installed manifest
 qspec render --out documents --manifest documents/documents.toml
 ```
 
-The command prints complete `[[collection]]` blocks containing absent committee
-documents. Each names the matching output directory as its root and can be
-reviewed and appended as printed. When a dossier path is absent from
-`[internal].files`, it prints a complete replacement `[internal]` block instead;
-review and replace that block rather than appending a duplicate. qspec never
-edits Paperforge's manifest.
+The command prints complete `[[collection]]` blocks containing every absent
+rendered document, including dossiers. Each names the matching output directory
+as its root and can be reviewed and appended as printed. It also warns when a
+declared `qspec-dossier` document has `publish = true`; the process record must
+remain unpublished. qspec reports both conditions and never edits Paperforge's
+manifest.
 
 ## Three points of contact
 

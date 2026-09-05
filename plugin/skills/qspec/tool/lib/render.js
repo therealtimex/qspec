@@ -63,17 +63,34 @@ function htmlTokenAt(text, start) {
 }
 
 // Notes may quote CLI metavariables such as <run>. Paperforge treats unknown
-// angle-bracket forms as raw tags, so escape them in the rendering while
-// preserving actual HTML that the note author deliberately wrote.
-function escapeDossierNote(value) {
+// ASCII angle-bracket forms as raw tags in HTML and PDF and rejects visible
+// entities. Render bare placeholders with single angle quotation marks while
+// preserving real HTML and placeholders the author already put in code.
+function protectDossierNote(value) {
   const text = String(value ?? "");
   let out = "";
+  let codeTicks = 0;
   for (let i = 0; i < text.length; i += 1) {
-    if (text[i] === "<") {
+    if (text[i] === "`") {
+      let end = i + 1;
+      while (text[end] === "`") end += 1;
+      const ticks = end - i;
+      if (codeTicks === 0) codeTicks = ticks;
+      else if (ticks === codeTicks) codeTicks = 0;
+      out += text.slice(i, end);
+      i = end - 1;
+    } else if (text[i] === "<" && codeTicks === 0) {
       const token = htmlTokenAt(text, i);
       if (token) { out += token; i += token.length - 1; }
-      else out += "&lt;";
-    } else if (text[i] === ">") out += "&gt;";
+      else {
+        const end = text.indexOf(">", i + 1);
+        const placeholder = end >= 0 ? text.slice(i, end + 1) : null;
+        if (placeholder && !/[<\r\n]/.test(placeholder.slice(1, -1)) && placeholder.slice(1, -1).trim()) {
+          out += `‹${placeholder.slice(1, -1)}›`;
+          i = end;
+        } else out += text[i];
+      }
+    }
     else out += text[i];
   }
   return out;
@@ -425,8 +442,9 @@ function request(spec, { record = null } = {}) {
 // A dossier is the whole process record for one question. Unlike a Selection
 // Sheet or request it is useful while the spec is still draft, so missing
 // fields are shown rather than treated as rendering failures. Attached note
-// bodies are embedded without changing their source files. Bare angle brackets
-// are escaped in the rendered copy so Paperforge does not parse CLI text as HTML.
+// bodies are embedded without changing their source files. Bare angle-bracket
+// placeholders use single angle quotation marks so Paperforge does not parse
+// them as HTML in either the reading or print edition.
 function dossier(spec, { record = null, history = [] } = {}) {
   const qt = spec.question_type ?? {}, inc = spec.increment ?? {}, mat = spec.materials ?? {};
   const sf = spec.success_and_failure ?? {}, con = spec.constraints ?? {};
@@ -456,7 +474,7 @@ function dossier(spec, { record = null, history = [] } = {}) {
     return `| ${tableCell(e.date)} | ${tableCell(e.actor)} | ${tableCell(e.role)} | ${tableCell(e.from)} | ${tableCell(e.to)} | ${tableCell(e.reason)} | ${tableCell(e.run ?? "-")} | ${tableCell(dissent)} |`;
   });
   const mdParts = [
-    head("QUESTION DOSSIER", spec, [
+    head("Process record (internal)", spec, [
       ["Question", `${spec.id}@${spec.instance_version}`], ["Status", show(spec.status)],
       ["Domain", show(spec.domain)], ["Profile", show(qt.method_family)], ["Owner", show(spec.owner)],
       ["Reviewers", (spec.reviewers ?? []).join(", ") || hole],
@@ -496,7 +514,7 @@ function dossier(spec, { record = null, history = [] } = {}) {
   for (const note of notes) {
     md += `### ${note.kind} by ${note.actor} (${note.role}) — run ${note.run} — ${note.attached}\n\n`;
     md += "Attached note follows.\n\n";
-    const rendered = escapeDossierNote(note.text);
+    const rendered = protectDossierNote(note.text);
     md += rendered;
     if (!rendered.endsWith("\n")) md += "\n";
     md += "\n";

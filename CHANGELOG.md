@@ -23,9 +23,15 @@ changed.
 
 ### Rendering and role fixes
 
-- Dossiers escape bare angle brackets in their rendered copy of an attached
-  note while leaving the source note untouched, so CLI text such as `<run>`
-  passes Paperforge verification. Deliberate HTML tags remain markup.
+- Dossiers render bare angle-bracket placeholders in their copy of an attached
+  note with single angle quotation marks while leaving the source note
+  untouched, so CLI text such as `<run>` becomes `‹run›` and passes Paperforge
+  verification in HTML, PDF, and DOCX without emitting an entity. Deliberate
+  HTML tags and existing code spans remain as written.
+- Dossiers are again buildable `qspec-dossier` documents, correcting 1.9.0's
+  `[internal]` classification. Every dossier is `publish = false`, its head
+  reads “Process record (internal),” and `render --manifest` warns without
+  editing when a dossier document block says `publish = true`.
 - Catalog entries now carry both a display label and a sentence form. Design
   and constraint sentences use the latter; the completeness check requires
   both forms.
