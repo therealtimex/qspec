@@ -2,4 +2,6 @@
 
 Re-run the check with <run>, then attach <handoff.md> to that run.
 
-Rates <10% and >55%; see <https://example.invalid>.
+Compare two runs with `qspec runs --diff` <a>,<b> and inspect the sources.
+
+Rates <10% and >55%; see <https://example.invalid>; mail <reviewer@example.invalid>.
