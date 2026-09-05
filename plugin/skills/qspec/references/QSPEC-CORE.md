@@ -1,8 +1,8 @@
-# QSPEC-CORE 1.8.0
+# QSPEC-CORE 1.9.0
 # Question Spec: shared core for all research domains
 
 **Spec-ID:** QSPEC-CORE
-**Schema-Version:** 1.8.0
+**Schema-Version:** 1.9.0
 **Date:** 2026-09-05
 **Status:** released
 **Instance format:** `spec_schema: QSPEC/1.0` plus a `domain` key
@@ -336,6 +336,7 @@ These come from the record, the Index, or a rendering rather than from the insta
 | `gist-unrepresentable` | warn in `lint`, block in `paper` | `one_sentence` carries a double quote or a brace, which a downstream gist cannot hold |
 | `index-freeze`, `index-frozen-drift` | block | more than one freeze without an exception, or a `frozen` list that disagrees with the specs |
 | `index-withdrawn`, `round-withdrawal` | warn | a listed spec was withdrawn or killed by its owner |
+| `committee-clean` | block | a Selection Sheet or Portfolio Index contains catalog tokens or internal tool and workflow vocabulary; the finding names the token and rendered line |
 
 ---
 
@@ -395,25 +396,23 @@ Rewrapping lines or fixing spacing does not move the fingerprint. Changing a wor
 
 ## 10. Selection Sheet
 
-Rendered by `qspec sheet <spec> [--index <index>]`, never written. Refused unless the spec is `selectable`, `deferred`, or `frozen`. One page, in Paperforge's head format, fixed order:
+Rendered by `qspec sheet <spec> [--index <index>]`, never written. Refused unless the spec is `selectable`, `deferred`, or `frozen`; `--draft` previews any state, marks the head `unsigned, not for submission`, and closes with the empty fields named for the owner. One page, in Paperforge's head format, fixed order:
 
 ```text
-# SELECTION SHEET / ## title / Question id@version, Domain, Status, Owner
-Claim sentence
-Context (object and scope, or system and regime)
-Family and goal (+ secondary method and rescue rule, if any)
-Increment in one line
-Closest work, with a `[@key]` marker after each keyed citation
-Kill condition
-First check for the next stage
-Materials: in hand / blocking / obtainable with probability
-Constraints: safety or ethics, independence limits
+# Research question / ## title / Question id, version N / Selection round / Owner
+The claim
+Why it matters, with the object and scope folded into prose
+The labelled design family and goal, then required and filled optional profile fields
+What is known and open, one prose entry per closest work, with `[@key]` when keyed
+What would count as support, what would count as failure, and when the study stops
+Materials in hand and to obtain, with source, horizon, likelihood, and labelled access risk
+Constraints as reader-facing sentences
 Ask: time, people, access, hardware or compute
-Recommended action and rank, from the Index if given
-Unresolved dissent, verbatim from the Decision Record
+The labelled recommended action and rank, when the Index has an entry
+Unresolved dissent as “A reviewer dissents:”, with the point verbatim
 ```
 
-An empty field renders as `(not stated)` and the tool reports it. An empty `ask` is a `manual` finding. The spec and its Decision Record sit behind the sheet; a decision-maker who needs detail opens them.
+The sheet carries no status, schema version, fingerprint, run, note, invariant code, or next-stage first check. Human labels are read from `schema/catalogs.json`; every catalog value and profile field the renderer can emit must have one. `committee-clean` checks the completed markdown, including prose a person supplied, and blocks on a raw catalog identifier or internal tool vocabulary while naming the token and line. An empty field renders as `(not stated)` and the tool reports it. An empty `ask` is a `manual` finding. The spec and its Decision Record sit behind the sheet; a decision-maker who needs detail opens them.
 
 ---
 
@@ -441,6 +440,8 @@ exception: null     # written justification for freezing more than one
 
 Checks: every action is listed, ranks are unique integers, every claim is 1 to 20 words, and every id resolves to a spec in the given directory. `rank` is never derived from `hints`. The output of reading an Index is a decision, not a longer list.
 
+The rendered comparison table is headed `# Selection round <round>` and carries Date and Decision-maker in its head. Its columns are Rank, Question, Field, Design, Claim, Blocked, and Recommended. Domain, family, and recommended action use the human labels in `schema/catalogs.json`; question cells use `id, version N`, and “Frozen this round” names each title with its id. The same `committee-clean` gate applies to the completed Index markdown.
+
 An Index is the record of one round, not a live view of the portfolio, and obeying it changes the statuses it lists. So a listed spec that has since been killed, superseded, or withdrawn is reported as the round's outcome, not as a failure of the round; only `draft` is refused, because a spec that cannot leave `draft` was never offerable. A spec that has moved to a later `instance_version` is a `warn`; an Index citing a version that does not exist yet is a `block`.
 
 What is checked against the specs themselves, when `--specs` is given:
@@ -457,7 +458,7 @@ What is checked against the specs themselves, when `--specs` is given:
 After `frozen`, later work produces other documents: design or protocol, ethics and safety filings, analysis plan, code, paper. This specification does not define them. It defines three points of contact.
 
 1. **The request.** `qspec request <spec>` renders the frozen spec as a markdown document and refuses for any other state. A downstream project points its request key at that file, so what was asked travels with what was produced.
-2. **The pointer.** The downstream document's head carries a metadata row `**Question:** Q-000@1`, citing `id` and `instance_version`. A changed question is a new spec version or a new spec, never a silent edit in a methods section.
+2. **The pointer.** The downstream document's head carries a metadata row `**Question:** Q-000@1` or the reader-facing form `**Question:** Q-000, version 1`, citing `id` and `instance_version`. `qspec paper` accepts both. A changed question is a new spec version or a new spec, never a silent edit in a methods section.
 3. **The claim.** The document's load-bearing paragraph carries the frozen `one_sentence` verbatim as the gist of a labelled claim, `{#claim-q-000 gist="..."}`. `qspec paper <spec> <document.md>` reports `manual` when the label is absent and `block` when the gist differs. Whether the paragraph supports the claim is a reviewer's question and is never asked by the tool.
 
 ---
@@ -480,6 +481,7 @@ Question development is finished when:
 - Overlays version with the core and declare the core version they target.
 - A change that removes a field, renames a field, or tightens an M invariant on the instance fields is a major release and a new `spec_schema` string.
 - 1.1.0 added M16, which tightens what leaving `draft` requires. That was taken as a minor release because no 1.0.0 instance existed outside this repository. It is the last time that exception applies.
+- 1.9.0 adds catalog-backed reader labels, rewrites the Selection Sheet and Portfolio Index as committee documents, adds `committee-clean` to those renderings, adds `--draft` previews, and moves dossiers to Paperforge's internal list. No instance field, M invariant, Decision Record shape, or Index shape changes.
 - 1.8.0 adds optional `closest_work[].key`, a project-owned `references.bib`, warning-only resolution checks when that file exists, and citation markers for Paperforge. No M invariant is added or tightened. A 1.7.0 project without `references.bib` has byte-for-byte identical lint findings.
 - 1.7.0 adds the human-readable dossier, aggregate `render`, a documented Paperforge manifest template, and `--spec` scoping for run labels that collide across questions. No instance field, M invariant, Decision Record shape, or Index shape changed. Every 1.6.0 project, spec, record, and Index is a valid 1.7.0 one.
 - 1.6.0 adds `run` as an optional field on Decision Record entries, notes attached to runs, and run records for every checking command. No instance field or M invariant changed; `notes-without-act` is a `warn`. Every 1.5.0 project, spec, record, and Index is a valid 1.6.0 one.
@@ -515,11 +517,13 @@ qspec sign <spec> --by <reviewer>     draft -> specified, with J1 to J7 and the 
 qspec transition <spec> --to <state> --by <actor> --role <role>
                                       a decision_maker act takes --index <round> or --unbound;
                                       --run <name> cites the run whose text is acted on
-qspec sheet <spec> [--index <index>]  the Selection Sheet
+qspec sheet <spec> [--index <index>] [--draft]
+                                      the committee Selection Sheet; --draft previews any state
 qspec index <index> --specs <dir>     the Portfolio Index and its checks
 qspec dossier <spec>                  the spec, Decision Record, run timeline, and attached notes
 qspec request <spec>                  the frozen request for a downstream project
-qspec render --out <dir>              every dossier, eligible sheet and request, and every Index
+qspec render --out <dir> [--draft]    every dossier, eligible sheet and request, and every Index;
+                                      draft previews are written under drafts/
 qspec paper <spec> <document.md>      does the document carry the frozen claim
 ```
 

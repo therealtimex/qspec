@@ -1,6 +1,6 @@
 {
   "name": "qspec",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Question Spec: a selection contract for research questions, with the linter, record acts, and renderings that pair it with Paperforge",
   "author": "RealTimeX",
   "license": "UNLICENSED",

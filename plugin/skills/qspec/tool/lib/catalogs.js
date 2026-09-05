@@ -24,6 +24,18 @@ function resolveProfile(domain, family) {
   return p.$ref ? domain.profile_sets[p.$ref] : p;
 }
 
+function englishLabel(entry) {
+  return typeof entry?.en === "string" && entry.en.trim() ? entry.en.trim() : null;
+}
+
+function valueLabel(value) {
+  return englishLabel(catalogs.labels?.values?.[value]);
+}
+
+function profileFieldLabel(field) {
+  return englishLabel(catalogs.labels?.profile_fields?.[field]);
+}
+
 // The overlay's judged (J7) rule for a spec's profile, or null when the spec
 // names no resolvable profile.
 function judgedRule(spec) {
@@ -33,4 +45,4 @@ function judgedRule(spec) {
   return def?.judged ?? null;
 }
 
-module.exports = { catalogs, J_INVARIANTS, J_TEXT, SEVERITIES, resolveProfile, judgedRule };
+module.exports = { catalogs, J_INVARIANTS, J_TEXT, SEVERITIES, resolveProfile, judgedRule, profileFieldLabel, valueLabel };

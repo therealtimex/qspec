@@ -1,5 +1,51 @@
 # Changelog
 
+## 1.9.0 (2026-09-05)
+
+The Selection Sheet is now the document a research committee reads, rather
+than a compact view of the tool's fields. The Portfolio Index uses the same
+reader-facing vocabulary, while the dossier remains the unchanged process
+record for the people inside the work. No instance field, M invariant, Decision
+Record shape, or Index shape changed.
+
+### Labels are catalog data
+
+- `schema/catalogs.json` gives every emitted catalog value and profile field an
+  English label in a shape that can later carry `vi` beside it. Sheets and
+  Indexes read those labels rather than deriving prose from schema tokens.
+- `scripts/check-catalog-labels.mjs` fails when any family, goal, constraint,
+  access-risk level, hint value, action, state, enum, domain, or profile field
+  the renderer can emit lacks a label. The suite proves both missing-value and
+  missing-field fixtures fail.
+
+### Sheets and Indexes are for a committee
+
+- Selection Sheets now lead with `# Research question` and `Q-… , version N`,
+  then present the claim, significance and scope, labelled design and profile,
+  closest work, support and failure evidence, stop condition, materials,
+  constraints, ask, recommendation, and unresolved dissent in reader order.
+- Portfolio Indexes lead with the selection round and use Rank, Question,
+  Field, Design, Claim, Blocked, and Recommended columns. Domain, family, and
+  action cells use catalog labels; frozen questions are named by title and id.
+- One exported `COMMITTEE_DENYLIST` and the `committee-clean` rendering gate
+  check finished sheet and Index markdown, including prose supplied by a
+  person. A block names the offending token and rendered line.
+- `sheet --draft` previews any state with an unsigned warning and a labelled
+  “Before submission” list. `render --draft` writes previews under `drafts/`;
+  ordinary render never writes them into `sheets/`.
+- `qspec paper` accepts both `Q-005@3` and the reader-facing
+  `Q-005, version 3` metadata pointer.
+
+### Paperforge keeps process records internal
+
+- `qspec-sheet` remains an unpublished brief type with APA bibliography and a
+  Typst PDF. `qspec-index` remains an unpublished brief type.
+- Dossiers are no longer a Paperforge document type. The template lists them
+  under `[internal]` with `reason = "process records: runs, review notes,
+  decisions"`, so the unchanged dossier content cannot be published.
+- `render --manifest` still reports missing committee collections and now
+  prints a replacement `[internal]` block when dossier paths are missing.
+
 ## 1.8.0 (2026-09-05)
 
 The readable citation in `closest_work[].cite` could drift away from the paper

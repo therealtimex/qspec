@@ -1,6 +1,6 @@
 # Paperforge project for the QSPEC documents rendered by `qspec render`.
-# Keep process records unpublished; dossiers build in draft mode because an
-# attached note may honestly contain a marker that the publication gate flags.
+# Committee sheets and Indexes are declared unpublished documents. Dossiers
+# are process records under [internal], never document types.
 [defaults]
 profile = "en"
 organisation = "RealTimeX"
@@ -11,43 +11,12 @@ paper = "A4"
 layout = "brief"
 bibliography = "references.bib"
 citation_style = "apa"
+pdf = "typst"
+publish = false
 
 [types.qspec-index]
 layout = "brief"
-
-[types.qspec-dossier]
-extends = "report"
-bibliography = "references.bib"
-citation_style = "apa"
-
-[[collection]]
-slug = "qspec-dossiers"
-root = "dossiers"
-profile = "en"
-
-  [[collection.document]]
-  id = "qspec-dossier-q-001"
-  type = "qspec-dossier"
-  source = "Q-001.md"
-  pdf = "typst"
-  docx = true
-  publish = false
-
-  [[collection.document]]
-  id = "qspec-dossier-q-002"
-  type = "qspec-dossier"
-  source = "Q-002.md"
-  pdf = "typst"
-  docx = true
-  publish = false
-
-  [[collection.document]]
-  id = "qspec-dossier-q-003"
-  type = "qspec-dossier"
-  source = "Q-003.md"
-  pdf = "typst"
-  docx = true
-  publish = false
+publish = false
 
 [[collection]]
 slug = "qspec-index"
@@ -61,5 +30,5 @@ profile = "en"
   publish = false
 
 [internal]
-files = []
-reason = "QSPEC dossiers are process records; render them with `paperforge all --draft`"
+files = ["dossiers/Q-001.md", "dossiers/Q-002.md", "dossiers/Q-003.md"]
+reason = "process records: runs, review notes, decisions"

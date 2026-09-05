@@ -7,7 +7,7 @@ QSPEC decides which question is worth asking. Paperforge renders and gates the d
 - Paperforge is TOML-only and refused a YAML parser on principle. It must never read a spec directly. Everything it consumes from QSPEC is markdown that `qspec` rendered.
 - QSPEC never formats a bibliography. It checks keys in the project-owned `references.bib`, emits `[@key]` markers in sheets and dossiers, and copies the file beside the rendered corpus manifest. Paperforge alone formats the markers and appends the reference list.
 - Paperforge's project lint rules run over document lines, not over the request file. So the gate that only a frozen question reaches a project lives on the QSPEC side: `qspec request` refuses any status but `frozen`.
-- Paperforge's `todo` rule blocks the words TODO, TBD, FIXME, XXX, and PLACEHOLDER, case-insensitively, anywhere in a document. Do not use them in a spec field that a rendering carries. Attached notes are different: a dossier is a process record and copies each note whole, so dossiers are excluded from QSPEC's marker grep and are built with Paperforge's non-publishing `--draft` mode. Sheets, Indexes, and requests remain covered by the grep.
+- Paperforge's `todo` rule blocks the words TODO, TBD, FIXME, XXX, and PLACEHOLDER, case-insensitively, anywhere in a document. Do not use them in a spec field that a rendering carries. Attached notes are different: a dossier is a process record and copies each note whole, so dossiers are excluded from QSPEC's marker grep and listed under `[internal]`, never as documents. Sheets, Indexes, and requests remain covered by the grep.
 
 ## Documents from a QSPEC project
 
@@ -20,23 +20,23 @@ qspec render --out documents
 /path/to/paperforge/bin/paperforge all --draft --config documents/documents.toml
 ```
 
-The template declares `qspec-sheet` and `qspec-index` as brief layouts and `qspec-dossier` as a report-derived type. The sheet and dossier types carry `bibliography = "references.bib"` and `citation_style = "apa"`. Every document is `publish = false`; dossiers request HTML, Typst PDF, and DOCX editions. `all --draft` runs the same lint and verification, reports every finding, builds what a person can inspect, stops before publication, and cannot publish.
+The template declares `qspec-sheet` and `qspec-index` as unpublished brief layouts. The sheet type carries `bibliography = "references.bib"`, `citation_style = "apa"`, and a Typst PDF edition. Dossiers appear only in `[internal]`, with the reason `process records: runs, review notes, decisions`; Paperforge cannot publish them. In one sentence: the Selection Sheet goes to a committee, while the dossier stays inside the process. `all --draft` runs lint, builds and verifies the declared committee documents, stops before publication, and cannot publish.
 
-`render` writes `dossiers/<id>.md` for every parseable spec, `sheets/<id>.md` for `selectable`, `deferred`, and `frozen` specs, `index/<round>.md` for every Index, and `requests/<id>.md` for frozen specs. When the project has `references.bib`, it is copied to `documents/references.bib`. Paperforge resolves a type-level bibliography from the collection root, so the same bytes are also mirrored into the rendered `dossiers/` and `sheets/` roots; the project bibliography remains the only writer-owned source. A draft's sheet is skipped with its reason while the other files continue. Existing unrelated files under `documents/` are untouched.
+`render` writes `dossiers/<id>.md` for every parseable spec, `sheets/<id>.md` for `selectable`, `deferred`, and `frozen` specs, `index/<round>.md` for every Index, and `requests/<id>.md` for frozen specs. `render --draft` instead writes a preview for every state under `drafts/`, with an unsigned warning and the empty fields listed by label; it never mixes those previews into `sheets/`. When the project has `references.bib`, it is copied to `documents/references.bib` and beside rendered committee sheets, where Paperforge resolves the type-level bibliography. Existing unrelated files under `documents/` are untouched.
 
-The manifest keys belong on the document types, so every dossier and sheet uses
-the same project bibliography:
+The bibliography keys and print format belong on the committee-sheet type:
 
 ```toml
 [types.qspec-sheet]
 layout = "brief"
 bibliography = "references.bib"
 citation_style = "apa"
+pdf = "typst"
+publish = false
 
-[types.qspec-dossier]
-extends = "report"
-bibliography = "references.bib"
-citation_style = "apa"
+[internal]
+files = ["dossiers/Q-001.md"]
+reason = "process records: runs, review notes, decisions"
 ```
 
 If the corpus has ids or rendered states not yet named by the installed manifest, ask for the missing TOML without editing it:
@@ -45,10 +45,12 @@ If the corpus has ids or rendered states not yet named by the installed manifest
 qspec render --out documents --manifest documents/documents.toml
 ```
 
-The command prints complete `[[collection]]` blocks containing the absent
-`[[collection.document]]` entries. Each block names the matching output
-directory as its root, so the snippet can be reviewed and appended as printed;
-qspec never edits Paperforge's manifest.
+The command prints complete `[[collection]]` blocks containing absent committee
+documents. Each names the matching output directory as its root and can be
+reviewed and appended as printed. When a dossier path is absent from
+`[internal].files`, it prints a complete replacement `[internal]` block instead;
+review and replace that block rather than appending a duplicate. qspec never
+edits Paperforge's manifest.
 
 ## Three points of contact
 
@@ -75,11 +77,11 @@ The document's head carries the question as a metadata row, which Paperforge ren
 ```markdown
 # RESEARCH REPORT
 ## Apical oxygen height and the superconducting dome
-**Question:** Q-201@1
+**Question:** Q-201, version 1
 **Publisher:** RealTimeX Research
 ```
 
-`qspec paper` reports `manual` if the row is absent.
+`qspec paper` accepts both `Q-201@1` and `Q-201, version 1`, and reports `manual` if neither row is present.
 
 ### 3. The claim
 
@@ -103,13 +105,13 @@ A `one_sentence` that contains a double quote or a brace cannot be a gist. `qspe
 
 ## The selection meeting
 
-`qspec sheet` and `qspec index` emit markdown in Paperforge's head format. Declare them in a Paperforge project as `type = "note"` (a brief without page numbers) and build them like any other document:
+`qspec sheet` and `qspec index` emit committee-clean markdown in Paperforge's head format. Declare them with the template's `qspec-sheet` and `qspec-index` types and build them like any other unpublished document:
 
 ```toml
 [[collection.document]]
 id = "sheet-q-201"
-type = "note"
-source = "sheets/Q-201.md"
+type = "qspec-sheet"
+source = "Q-201.md"
 publish = false
 ```
 

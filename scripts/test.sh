@@ -7,29 +7,56 @@ $Q lint examples/*.yaml
 if $Q lint examples/*.yaml | grep -q 'cite-'; then echo "UNEXPECTED: a spec outside a project produced a cite-* finding"; exit 1; fi
 echo "== the BibTeX reader handles the supported surface and names a malformed line"
 node -e 'const a=require("node:assert/strict"),{readBib}=require("./lib/bib.js"); const good=readBib("test/fixtures/references-mixed.bib"); a.equal(good.error,null); a.equal(good.entries.size,2); a.equal(good.entries.get("nested-braces").fields.title,"An {Outer {and Inner}} Title"); a.equal(good.entries.get("nested-braces").fields.year,"2024"); a.equal(good.entries.get("quoted-fields").fields.url,"https://example.invalid/quoted"); const bad=readBib("test/fixtures/references-unparseable.bib"); a.equal(bad.entries.size,0); a.equal(bad.error.line,3)'
+if grep -qiE '\bQSPEC\b' examples/references.bib; then echo "UNEXPECTED: the example bibliography would put the tool name in a committee sheet"; exit 1; fi
 echo "== negatives block"
 $Q lint --expect-fail examples/negative/*.yaml
 echo "== empty templates block"
 $Q lint --expect-fail templates/qspec-*.yaml
 echo "== index checks and renders"
 $Q index examples/index-round-2026-09.yaml --specs examples --out /tmp/qspec-index.md
+grep -q '| Rank | Question | Field | Design | Claim | Blocked | Recommended |' /tmp/qspec-index.md && grep -q 'Social science' /tmp/qspec-index.md && grep -q 'Causal empirical study' /tmp/qspec-index.md && grep -q 'Keep as a backup' /tmp/qspec-index.md || { echo "UNEXPECTED: the Index did not carry labelled committee cells"; exit 1; }
+node -e 'const a=require("node:assert/strict"),fs=require("node:fs"),r=require("./lib/render.js"); a.deepEqual(r.committeeClean(fs.readFileSync("/tmp/qspec-index.md","utf8")),[])'
 echo "== sheet renders for a selectable spec"
 $Q sheet examples/ss-causal-procurement-cutoff.yaml --index examples/index-round-2026-09.yaml --out /tmp/qspec-sheet.md
 grep -q '\[@q101-work-1\]' /tmp/qspec-sheet.md || { echo "UNEXPECTED: a keyed closest work did not reach the sheet"; exit 1; }
+grep -q 'Causal empirical study' /tmp/qspec-sheet.md && grep -q 'Effect estimation' /tmp/qspec-sheet.md && grep -q 'Handles sensitive data' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not use catalog labels for its family, goal, and constraints"; exit 1; }
+grep -q '\*\*Intervention or exposure:\*\*' /tmp/qspec-sheet.md && grep -q '\*\*How units come to be treated:\*\*' /tmp/qspec-sheet.md && grep -q '\*\*Pre-committed checks:\*\*' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not use catalog labels for profile fields"; exit 1; }
+node -e 'const a=require("node:assert/strict"),fs=require("node:fs"),r=require("./lib/render.js"); a.deepEqual(r.committeeClean(fs.readFileSync("/tmp/qspec-sheet.md","utf8")),[])'
 node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); delete s.increment.closest_work[0].key; const sheet=r.sheet(s).md,dossier=r.dossier(s).md; a.ok(sheet.includes(s.increment.closest_work[0].cite)); a.ok(dossier.includes(s.increment.closest_work[0].cite)); a.ok(!sheet.includes("[@q101-work-1]")); a.ok(!dossier.includes("[@q101-work-1]")); a.ok(sheet.includes("[@q101-work-2]")); a.ok(dossier.includes("[@q101-work-2]"))'
+echo "== committee-clean checks finished text, including prose a person supplied"
+cp examples/ss-causal-procurement-cutoff.yaml /tmp/qspec-committee-dirty.yaml
+node -e 'const fs=require("node:fs"),p=process.argv[1]; let text=fs.readFileSync(p,"utf8"); text=text.replace("One national procurement system, contracts within a stated band around the cutoff, five fiscal years", "One empirical_causal project"); fs.writeFileSync(p,text)' /tmp/qspec-committee-dirty.yaml
+DIRTY_OUT=$($Q sheet /tmp/qspec-committee-dirty.yaml 2>&1 || true)
+printf '%s\n' "$DIRTY_OUT" | grep -q 'committee-clean.*empirical_causal.*line' || { echo "UNEXPECTED: committee-clean did not name the token and rendered line"; exit 1; }
+node -e 'const a=require("node:assert/strict"),r=require("./lib/render.js"); for(const rule of r.COMMITTEE_DENYLIST){const findings=r.committeeClean(rule.example); a.ok(findings.some((f)=>f.rule==="committee-clean" && /line 1/.test(f.message)),rule.id)}'
 echo "== sheet refused for a specified spec"
 if $Q sheet examples/ss-ethnographic-scoring-weights.yaml >/dev/null 2>&1; then echo "UNEXPECTED: sheet rendered for a specified spec"; exit 1; fi
+echo "== --draft previews any state and names empty fields for the owner"
+cp templates/qspec-social.yaml /tmp/qspec-draft-source.yaml
+node -e 'const fs=require("node:fs"),p=process.argv[1]; let text=fs.readFileSync(p,"utf8"); text=text.replace("method_family: \"\"", "method_family: empirical_causal"); fs.writeFileSync(p,text)' /tmp/qspec-draft-source.yaml
+$Q sheet /tmp/qspec-draft-source.yaml --draft --out /tmp/qspec-draft-sheet.md >/dev/null
+grep -q '^\*\*Draft:\*\* unsigned, not for submission$' /tmp/qspec-draft-sheet.md && grep -q '^### Before submission$' /tmp/qspec-draft-sheet.md && grep -q '^- Intervention or exposure$' /tmp/qspec-draft-sheet.md || { echo "UNEXPECTED: draft sheet did not carry its warning and labelled hole list"; exit 1; }
+$Q sheet examples/ns-theoretical-mean-field-threshold.yaml --draft --out /tmp/qspec-draft-theory.md >/dev/null
+grep -q '\*\*Role of empirical evidence:\*\* Later test' /tmp/qspec-draft-theory.md && ! grep -q 'later_test' /tmp/qspec-draft-theory.md || { echo "UNEXPECTED: a profile enum reached a draft without its catalog label"; exit 1; }
 echo "== request exports for a frozen spec and is refused otherwise"
 $Q request examples/ns-experimental-apical-oxygen.yaml --out /tmp/qspec-request.md
 if grep -q '\[@q201-work-' /tmp/qspec-request.md; then echo "UNEXPECTED: request gained a citation marker"; exit 1; fi
 if $Q request examples/ss-causal-procurement-cutoff.yaml >/dev/null 2>&1; then echo "UNEXPECTED: request exported for a selectable spec"; exit 1; fi
 echo "== paper carries the frozen claim"
 $Q paper examples/ns-experimental-apical-oxygen.yaml examples/paper/Q-201-report.md
+sed 's/Q-201@1/Q-201, version 1/' examples/paper/Q-201-report.md > /tmp/qspec-human-pointer.md
+$Q paper examples/ns-experimental-apical-oxygen.yaml /tmp/qspec-human-pointer.md >/dev/null || { echo "UNEXPECTED: paper refused the committee form of the question pointer"; exit 1; }
 echo "== paper with a drifted gist is refused"
 sed 's/lowers the maximum critical temperature/raises the maximum critical temperature/' examples/paper/Q-201-report.md > /tmp/qspec-drift.md
 if $Q paper examples/ns-experimental-apical-oxygen.yaml /tmp/qspec-drift.md >/dev/null 2>&1; then echo "UNEXPECTED: drifted gist passed"; exit 1; fi
 echo "== the catalog and the overlays state the same J7 rules"
 node scripts/check-judged.mjs
+echo "== every committee value and profile field has a catalog label"
+node scripts/check-catalog-labels.mjs
+node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalogs.json","utf8")); delete c.labels.values.empirical_causal; fs.writeFileSync("/tmp/qspec-catalogs-missing-label.json",JSON.stringify(c))'
+if node scripts/check-catalog-labels.mjs /tmp/qspec-catalogs-missing-label.json >/dev/null 2>&1; then echo "UNEXPECTED: a fixture catalog with a missing emitted-value label passed"; exit 1; fi
+node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalogs.json","utf8")); delete c.labels.profile_fields.treatment; fs.writeFileSync("/tmp/qspec-catalogs-missing-label.json",JSON.stringify(c))'
+if node scripts/check-catalog-labels.mjs /tmp/qspec-catalogs-missing-label.json >/dev/null 2>&1; then echo "UNEXPECTED: a fixture catalog with a missing profile-field label passed"; exit 1; fi
 echo "== sign prints the seven rules it is about to assert, and --show signs nothing"
 $Q sign examples/ss-ethnographic-scoring-weights.yaml --by "D. Reviewer" --show | grep -q "overturning_observation" || { echo "UNEXPECTED: --show did not print this profile's J7 rule"; exit 1; }
 grep -q "judged_rules" examples/ss-ethnographic-scoring-weights.record.yaml || { echo "UNEXPECTED: the signature did not record the J7 rule"; exit 1; }
@@ -199,29 +226,36 @@ $Q runs --project /tmp/qspec-render --diff reviewer-round-1,draft-dossier --spec
 echo "== render writes the state-appropriate corpus and one run names every output"
 $Q render --specs /tmp/qspec-render/specs --out /tmp/qspec-render/documents --index /tmp/qspec-render/specs/index-2026-09.yaml --label render-probe > /tmp/qspec-render/render.out
 grep -q 'skip.*Q-102.yaml.*status is draft' /tmp/qspec-render/render.out || { echo "UNEXPECTED: render did not name the skipped draft sheet"; exit 1; }
+test ! -d /tmp/qspec-render/documents/drafts || test -z "$(find /tmp/qspec-render/documents/drafts -type f -name '*.md' -print -quit)" || { echo "UNEXPECTED: render wrote a draft without --draft"; exit 1; }
 test "$(find /tmp/qspec-render/documents -type f -name '*.md' | wc -l | tr -d ' ')" = "7" || { echo "UNEXPECTED: render did not write exactly three dossiers, two sheets, one request, and one Index"; exit 1; }
 node -e 'const r=require("./lib/runs.js").load("/tmp/qspec-render", "render-probe").record; const outputs=r.files.map(f=>f.output).filter(Boolean); if(r.command!=="render" || outputs.length!==10 || new Set(outputs).size!==10 || r.files.filter(f=>f.kind==="bibliography").length!==3) process.exit(1)' || { echo "UNEXPECTED: the render run did not name every written file exactly once"; exit 1; }
 cmp -s /tmp/qspec-render/references.bib /tmp/qspec-render/documents/references.bib || { echo "UNEXPECTED: render did not copy references.bib beside the manifest"; exit 1; }
 cmp -s /tmp/qspec-render/references.bib /tmp/qspec-render/documents/dossiers/references.bib && cmp -s /tmp/qspec-render/references.bib /tmp/qspec-render/documents/sheets/references.bib || { echo "UNEXPECTED: render did not mirror references.bib into Paperforge collection roots"; exit 1; }
+echo "== render --draft writes previews under drafts, never sheets"
+rm -rf /tmp/qspec-render-drafts
+$Q render --draft --specs /tmp/qspec-render/specs --out /tmp/qspec-render-drafts --index /tmp/qspec-render/specs/index-2026-09.yaml --label draft-render-probe >/dev/null
+test -f /tmp/qspec-render-drafts/drafts/Q-102.md || { echo "UNEXPECTED: render --draft omitted a draft-state preview"; exit 1; }
+if test -d /tmp/qspec-render-drafts/sheets && test -n "$(find /tmp/qspec-render-drafts/sheets -type f -name '*.md' -print -quit)"; then echo "UNEXPECTED: render --draft wrote a preview under sheets/"; exit 1; fi
+grep -q '^\*\*Draft:\*\* unsigned, not for submission$' /tmp/qspec-render-drafts/drafts/Q-102.md || { echo "UNEXPECTED: aggregate draft rendering omitted the draft warning"; exit 1; }
 cp templates/documents.qspec.toml /tmp/qspec-render/documents/documents.toml
-test "$(grep -c '^bibliography = "references.bib"$' templates/documents.qspec.toml)" = 2 && test "$(grep -c '^citation_style = "apa"$' templates/documents.qspec.toml)" = 2 || { echo "UNEXPECTED: the sheet and dossier types do not both declare bibliography and style"; exit 1; }
+test "$(grep -c '^bibliography = "references.bib"$' templates/documents.qspec.toml)" = 1 && test "$(grep -c '^citation_style = "apa"$' templates/documents.qspec.toml)" = 1 || { echo "UNEXPECTED: the committee sheet type does not declare one bibliography and style"; exit 1; }
+grep -q '^pdf = "typst"$' templates/documents.qspec.toml && grep -q '^reason = "process records: runs, review notes, decisions"$' templates/documents.qspec.toml || { echo "UNEXPECTED: the sheet print edition or internal dossier reason is missing"; exit 1; }
+test "$(grep -c '^publish = false$' templates/documents.qspec.toml)" -ge 2 || { echo "UNEXPECTED: the committee types are not explicitly unpublished"; exit 1; }
+if grep -q 'qspec-dossier' templates/documents.qspec.toml; then echo "UNEXPECTED: dossiers remain a Paperforge document type"; exit 1; fi
 MANIFEST_SHA=$(shasum -a 256 /tmp/qspec-render/documents/documents.toml | awk '{print $1}')
 $Q render --specs /tmp/qspec-render/specs --out /tmp/qspec-render/documents --index /tmp/qspec-render/specs/index-2026-09.yaml --manifest /tmp/qspec-render/documents/documents.toml --label manifest-probe > /tmp/qspec-render/manifest.out
-grep -q 'root = "dossiers"' /tmp/qspec-render/manifest.out && grep -q 'source = "Q-102.md"' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not print a dossier collection with sources relative to its root"; exit 1; }
+grep -q 'dossiers/Q-102.md' /tmp/qspec-render/manifest.out && grep -q '^\[internal\]$' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not print the missing dossier as an internal file"; exit 1; }
 grep -q 'root = "sheets"' /tmp/qspec-render/manifest.out && grep -q 'root = "requests"' /tmp/qspec-render/manifest.out || { echo "UNEXPECTED: render did not give sheets and requests their own collection roots"; exit 1; }
 if grep -q 'source = "dossiers/Q-102.md"' /tmp/qspec-render/manifest.out; then echo "UNEXPECTED: render repeated a collection root inside a document source"; exit 1; fi
 if grep -q 'source = "index/2026-09.md"' /tmp/qspec-render/manifest.out; then echo "UNEXPECTED: render reported an Index already declared under its collection root"; exit 1; fi
 test "$MANIFEST_SHA" = "$(shasum -a 256 /tmp/qspec-render/documents/documents.toml | awk '{print $1}')" || { echo "UNEXPECTED: render edited the Paperforge manifest"; exit 1; }
 echo "== the printed manifest collections paste into the template and Paperforge resolves every source"
 sed -n '/^\[\[collection\]\]/,$p' /tmp/qspec-render/manifest.out >> /tmp/qspec-render/documents/documents.toml
-cp /tmp/qspec-render/documents/dossiers/Q-102.md /tmp/qspec-render/documents/dossiers/Q-001.md
-cp /tmp/qspec-render/documents/dossiers/Q-101.md /tmp/qspec-render/documents/dossiers/Q-002.md
-cp /tmp/qspec-render/documents/dossiers/Q-201.md /tmp/qspec-render/documents/dossiers/Q-003.md
 PAPERFORGE_REPO="$ROOT/../paperforge"
 if test -f "$PAPERFORGE_REPO/paperforge/cli.py"; then
   PAPERFORGE_PYTHON="${PAPERFORGE_PYTHON:-python3}"
   if test -x /Applications/RealTimeX.AI.app/Contents/Resources/app/src/electron/features/pty/compat/macos/python3; then PAPERFORGE_PYTHON=/Applications/RealTimeX.AI.app/Contents/Resources/app/src/electron/features/pty/compat/macos/python3; fi
-  PYTHONPATH="$PAPERFORGE_REPO" "$PAPERFORGE_PYTHON" -c 'import sys; from paperforge.cli import load; _, docs = load(sys.argv[1]); missing = [str(d["source_path"]) for d in docs if not d["source_path"].is_file()]; assert len(docs) == 10, len(docs); assert not missing, missing' /tmp/qspec-render/documents/documents.toml || { echo "UNEXPECTED: Paperforge could not resolve every template-plus-snippet source"; exit 1; }
+  PYTHONPATH="$PAPERFORGE_REPO" "$PAPERFORGE_PYTHON" -c 'import sys; from paperforge.cli import load; _, docs = load(sys.argv[1]); missing = [str(d["source_path"]) for d in docs if not d["source_path"].is_file()]; assert len(docs) == 4, len(docs); assert not missing, missing; assert all(d["type"] != "qspec-dossier" and d["publish"] is False for d in docs)' /tmp/qspec-render/documents/documents.toml || { echo "UNEXPECTED: Paperforge could not resolve the unpublished committee documents without treating dossiers as documents"; exit 1; }
 else
   echo "SKIP: sibling Paperforge checkout is absent; manifest structure assertions still ran"
 fi
@@ -253,5 +287,5 @@ ls /tmp/qspec-notes/.qspec/runs/*/sources/external/qspec-external-paper.md >/dev
 echo "== the commands the guidance names are the commands help lists"
 for c in $(node -e 'console.log(require("./lib/scaffold.js").COMMANDS.join(" "))'); do $Q help | grep -q "^  $c " || { echo "UNEXPECTED: guidance names '$c' but help does not list it"; exit 1; }; done
 echo "== renderings carry nothing Paperforge lint would block"
-if grep -qiE '\b(TODO|TBD|FIXME|XXX|PLACEHOLDER)\b' /tmp/qspec-index.md /tmp/qspec-sheet.md /tmp/qspec-request.md /tmp/qspec-init-round.md /tmp/qspec-init/AGENTS.md /tmp/qspec-runs/AGENTS.md /tmp/qspec-notes/AGENTS.md /tmp/qspec-render/documents/sheets/*.md /tmp/qspec-render/documents/index/*.md /tmp/qspec-render/documents/requests/*.md; then echo "UNEXPECTED: a blocked marker reached a sheet, Index, request, or guidance"; exit 1; fi
+if grep -qiE '\b(TODO|TBD|FIXME|XXX|PLACEHOLDER)\b' /tmp/qspec-index.md /tmp/qspec-sheet.md /tmp/qspec-draft-sheet.md /tmp/qspec-request.md /tmp/qspec-init-round.md /tmp/qspec-init/AGENTS.md /tmp/qspec-runs/AGENTS.md /tmp/qspec-notes/AGENTS.md /tmp/qspec-render/documents/sheets/*.md /tmp/qspec-render-drafts/drafts/*.md /tmp/qspec-render/documents/index/*.md /tmp/qspec-render/documents/requests/*.md; then echo "UNEXPECTED: a blocked marker reached a sheet, Index, request, or guidance"; exit 1; fi
 echo "all checks passed"

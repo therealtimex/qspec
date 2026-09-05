@@ -56,8 +56,8 @@ const HELP = `usage: qspec <command> [args]
                                  a decision_maker act needs --index, which binds the actor
                                  to the round's committee and holds the one-freeze-per-round
                                  cap, or --unbound to record that nothing checked it
-  sheet <spec.yaml> [--index index.yaml] [--out file.md]
-                                 selection sheet in Paperforge head format
+  sheet <spec.yaml> [--index index.yaml] [--out file.md] [--draft]
+                                 committee sheet; --draft previews any state without submission
   index <index.yaml> [--specs dir] [--out file.md] [--label text]
                                  portfolio index table, with its checks; records a run
   dossier <spec.yaml> [--out file.md] [--label text]
@@ -65,15 +65,15 @@ const HELP = `usage: qspec <command> [args]
   request <spec.yaml> [--out file.md]
                                  frozen request for a Paperforge project's request key
   render --out <dir> [--specs dir] [--index round.yaml] [--manifest documents.toml]
-         [--label text]           dossiers for every spec, eligible sheets, every Index, and
-                                 frozen requests; prints manifest entries missing for its outputs
+         [--label text] [--draft] dossiers for every spec, eligible sheets (or previews under
+                                 drafts/), every Index, and frozen requests; prints missing entries
   paper <spec.yaml> <document.md>
                                  does the document carry the frozen claim as a gist
 `;
 
 const argv = process.argv.slice(2);
 const cmd = argv.shift();
-const BOOLEAN = new Set(["append", "expect-fail", "issue", "json", "no-git", "refresh", "show", "sources", "unbound"]);
+const BOOLEAN = new Set(["append", "draft", "expect-fail", "issue", "json", "no-git", "refresh", "show", "sources", "unbound"]);
 const flags = {};
 const positional = [];
 for (let i = 0; i < argv.length; i++) {
@@ -233,20 +233,34 @@ function writeRendering(outDir, subdir, name, md) {
 
 function missingManifestEntries(manifest, outputs) {
   const text = readFileSync(manifest, "utf8");
-  const declared = new Set(), slugs = new Set();
+  const declared = new Set(), internal = new Set(), slugs = new Set();
   let collectionRoot = ".";
+  let section = null;
+  let internalReason = "process records: runs, review notes, decisions";
   for (const line of text.split("\n")) {
-    if (/^\s*\[\[collection\]\]\s*$/.test(line)) collectionRoot = ".";
+    if (/^\s*\[\[collection\]\]\s*$/.test(line)) { collectionRoot = "."; section = "collection"; }
+    else if (/^\s*\[internal\]\s*$/.test(line)) section = "internal";
+    else if (/^\s*\[/.test(line)) section = null;
     const slug = /^\s*slug\s*=\s*"([^"]+)"/.exec(line);
     if (slug) slugs.add(slug[1]);
     const root = /^\s*root\s*=\s*"([^"]+)"/.exec(line);
     if (root) collectionRoot = root[1];
     const source = /^\s*source\s*=\s*"([^"]+)"/.exec(line);
     if (source) declared.add(join(collectionRoot, source[1]).replace(/\\/g, "/"));
+    if (section === "internal" && /^\s*files\s*=/.test(line)) for (const match of line.matchAll(/"([^"]+)"/g)) internal.add(match[1]);
+    if (section === "internal") {
+      const reason = /^\s*reason\s*=\s*"([^"]+)"/.exec(line);
+      if (reason) internalReason = reason[1];
+    }
   }
   const groups = new Map();
+  const missingInternal = [];
   for (const output of outputs) {
     const path = relative(dirname(resolve(manifest)), resolve(output.output)).replace(/\\/g, "/");
+    if (output.kind === "dossier") {
+      if (!internal.has(path)) missingInternal.push(path);
+      continue;
+    }
     if (declared.has(path)) continue;
     const root = dirname(path).replace(/\\/g, "/");
     const key = `${output.kind}\0${root}`;
@@ -254,7 +268,12 @@ function missingManifestEntries(manifest, outputs) {
     groups.get(key).documents.push({ ...output, source: relative(root, path).replace(/\\/g, "/") });
   }
   const toml = (value) => JSON.stringify(String(value));
-  return [...groups.values()].map((group) => {
+  const snippets = [];
+  if (missingInternal.length) {
+    const files = [...new Set([...internal, ...missingInternal])].sort();
+    snippets.push(["# Replace the existing [internal] block with this block:", "[internal]", `files = [${files.map(toml).join(", ")}]`, `reason = ${toml(internalReason)}`].join("\n"));
+  }
+  snippets.push(...[...groups.values()].map((group) => {
     const plural = group.kind === "index" ? "indexes" : `${group.kind}s`;
     const base = `qspec-render-${plural}`;
     let slug = base, suffix = 2;
@@ -268,7 +287,8 @@ function missingManifestEntries(manifest, outputs) {
       lines.push("  publish = false");
     }
     return lines.join("\n");
-  });
+  }));
+  return snippets;
 }
 
 switch (cmd) {
@@ -486,9 +506,10 @@ switch (cmd) {
     const spec = loadSpec(file);
     const record = loadRecord(recordPath(file, spec, flags.record));
     const idx = flags.index ? loadIndex(flags.index) : null;
-    const { md, findings } = renderSheet(spec, { record, index: idx });
+    const draft = Boolean(flags.draft);
+    const { md, findings } = renderSheet(spec, { record, index: idx, draft });
     const blocked = printFindings(file, findings);
-    recordRuns("sheet", [{ file, kind: "spec", id: spec.id, instance_version: spec.instance_version, status: spec.status, fingerprint: fingerprint(spec), findings, recordFile: recordPath(file, spec, flags.record), rendered: blocked ? null : md }], flags.label && flags.label !== true ? String(flags.label) : null);
+    recordRuns(draft ? "sheet --draft" : "sheet", [{ file, kind: "spec", id: spec.id, instance_version: spec.instance_version, status: spec.status, fingerprint: fingerprint(spec), findings, recordFile: recordPath(file, spec, flags.record), rendered: blocked ? null : md }], flags.label && flags.label !== true ? String(flags.label) : null);
     if (blocked) process.exit(1);
     emit(md, flags.out);
     break;
@@ -540,6 +561,7 @@ switch (cmd) {
     if (!existsSync(specsDir)) die(`${specsDir}: no such specs directory; pass --specs <dir>`);
     const renderRoot = findRoot(specsDir) ?? project;
     const manifest = flagText("manifest");
+    const draftSheets = Boolean(flags.draft);
     if (manifest && !existsSync(manifest)) die(`${manifest}: no such manifest`);
 
     const specs = [], indexes = [], parseFailures = [];
@@ -562,7 +584,7 @@ switch (cmd) {
     for (const failure of parseFailures) console.error(`FAIL  ${failure.file}\n    block   PARSE              ${failure.message}`);
     if (ambiguousIndex) {
       console.error(`FAIL  sheets\n    block   render-index       found several Index files (${indexes.map((x) => x.file).join(", ")}); pass --index <round.yaml>`);
-      if (specs.some(({ spec }) => SHEET_STATES.includes(spec.status))) blocked = true;
+      if (specs.some(({ spec }) => draftSheets || SHEET_STATES.includes(spec.status))) blocked = true;
     }
 
     const resolved = { specs: {}, records: {}, files: {} };
@@ -581,7 +603,7 @@ switch (cmd) {
     const selectedIndex = chosenPath
       ? renderedIndexes.find((x) => resolve(x.file) === chosenPath) ?? null
       : renderedIndexes.length === 1 ? renderedIndexes[0] : null;
-    const eligibleSheets = specs.some(({ spec }) => SHEET_STATES.includes(spec.status));
+    const eligibleSheets = specs.some(({ spec }) => draftSheets || SHEET_STATES.includes(spec.status));
     if (selectedIndex?.blocked && eligibleSheets) {
       console.error(`FAIL  sheets\n    block   render-index       selected Index ${selectedIndex.file} is blocked; no sheets were rendered`);
     }
@@ -599,16 +621,16 @@ switch (cmd) {
       const dossierOut = writeRendering(outDir, "dossiers", spec.id, dossier.md);
       remember({ source: file, output: dossierOut, kind: "dossier", id: spec.id, spec, findings: dossier.findings, recordFile: rp, md: dossier.md });
 
-      if (!SHEET_STATES.includes(spec.status)) {
+      if (!draftSheets && !SHEET_STATES.includes(spec.status)) {
         console.log(`skip  ${file}: sheet is only for ${SHEET_STATES.join(", ")}; status is ${spec.status}`);
       } else if (selectedIndex?.blocked) {
         console.log(`skip  ${file}: selected Index ${selectedIndex.file} is blocked`);
       } else if (!ambiguousIndex) {
-        const sheet = renderSheet(spec, { record, index: selectedIndex?.index ?? null });
+        const sheet = renderSheet(spec, { record, index: selectedIndex?.index ?? null, draft: draftSheets });
         const sheetBlocked = printFindings(file, sheet.findings);
         if (sheetBlocked) blocked = true;
         else {
-          const sheetOut = writeRendering(outDir, "sheets", spec.id, sheet.md);
+          const sheetOut = writeRendering(outDir, draftSheets ? "drafts" : "sheets", spec.id, sheet.md);
           remember({ source: file, output: sheetOut, kind: "sheet", id: spec.id, spec, findings: sheet.findings, recordFile: rp, md: sheet.md });
         }
       }
@@ -640,9 +662,8 @@ switch (cmd) {
       // root. Keep the canonical copy beside documents.toml as promised, then
       // mirror the same bytes only into collection roots that were rendered.
       const targets = [join(resolve(outDir), "references.bib")];
-      if (written.some((x) => x.kind === "dossier")) targets.push(join(resolve(outDir), "dossiers", "references.bib"));
-      if (written.some((x) => x.kind === "sheet")) targets.push(join(resolve(outDir), "sheets", "references.bib"));
-      for (const output of targets) {
+      for (const output of written.filter((x) => ["dossier", "sheet"].includes(x.kind))) targets.push(join(dirname(resolve(output.output)), "references.bib"));
+      for (const output of new Set(targets)) {
         mkdirSync(dirname(output), { recursive: true });
         if (resolve(bibliography) !== output) copyFileSync(bibliography, output);
         console.log(`wrote ${output}`);

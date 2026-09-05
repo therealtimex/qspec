@@ -24,8 +24,9 @@ function checkPaper(spec, mdFile) {
   const m = /gist="([^"]*)"/.exec(hits[0][1]);
   if (!m) { f("block", "gist-missing", `{#${label}} carries no gist`); return findings; }
   if (collapse(m[1]) !== sentence) f("block", "gist-differs", `the gist does not match ${spec.id}@${spec.instance_version} one_sentence`, "either the paper answers a different question (new spec version) or the gist drifted (restore it)");
-  const pointer = new RegExp(`\\*\\*Question:\\*\\*\\s*${spec.id}@${spec.instance_version}\\b`);
-  if (!pointer.test(text)) f("manual", "pointer-absent", `no metadata row **Question:** ${spec.id}@${spec.instance_version} in the head`, "add the row so the document cites id and instance_version (QSPEC-CORE section 12)");
+  const escapedId = String(spec.id).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pointer = new RegExp(`\\*\\*Question:\\*\\*\\s*${escapedId}(?:@${spec.instance_version}|,\\s*version\\s+${spec.instance_version})\\b`);
+  if (!pointer.test(text)) f("manual", "pointer-absent", `no metadata row **Question:** ${spec.id}@${spec.instance_version} or **Question:** ${spec.id}, version ${spec.instance_version} in the head`, "add either row so the document cites id and instance_version (QSPEC-CORE section 12)");
   return findings;
 }
 
