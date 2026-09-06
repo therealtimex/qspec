@@ -13,6 +13,51 @@ $Q lint --expect-fail examples/negative/*.yaml
 echo "== empty templates block"
 $Q lint --expect-fail templates/qspec-*.yaml
 node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"); for(const p of process.argv.slice(1)){const s=y.load(fs.readFileSync(p,"utf8"),{schema:y.CORE_SCHEMA}); a.equal(s.increment.closest_work.length,3,p)}' templates/qspec-*.yaml
+echo "== identification threats are named and answered with runnable checks"
+node - <<'NODE'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const yaml = require("./lib/vendor/js-yaml/js-yaml.js");
+const { catalogs, resolveProfile } = require("./lib/catalogs.js");
+const { lintSpec } = require("./lib/lint.js");
+const source = yaml.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml", "utf8"), { schema: yaml.CORE_SCHEMA });
+const threatFindings = (spec) => lintSpec(spec).filter((finding) => finding.rule.startsWith("threat"));
+
+assert.deepEqual(threatFindings(source), []);
+const missing = structuredClone(source);
+missing.profile.threats_to_identification = [];
+const unaddressed = threatFindings(missing);
+assert.equal(unaddressed.length, 1);
+assert.equal(unaddressed[0].rule, "threats-unaddressed");
+assert.match(unaddressed[0].message, /manipulation_of_running_variable/);
+assert.match(unaddressed[0].message, /bandwidth_sensitivity/);
+
+const reassurance = structuredClone(source);
+reassurance.profile.threats_to_identification[0].response = "The design should make this unlikely.";
+const withoutCheck = threatFindings(reassurance);
+assert.equal(withoutCheck.filter((finding) => finding.rule === "threat-without-check").length, 1);
+assert.match(withoutCheck[0].message, /\[0\]\.response/);
+reassurance.profile.threats_to_identification[0].response = "Run the density test at cutoff before estimation.";
+assert.deepEqual(threatFindings(reassurance), []);
+reassurance.profile.threats_to_identification[0].response = "The design should make this unlikely.";
+reassurance.profile.threats_to_identification[0].check = "Density test at cutoff";
+assert.deepEqual(threatFindings(reassurance), []);
+reassurance.profile.threats_to_identification[0].response = "The contract-value density fails a manipulation test at the cutoff.";
+delete reassurance.profile.threats_to_identification[0].check;
+assert.deepEqual(threatFindings(reassurance), []);
+
+const old = structuredClone(source);
+delete old.profile.design;
+delete old.profile.threats_to_identification;
+assert.deepEqual(threatFindings(old), []);
+assert.ok(resolveProfile(catalogs.domains.natural, "theoretical").optional.includes("threats_to_validity"));
+assert.ok(resolveProfile(catalogs.domains.engineering, "measurement").optional.includes("threats_to_validity"));
+const natural = yaml.load(fs.readFileSync("examples/ns-experimental-apical-oxygen.yaml", "utf8"), { schema: yaml.CORE_SCHEMA });
+natural.profile.threats_to_validity = [{ threat: "confounding", why_it_applies: "Film growth conditions may move with strain.", response: "The design should make this unlikely." }];
+assert.equal(threatFindings(natural).filter((finding) => finding.rule === "threat-without-check").length, 1);
+natural.profile.threats_to_validity[0].check = "Hall-number doping check per film";
+assert.deepEqual(threatFindings(natural), []);
+NODE
 echo "== index checks and renders"
 $Q index examples/index-round-2026-09.yaml --specs examples --out /tmp/qspec-index.md
 grep -q '| Rank | Question | Field | Design | Claim | Blocked | Recommended |' /tmp/qspec-index.md && grep -q 'Social science' /tmp/qspec-index.md && grep -q 'Causal empirical study' /tmp/qspec-index.md && grep -q 'Keep as a backup' /tmp/qspec-index.md || { echo "UNEXPECTED: the Index did not carry labelled committee cells"; exit 1; }
@@ -22,9 +67,11 @@ node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/j
 echo "== sheet renders for a selectable spec"
 $Q sheet examples/ss-causal-procurement-cutoff.yaml --index examples/index-round-2026-09.yaml --out /tmp/qspec-sheet.md
 grep -q '\[@q101-work-1\]' /tmp/qspec-sheet.md || { echo "UNEXPECTED: a keyed closest work did not reach the sheet"; exit 1; }
-grep -q 'The design is causal empirical study, with effect estimation as its knowledge goal' /tmp/qspec-sheet.md && grep -q 'handles sensitive data' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not use sentence-form catalog labels for its design and constraints"; exit 1; }
+grep -q 'The design is regression discontinuity, with effect estimation as its knowledge goal' /tmp/qspec-sheet.md && grep -q 'handles sensitive data' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not use sentence-form catalog labels for its design and constraints"; exit 1; }
 grep -q '\*\*Intervention or exposure:\*\*' /tmp/qspec-sheet.md && grep -q '\*\*How units come to be treated:\*\*' /tmp/qspec-sheet.md && grep -q '\*\*Pre-committed checks:\*\*' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not use catalog labels for profile fields"; exit 1; }
+grep -q '^#### Threats to identification and how the design answers them$' /tmp/qspec-sheet.md && grep -q '^| Threat | Why it applies here | Response |$' /tmp/qspec-sheet.md && grep -q '| Manipulation of the running variable |' /tmp/qspec-sheet.md && grep -q '| Bandwidth sensitivity |' /tmp/qspec-sheet.md && grep -q '| Omitted variables |' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not render the labelled threats table"; exit 1; }
 node -e 'const a=require("node:assert/strict"),fs=require("node:fs"),r=require("./lib/render.js"); a.deepEqual(r.committeeClean(fs.readFileSync("/tmp/qspec-sheet.md","utf8")),[])'
+node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}),d=r.dossier(s).md; a.ok(d.includes("#### Threats to identification and how the design answers them")); a.ok(d.includes("| Manipulation of the running variable |")); a.ok(!d.includes("[object Object]"))'
 node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); s.claim.object += "."; s.claim.scope += "."; s.increment.closest_work[0].cite += "."; const md=r.sheet(s).md; a.ok(!md.includes(`${s.claim.object}.`)); a.ok(!md.includes(`${s.claim.scope}.`)); a.ok(md.includes(s.claim.object)); a.ok(md.includes(s.claim.scope)); a.ok(!md.includes(`${s.increment.closest_work[0].cite} [@${s.increment.closest_work[0].key}].`))'
 node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); delete s.increment.closest_work[0].key; const sheet=r.sheet(s).md,dossier=r.dossier(s).md; a.ok(sheet.includes(s.increment.closest_work[0].cite)); a.ok(dossier.includes(s.increment.closest_work[0].cite)); a.ok(!sheet.includes("[@q101-work-1]")); a.ok(!dossier.includes("[@q101-work-1]")); a.ok(sheet.includes("[@q101-work-2]")); a.ok(dossier.includes("[@q101-work-2]"))'
 echo "== profile labels apply only to declared enums; free prose stays visible to committee-clean"
@@ -43,6 +90,7 @@ cp templates/qspec-social.yaml /tmp/qspec-draft-source.yaml
 node -e 'const fs=require("node:fs"),p=process.argv[1]; let text=fs.readFileSync(p,"utf8"); text=text.replace("method_family: \"\"", "method_family: empirical_causal"); fs.writeFileSync(p,text)' /tmp/qspec-draft-source.yaml
 $Q sheet /tmp/qspec-draft-source.yaml --draft --out /tmp/qspec-draft-sheet.md >/dev/null
 grep -q '^\*\*Draft:\*\* unsigned, not for submission$' /tmp/qspec-draft-sheet.md && grep -q '^### Before submission$' /tmp/qspec-draft-sheet.md && grep -q '^- Intervention or exposure$' /tmp/qspec-draft-sheet.md || { echo "UNEXPECTED: draft sheet did not carry its warning and labelled hole list"; exit 1; }
+node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); s.profile.threats_to_identification=[]; const md=r.sheet(s,{draft:true}).md; a.ok(md.includes("- Threats to identification")); a.ok(!md.includes("#### Threats to identification"))'
 node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),{lintSpec}=require("./lib/lint.js"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("templates/qspec-social.yaml","utf8"),{schema:y.CORE_SCHEMA}); s.question_type.method_family="empirical_causal"; s.question_type.secondary_method="theoretical"; s.status="frozen"; s.profile.name=""; const findings=lintSpec(s),md=r.sheet(s,{draft:true}).md; for(const [rule,text,label] of [["M5","rescue_rule","Rescue rule"],["M7","vehicle_is_not_the_contribution","Why the vehicle is not the contribution"],["M8","uninteresting_even_if_true","Why a true result could still be uninteresting"],["M11","profile.name","Design profile"],["M14","first_check","First check for the next stage"]]){a.ok(findings.some((f)=>f.rule===rule && f.message.includes(text)),`${rule} fixture did not block`); a.ok(md.includes(`- ${label}`),`${rule} hole was absent from the owner preview`)}'
 $Q sheet examples/ns-theoretical-mean-field-threshold.yaml --draft --out /tmp/qspec-draft-theory.md >/dev/null
 grep -q '\*\*Role of empirical evidence:\*\* Later test' /tmp/qspec-draft-theory.md && ! grep -q 'later_test' /tmp/qspec-draft-theory.md || { echo "UNEXPECTED: a profile enum reached a draft without its catalog label"; exit 1; }
@@ -64,6 +112,8 @@ echo "== every committee value and profile field has a catalog label"
 node scripts/check-catalog-labels.mjs
 node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalogs.json","utf8")); delete c.labels.values.empirical_causal; fs.writeFileSync("/tmp/qspec-catalogs-missing-label.json",JSON.stringify(c))'
 if node scripts/check-catalog-labels.mjs /tmp/qspec-catalogs-missing-label.json >/dev/null 2>&1; then echo "UNEXPECTED: a fixture catalog with a missing emitted-value label passed"; exit 1; fi
+node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalogs.json","utf8")); delete c.labels.values.regression_discontinuity; fs.writeFileSync("/tmp/qspec-catalogs-missing-label.json",JSON.stringify(c))'
+if node scripts/check-catalog-labels.mjs /tmp/qspec-catalogs-missing-label.json >/dev/null 2>&1; then echo "UNEXPECTED: a fixture design without a label passed"; exit 1; fi
 node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalogs.json","utf8")); delete c.labels.profile_fields.treatment; fs.writeFileSync("/tmp/qspec-catalogs-missing-label.json",JSON.stringify(c))'
 if node scripts/check-catalog-labels.mjs /tmp/qspec-catalogs-missing-label.json >/dev/null 2>&1; then echo "UNEXPECTED: a fixture catalog with a missing profile-field label passed"; exit 1; fi
 node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalogs.json","utf8")); delete c.labels.values.empirical_causal.sentence; fs.writeFileSync("/tmp/qspec-catalogs-missing-sentence.json",JSON.stringify(c))'

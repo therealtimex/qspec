@@ -21,7 +21,12 @@ const J_TEXT = {
 function resolveProfile(domain, family) {
   const p = domain.profiles[family];
   if (!p) return null;
-  return p.$ref ? domain.profile_sets[p.$ref] : p;
+  const definition = p.$ref ? domain.profile_sets[p.$ref] : p;
+  if (!definition) return null;
+  const extensions = [];
+  if (domain.threat_field && (!domain.design_family || domain.design_family === family)) extensions.push(domain.threat_field);
+  if (domain.designs && domain.design_family === family) extensions.unshift("design");
+  return { ...definition, optional: [...new Set([...(definition.optional ?? []), ...extensions])] };
 }
 
 function englishLabel(entry) {

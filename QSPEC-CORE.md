@@ -1,8 +1,8 @@
-# QSPEC-CORE 1.10.2
+# QSPEC-CORE 1.11.0
 # Question Spec: shared core for all research domains
 
 **Spec-ID:** QSPEC-CORE
-**Schema-Version:** 1.10.2
+**Schema-Version:** 1.11.0
 **Date:** 2026-09-06
 **Status:** released
 **Instance format:** `spec_schema: QSPEC/1.0` plus a `domain` key
@@ -224,6 +224,8 @@ hints:                    # optional; never used for ranking; not fingerprinted
 profile:
   name: ""                # must equal question_type.method_family
   # <overlay> profile fields
+  # causal profiles may name a catalog design and its threats; natural-science
+  # and engineering profiles may list threats_to_validity. Both are optional in 1.x.
 
 handoff:                  # not fingerprinted: first_check is filled between signing and freeze
   first_check: ""         # required before freeze
@@ -258,6 +260,9 @@ handoff:                  # not fingerprinted: first_check is filled between sig
 | `ask` | Time, people, access, and hardware or compute that selecting this spec commits. The sheet shows it; the tool never estimates it. |
 | `hints` | Owner's guesses. Sheets may show them. Indexes must not sort on them. |
 | `profile.name` | Must equal `method_family`. The overlay lists the profile's required fields and its comparator field. |
+| `profile.design` | Optional identification design from the social-science catalog. Naming one makes its catalogued standard threats visible to `threats-unaddressed`; it is not required until a future 2.0 schema. |
+| `profile.threats_to_identification`, `profile.threats_to_validity` | Optional list of threats. Each entry names a catalog `threat`, says `why_it_applies` in this setting, and gives the design or check's `response`. |
+| `profile.threats_*.check` | Optional pointer to `precommitted_checks`, either its one-based index or its exact text. Without it, the response must repeat at least four consecutive words from a pre-committed check or the kill condition. |
 | `first_check` | The first thing the next stage must run: the kill condition test, the main access test, the baseline run, the calibration, the convergence study, or the counterexample search. |
 
 ---
@@ -331,6 +336,8 @@ These come from the record, the Index, or a rendering rather than from the insta
 | `overlay-drift` | warn | the overlay's J7 rule changed since the signature recorded it |
 | `J7-unrecorded` | skip | signed before the rule was recorded, so drift cannot be checked |
 | `blocking-without-plan` | warn | blocking materials with no `obtainable` entry |
+| `threats-unaddressed` | warn | a causal profile names a design but omits one or more standard threats catalogued for that design; the finding names them |
+| `threat-without-check` | warn | a threat response points to no pre-committed check and repeats no four-word clause from a check or the kill condition |
 | `cite-unkeyed` | warn | a closest-work entry has no BibTeX key in a project that carries `references.bib` |
 | `cite-unresolved` | warn | a closest-work key or a `[@key]` marker in any string field is absent from the project's `references.bib`; prose-marker findings name the field path |
 | `bib-incomplete` | warn | a resolved closest-work key or prose marker points to an entry lacking `title`, `year`, or both `doi` and `url`; prose-marker findings name the field path |
@@ -406,7 +413,8 @@ Rendered by `qspec sheet <spec> [--index <index>]`, never written. Refused unles
 # Research question / ## title / Question id, version N / Selection round / Owner
 The claim
 Why it matters, with the object and scope folded into prose
-The labelled design family and goal, then required and filled optional profile fields
+The named identification design when present, otherwise the labelled method family, then the goal and profile fields
+A labelled table of threats, why each applies here, and the runnable response, when the profile carries one
 What is known and open, one prose entry per closest work, with `[@key]` when keyed
 What would count as support, what would count as failure, and when the study stops
 Materials in hand and to obtain, with source, horizon, likelihood, and labelled access risk
@@ -416,7 +424,7 @@ The labelled recommended action and rank, when the Index has an entry
 Unresolved dissent as “A reviewer dissents:”, with the point verbatim
 ```
 
-The sheet carries no status, schema version, fingerprint, run, note, invariant code, or next-stage first check. Human labels are read from `schema/catalogs.json`; every catalog value and profile field the renderer can emit has both a display label and a sentence form. `committee-clean` checks the completed markdown, including prose a person supplied, and blocks on a raw catalog identifier or internal tool vocabulary while naming the token and line; Paperforge citation markers such as `[@key; @key2]` are permitted text. When the renderer adds punctuation after a field, one trailing period, exclamation mark, or question mark in that field is removed first. An empty field renders as `(not stated)` and the tool reports it. An empty `ask` is a `manual` finding. The spec and its Decision Record sit behind the sheet; a decision-maker who needs detail opens them.
+The sheet carries no status, schema version, fingerprint, run, note, invariant code, or next-stage first check. Human labels are read from `schema/catalogs.json`; every catalog value, threat, design, and profile field the renderer can emit has both a display label and a sentence form. `committee-clean` checks the completed markdown, including prose a person supplied, and blocks on a raw catalog identifier or internal tool vocabulary while naming the token and line; Paperforge citation markers such as `[@key; @key2]` are permitted text. When the renderer adds punctuation after a field, one trailing period, exclamation mark, or question mark in that field is removed first. An empty field renders as `(not stated)` and the tool reports it. An empty `ask` is a `manual` finding. When a causal profile names a design but has an empty threats list, a draft sheet names “Threats to identification” under “Before submission.” The spec and its Decision Record sit behind the sheet; a decision-maker who needs detail opens them.
 
 ---
 
@@ -484,7 +492,9 @@ Question development is finished when:
 - `spec_schema: QSPEC/1.0` covers all `1.x` releases of the core. Minor releases add optional fields, catalog values, findings, or checks that apply to records and renderings rather than to the instance fields.
 - Overlays version with the core and declare the core version they target.
 - A change that removes a field, renames a field, or tightens an M invariant on the instance fields is a major release and a new `spec_schema` string.
+- Requiring an identification design or threats list is deferred to 2.0. In 1.11.0 both are optional, and the two new findings are warnings only.
 - 1.1.0 added M16, which tightens what leaving `draft` requires. That was taken as a minor release because no 1.0.0 instance existed outside this repository. It is the last time that exception applies.
+- 1.11.0 adds catalogued identification designs and threats, warning-only checks that standard threats are named and responses point to runnable checks, and the threats table in sheets and dossiers. Natural-science and engineering profiles gain the optional parallel `threats_to_validity` structure. No field is required and no M invariant, Decision Record, or Index changes.
 - 1.10.2 renders bare dossier-note placeholders with single angle quotation marks inside code spans too, renders empty head values explicitly, and reports an unnamed Index decision-maker for manual resolution. No instance field, M invariant, Decision Record shape, or Index shape changes.
 - 1.10.1 renders each labelled body field as its own CommonMark paragraph and renders array-valued profile and constraint fields as lists. No instance field, M invariant, Decision Record shape, or Index shape changes.
 - 1.10.0 resolves Paperforge `[@key]` markers in every prose field when a project bibliography exists, recommends three to five nearest works without changing M6's floor, adds sentence-form labels and rendering fixes, renders bare dossier-note placeholders with single angle quotation marks, restores dossiers as unpublished buildable Paperforge documents, and warns on cross-role attachments and publishable dossier manifest blocks. No instance field, M invariant, Decision Record shape, or Index shape changes.
@@ -503,7 +513,7 @@ Question development is finished when:
 
 `qspec` ships in this repository as a Node package with no npm dependencies; its YAML reader is vendored in the bundle. Every command is a resolution procedure over files, an act recorded to a file, a file laid down for a person to fill, or a record of what a check saw. None writes a field of a spec other than `status`, and that only as the consequence of a recorded act; `new` sets `id` and `date`, which are the spec's name and its birthday, not its content.
 
-Inside a project, every command that reads a spec records a run under `.qspec/runs/` with the files as they stood, passing or failing: `lint`, `index`, `sign`, `transition`, `sheet`, `dossier`, `request`, `render`, and `paper`. A rendering keeps the markdown it produced; aggregate `render` records one entry naming each output. A document checked from outside the project is kept under `external/`. The Decision Record is the audit trail for acts; a run is the audit trail for looking; a note attached to a run with `attach` is what a role concluded about it, copied whole and never summarised. Before attaching, each role lints under its own `<spec>-<role>-round-<n>` label and attaches to that run; `attach` warns but still proceeds when the named run's label declares another role. None of the three is an act of discipline on the tool's side: the run is written because the check ran, and the note is written because somebody handed off.
+Inside a project, every command that reads a spec records a run under `.qspec/runs/` with the files as they stood, passing or failing: `lint`, `index`, `sign`, `transition`, `sheet`, `dossier`, `request`, `render`, and `paper`. A rendering keeps the markdown it produced; aggregate `render` records one entry naming each output. `lint` reports catalogued design threats that are absent and threat responses that name no runnable check, but does not judge whether a response is credible. A document checked from outside the project is kept under `external/`. The Decision Record is the audit trail for acts; a run is the audit trail for looking; a note attached to a run with `attach` is what a role concluded about it, copied whole and never summarised. Before attaching, each role lints under its own `<spec>-<role>-round-<n>` label and attaches to that run; `attach` warns but still proceeds when the named run's label declares another role. None of the three is an act of discipline on the tool's side: the run is written because the check ran, and the note is written because somebody handed off.
 
 ```text
 qspec init --into <dir>               a project: specs/ with the round's Index, AGENTS.md, a stamp

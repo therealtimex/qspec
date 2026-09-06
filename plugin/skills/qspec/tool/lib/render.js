@@ -38,6 +38,22 @@ const profileValue = (v, field, definition) => {
   return Array.isArray(v) ? v.map(item) : item(v);
 };
 
+function threatSection(spec) {
+  const domain = catalogs.domains[spec.domain];
+  const family = spec.question_type?.method_family;
+  if (!domain?.threat_field || (domain.design_family && domain.design_family !== family)) return [];
+  const entries = spec.profile?.[domain.threat_field];
+  if (!Array.isArray(entries) || !entries.length) return [];
+  return [
+    `#### ${domain.threat_heading}`,
+    "",
+    "| Threat | Why it applies here | Response |",
+    "|---|---|---|",
+    ...entries.map((entry) => `| ${tableCell(humanValue(entry?.threat))} | ${tableCell(entry?.why_it_applies)} | ${tableCell(entry?.response)} |`),
+    "",
+  ];
+}
+
 const HTML_ELEMENTS = new Set((
   "a abbr address area article aside audio b base bdi bdo blockquote body br button canvas caption cite code col colgroup data datalist dd del details dfn dialog div dl dt em embed fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 head header hgroup hr html i iframe img input ins kbd label legend li link main map mark menu meta meter nav noscript object ol optgroup option output p picture pre progress q rp rt ruby s samp script search section select slot small source span strong style sub summary sup table tbody td template textarea tfoot th thead time title tr track u ul var video wbr"
 ).split(" "));
@@ -307,6 +323,10 @@ function draftHoles(spec, definition) {
     const complete = Array.isArray(v) ? v.length >= minimum && v.every(filled) : filled(v);
     if (!complete) holes.push(profileFieldLabel(field) ?? words(field));
   }
+  if (domain?.designs && domain.design_family === qt.method_family && filled(profile.design)) {
+    const threats = profile[domain.threat_field];
+    if (!Array.isArray(threats) || threats.length === 0) holes.push(profileFieldLabel(domain.threat_field) ?? words(domain.threat_field));
+  }
   return [...new Set(holes)];
 }
 
@@ -316,6 +336,7 @@ function sheet(spec, { record = null, index = null, draft = false } = {}) {
   const f = (severity, rule, message, act) => findings.push({ severity, rule, message, act });
   if (!draft && !SHEET_STATES.includes(spec.status)) f("block", "sheet-state", `a selection sheet is rendered only for ${SHEET_STATES.join(", ")}; this spec is '${spec.status}'`);
   const qt = spec.question_type ?? {}, inc = spec.increment ?? {}, sf = spec.success_and_failure ?? {}, mat = spec.materials ?? {}, con = spec.constraints ?? {};
+  const domain = catalogs.domains[spec.domain];
   const closest = Array.isArray(inc.closest_work) ? inc.closest_work : [];
   const entry = index?.entries?.find((e) => e.id === spec.id) ?? null;
   if (index && !entry) f("warn", "sheet-index", `index has no entry for ${spec.id}`);
@@ -323,7 +344,9 @@ function sheet(spec, { record = null, index = null, draft = false } = {}) {
   if (!Object.values(ask).some(s)) f("manual", "sheet-ask", "the ask (time, people, access, hardware_or_compute) is empty", "fill `ask:` in the spec");
   const dissent = (record?.entries ?? []).flatMap((e) => (e.dissent ?? []).filter((d) => d.unresolved));
   const definition = profileDefinition(spec);
+  const structuredProfileFields = new Set(["design", domain?.threat_field]);
   const profileRows = definition ? [...definition.required, ...definition.optional]
+    .filter((field) => !structuredProfileFields.has(field))
     .filter((field) => definition.required.includes(field) || (Array.isArray(spec.profile?.[field]) ? spec.profile[field].length : s(String(spec.profile?.[field] ?? ""))))
     .flatMap((field) => bodyField(
       profileFieldLabel(field) ?? words(field),
@@ -350,8 +373,9 @@ function sheet(spec, { record = null, index = null, draft = false } = {}) {
   const md = head("Research question", spec, headRows) + [
     "### Claim", "", show(spec.claim?.one_sentence), "",
     "### Why this question matters", "", committeeContext(spec), "",
-    "### Design", "", `The design is ${humanSentence(qt.method_family)}, with ${humanSentence(qt.knowledge_goal)} as its knowledge goal.`, "",
+    "### Design", "", `The design is ${humanSentence(domain?.design_family === qt.method_family && s(spec.profile?.design) ? spec.profile.design : qt.method_family)}, with ${humanSentence(qt.knowledge_goal)} as its knowledge goal.`, "",
     ...profileRows,
+    ...threatSection(spec),
     ...(qt.secondary_method ? [
       ...bodyField("Secondary design", qt.secondary_method, (item) => `${withoutTrailingPunctuation(humanValue(item))}.`),
       ...bodyField("Rescue rule", qt.rescue_rule),
@@ -476,7 +500,7 @@ function request(spec, { record = null } = {}) {
   const qt = spec.question_type ?? {}, inc = spec.increment ?? {}, sf = spec.success_and_failure ?? {}, mat = spec.materials ?? {}, con = spec.constraints ?? {};
   const domain = catalogs.domains[spec.domain];
   const def = domain ? resolveProfile(domain, qt.method_family) : null;
-  const profRows = def ? [...def.required, ...def.optional].filter((k) => spec.profile?.[k] != null && (Array.isArray(spec.profile[k]) ? spec.profile[k].length : s(String(spec.profile[k]))))
+  const profRows = def ? [...def.required, ...def.optional].filter((k) => k !== domain?.threat_field).filter((k) => spec.profile?.[k] != null && (Array.isArray(spec.profile[k]) ? spec.profile[k].length : s(String(spec.profile[k]))))
     .flatMap((k) => bodyField(k.replace(/_/g, " "), spec.profile[k])) : [];
   const md = head("RESEARCH QUESTION", spec, [
     ["Question", `${spec.id}@${spec.instance_version}`], ["Domain", spec.domain], ["Status", spec.status], ["Owner", spec.owner],
@@ -494,7 +518,7 @@ function request(spec, { record = null } = {}) {
     `**Uninteresting even if true:** ${show(sf.uninteresting_even_if_true)}`, "", `**Kill condition:** ${show(sf.kill_condition)}`, "",
     "### Constraints", "", ...bodyField("Safety or ethics", con.safety_or_ethics ?? []), ...bodyField("Sensitivity", con.sensitivity), ...bodyField("Independence limits", con.independence_limits),
     ...(con.standards_or_codes != null ? bodyField("Standards or codes", con.standards_or_codes) : []),
-    `### Method profile: ${show(spec.profile?.name)}`, "", ...profRows,
+    `### Method profile: ${show(spec.profile?.name)}`, "", ...profRows, ...threatSection(spec),
     "### Handoff", "", `**First check:** ${show(spec.handoff?.first_check)}`, "", `**Notes for next stage:** ${show(spec.handoff?.notes_for_next_stage)}`, "",
   ].join("\n");
   return { md, findings };
@@ -519,7 +543,7 @@ function dossier(spec, { record = null, history = [] } = {}) {
   ])];
   const constraintKeys = ["safety_or_ethics", "sensitivity", "independence_limits", ...(domain?.constraints_extra ?? [])];
   const hintKeys = ["ceiling", "build_risk", ...Object.keys(domain?.hints_extra ?? {})];
-  const profileKeys = [...new Set([...(def?.required ?? []), ...(def?.optional ?? [])])];
+  const profileKeys = [...new Set([...(def?.required ?? []), ...(def?.optional ?? [])])].filter((key) => key !== domain?.threat_field);
   const gist = claimGist(spec);
   const claimMark = spec.status === "frozen" && gist && gistRepresentable(gist) ? ` {#${claimLabel(spec)} gist="${gist}"}` : "";
   const closest = Array.isArray(inc.closest_work) ? inc.closest_work : [];
@@ -557,7 +581,7 @@ function dossier(spec, { record = null, history = [] } = {}) {
     "### Constraints", "", ...fields(con, constraintKeys),
     "### Ask", "", ...fields(ask, ["time", "people", "access", "hardware_or_compute"]),
     "### Hints", "", ...fields(hints, hintKeys),
-    `### Method profile: ${show(profile.name)}`, "", ...fields(profile, profileKeys),
+    `### Method profile: ${show(profile.name)}`, "", ...fields(profile, profileKeys), ...threatSection(spec),
     "### Handoff", "", ...fields(spec.handoff, ["first_check", "notes_for_next_stage"]),
     "### Decision Record", "",
     "| Date | Actor | Role | From | To | Reason | Run | Dissent |", "|---|---|---|---|---|---|---|---|",

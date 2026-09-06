@@ -86,6 +86,11 @@ profile:
   controls_and_repeats: ""
   main_artifact_or_confound: ""
   precommitted_checks: []
+  threats_to_validity:
+    - threat: ""         # baseline_fairness | workload_validity | measurement_error | configuration_drift | benchmark_overfitting
+      why_it_applies: ""
+      response: ""
+      check: null         # optional: one-based precommitted_checks index or exact check text
 
 handoff:
   first_check: ""

@@ -22,6 +22,11 @@ const profileFields = new Set();
 for (const domain of Object.values(catalogs.domains ?? {})) {
   for (const key of ["families", "goals", "safety"]) for (const value of domain[key] ?? []) values.add(value);
   for (const choices of Object.values(domain.hints_extra ?? {})) for (const value of choices) values.add(value);
+  for (const design of Object.keys(domain.designs ?? {})) values.add(design);
+  for (const standards of Object.values(domain.designs ?? {})) for (const threat of standards) values.add(threat);
+  for (const threat of domain.threats ?? []) values.add(threat);
+  if (domain.threat_field) profileFields.add(domain.threat_field);
+  if (domain.designs) profileFields.add("design");
   for (const profile of Object.values(domain.profiles ?? {})) {
     const definition = profile.$ref ? domain.profile_sets?.[profile.$ref] : profile;
     for (const field of [...(definition?.required ?? []), ...(definition?.optional ?? [])]) profileFields.add(field);

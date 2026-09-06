@@ -75,6 +75,7 @@ hints:
 
 profile:
   name: empirical_causal
+  design: regression_discontinuity
   treatment: "Contract value below the reservation cutoff"
   assignment_process: "Contract value is set by the buyer before tendering; the cutoff is fixed by statute"
   comparison: "Contracts just above the cutoff in the same procedure type and year"
@@ -85,6 +86,17 @@ profile:
   mechanism_outcomes: ["Number of bidders", "Share of bids from small firms"]
   precommitted_checks: ["Density test at cutoff", "Covariate continuity for buyer type and region", "Bandwidth sensitivity"]
   design_risk: "Unit prices are not comparable across goods categories; restrict to categories with a standard unit"
+  threats_to_identification:
+    - threat: manipulation_of_running_variable
+      why_it_applies: "Buyers choose contract values and may split or inflate contracts to place them below or above the statutory cutoff."
+      response: "Run the density test at cutoff before treating contracts on either side as locally comparable."
+    - threat: bandwidth_sensitivity
+      why_it_applies: "The local estimate can change when contracts farther from the statutory cutoff enter the comparison."
+      response: "Repeat the estimates over every pre-specified bandwidth."
+      check: 3
+    - threat: omitted_variables
+      why_it_applies: "Buyer type and region may change at the cutoff and independently affect both small-firm awards and unit prices."
+      response: "Run covariate continuity for buyer type and region before attributing either discontinuity to the reservation rule."
 
 handoff:
   first_check: "Run the density and covariate-continuity tests on the in-hand award data before requesting bidder lists."

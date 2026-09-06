@@ -1,9 +1,9 @@
-# QSPEC-ENG 1.10.2
+# QSPEC-ENG 1.11.0
 # Question Spec overlay for engineering
 
 **Spec-ID:** QSPEC-ENG
-**Schema-Version:** 1.10.2
-**Targets core:** QSPEC-CORE 1.10.2
+**Schema-Version:** 1.11.0
+**Targets core:** QSPEC-CORE 1.11.0
 **Date:** 2026-09-06
 **Status:** released
 **Instance header:** `spec_schema: QSPEC/1.0` and `domain: engineering`
@@ -84,11 +84,29 @@ constraints:
 
 `hints.ceiling` uses the core axis: `specialist`, `broad`, `unclear`. This overlay adds an optional `hints.scale`: `component`, `subsystem`, `system`. The two axes are not interchangeable.
 
+### 3.6 Threats to validity
+
+The optional threat catalog is `baseline_fairness`, `workload_validity`,
+`measurement_error`, `configuration_drift`, and `benchmark_overfitting`.
+
 ---
 
 ## 4. Method profiles
 
 Exactly one profile, inline under `profile`, with `name` equal to `method_family`. "Required" fields are checked by core invariant M11. The comparator field is the one core invariant M12 checks when `claim.comparative` is true.
+
+Every profile may also carry the optional structure below:
+
+```yaml
+profile:
+  threats_to_validity:
+    - threat: baseline_fairness
+      why_it_applies: ""
+      response: ""
+      check: null
+```
+
+The reviewer reads each response against the check it names and signs nothing that answers a threat with a claim. The core uses the same warning-only `threats-unaddressed` and `threat-without-check` rules as the social overlay. This overlay deliberately has no design catalog yet, so it supplies no standard-threat set for the first warning; the second warns unless `check` points to a one-based `precommitted_checks` index or exact text, or the response repeats four consecutive words from a pre-committed check or the kill condition.
 
 ### 4.1 `experimental`
 

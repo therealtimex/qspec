@@ -1,9 +1,9 @@
-# QSPEC-SS 1.10.2
+# QSPEC-SS 1.11.0
 # Question Spec overlay for the social sciences
 
 **Spec-ID:** QSPEC-SS
-**Schema-Version:** 1.10.2
-**Targets core:** QSPEC-CORE 1.10.2
+**Schema-Version:** 1.11.0
+**Targets core:** QSPEC-CORE 1.11.0
 **Date:** 2026-09-06
 **Status:** released
 **Instance header:** `spec_schema: QSPEC/1.0` and `domain: social`
@@ -70,6 +70,39 @@ An empty list means no category applies.
 
 `specialist`, `broad`, `unclear`. Same axis as the core.
 
+### 3.5 `profile.design`
+
+The optional causal-profile design catalog is:
+
+| Value | Identification design |
+|---|---|
+| `regression_discontinuity` | Regression discontinuity |
+| `difference_in_differences` | Difference in differences |
+| `event_study` | Event study |
+| `instrumental_variables` | Instrumental variables |
+| `matching` | Matching |
+| `randomized_experiment` | Randomized experiment |
+| `synthetic_control` | Synthetic control |
+| `bunching` | Bunching |
+| `other` | Another named identification design |
+
+### 3.6 Threats to identification
+
+The generic catalog is `selection`, `reverse_causality`, `omitted_variables`,
+`measurement_error`, `simultaneity`, `spillovers`, `attrition`, and
+`anticipation`. A design also brings the following standard threats:
+
+| Design | Standard threats |
+|---|---|
+| `regression_discontinuity` | `manipulation_of_running_variable`, `bandwidth_sensitivity` |
+| `difference_in_differences`, `event_study` | `parallel_trends`, `staggered_timing`, `anticipation` |
+| `instrumental_variables` | `exclusion_restriction`, `weak_instruments`, `monotonicity` |
+| `matching` | `selection_on_unobservables`, `common_support` |
+| `randomized_experiment` | `compliance`, `attrition`, `spillovers` |
+| `synthetic_control` | `donor_pool_validity`, `pre_period_fit` |
+| `bunching` | `density_manipulation`, `counterfactual_density` |
+| `other` | none implied; name the relevant generic threats |
+
 ---
 
 ## 4. Method profiles
@@ -81,6 +114,7 @@ Exactly one profile, inline under `profile`, with `name` equal to `method_family
 ```yaml
 profile:
   name: empirical_causal
+  design: regression_discontinuity
   treatment: ""
   assignment_process: ""
   comparison: ""
@@ -91,10 +125,19 @@ profile:
   mechanism_outcomes: []
   precommitted_checks: []
   design_risk: ""
+  threats_to_identification:
+    - threat: manipulation_of_running_variable
+      why_it_applies: ""
+      response: ""
+      check: null
 ```
 
-Required: all except `mechanism_outcomes` and `precommitted_checks`. Comparator field: `comparison`.
+Required: `treatment`, `assignment_process`, `comparison`, `estimand`, `identifying_assumption`, `main_alternative_explanation`, `primary_outcome`, and `design_risk`. `design`, `mechanism_outcomes`, `precommitted_checks`, and `threats_to_identification` are optional in 1.x. Comparator field: `comparison`.
 Judged (J7): the kill condition refers to a failed identifying or design check, not to an inconvenient estimate.
+
+`design` is one of `regression_discontinuity`, `difference_in_differences`, `event_study`, `instrumental_variables`, `matching`, `randomized_experiment`, `synthetic_control`, `bunching`, or `other`.
+
+The reviewer reads each threat's `response` against the check it names and signs nothing that answers a threat with a claim. `threats-unaddressed` warns when a named design's standard threats are absent. `threat-without-check` warns unless `check` points to a one-based `precommitted_checks` index or its exact text, or the response repeats at least four consecutive words from a pre-committed check or the kill condition. The tool establishes that a check was named, not that the response is credible.
 
 ### 4.2 `empirical_descriptive`
 

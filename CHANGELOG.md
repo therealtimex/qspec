@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.11.0 (2026-09-06)
+
+Causal questions can now name their identification design and put each threat,
+its setting-specific reason, and its runnable response in one committee-readable
+table. The fields are optional in 1.x; no M invariant, Decision Record, or Index
+shape changed, and 1.10.2 specs retain their previous findings.
+
+### Designs, threats, and warnings
+
+- The social-science catalog names nine identification designs, generic threats,
+  and the standard threats carried by each design. Natural-science and
+  engineering catalogs add their own smaller validity-threat vocabularies.
+- `threats-unaddressed` warns when a named design's standard threats are absent.
+  `threat-without-check` warns when a response neither points at a pre-committed
+  check nor repeats four consecutive words from a check or kill-condition
+  clause. Both are warnings; reviewers still judge whether an answer is credible.
+- Selection sheets, requests, and dossiers render threat entries as a labelled
+  table. A causal draft that names a design but no threats lists “Threats to
+  identification” under “Before submission.”
+- Domain templates carry one empty threat entry, and the causal example names a
+  regression-discontinuity design with its manipulation, bandwidth, and omitted-
+  variable threats answered by pre-committed checks.
+
 ## 1.10.2 (2026-09-06)
 
 Dossiers and Indexes now pass Paperforge verification without changing the

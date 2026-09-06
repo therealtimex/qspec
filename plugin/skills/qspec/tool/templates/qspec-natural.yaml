@@ -84,6 +84,11 @@ profile:
   replication_unit: ""
   main_artifact_or_confound: ""
   precommitted_checks: []
+  threats_to_validity:
+    - threat: ""         # confounding | instrument_drift | sampling | selection | measurement_error
+      why_it_applies: ""
+      response: ""
+      check: null         # optional: one-based precommitted_checks index or exact check text
 
 handoff:
   first_check: ""

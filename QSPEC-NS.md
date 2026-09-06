@@ -1,9 +1,9 @@
-# QSPEC-NS 1.10.2
+# QSPEC-NS 1.11.0
 # Question Spec overlay for the natural sciences
 
 **Spec-ID:** QSPEC-NS
-**Schema-Version:** 1.10.2
-**Targets core:** QSPEC-CORE 1.10.2
+**Schema-Version:** 1.11.0
+**Targets core:** QSPEC-CORE 1.11.0
 **Date:** 2026-09-06
 **Status:** released
 **Instance header:** `spec_schema: QSPEC/1.0` and `domain: natural`
@@ -66,11 +66,29 @@ Core invariant M13 requires `system`, `object`, and `scope` to be non-empty. `sy
 
 `specialist`, `broad`, `unclear`.
 
+### 3.5 Threats to validity
+
+The optional threat catalog is `confounding`, `instrument_drift`, `sampling`,
+`selection`, and `measurement_error`.
+
 ---
 
 ## 4. Method profiles
 
 Exactly one profile, inline under `profile`, with `name` equal to `method_family`. "Required" fields are checked by core invariant M11. The comparator field is the one core invariant M12 checks when `claim.comparative` is true.
+
+Every profile may also carry the optional structure below:
+
+```yaml
+profile:
+  threats_to_validity:
+    - threat: confounding
+      why_it_applies: ""
+      response: ""
+      check: null
+```
+
+The reviewer reads each response against the check it names and signs nothing that answers a threat with a claim. The core uses the same warning-only `threats-unaddressed` and `threat-without-check` rules as the social overlay. This overlay deliberately has no design catalog yet, so it supplies no standard-threat set for the first warning; the second warns unless `check` points to a one-based `precommitted_checks` index or exact text, or the response repeats four consecutive words from a pre-committed check or the kill condition.
 
 ### 4.1 `experimental`
 

@@ -74,6 +74,7 @@ hints:
 # Replace with the profile for your method_family. See QSPEC-SS.md section 4.
 profile:
   name: empirical_causal
+  design: ""             # regression_discontinuity | difference_in_differences | event_study | instrumental_variables | matching | randomized_experiment | synthetic_control | bunching | other
   treatment: ""
   assignment_process: ""
   comparison: ""
@@ -84,6 +85,11 @@ profile:
   mechanism_outcomes: []
   precommitted_checks: []
   design_risk: ""
+  threats_to_identification:
+    - threat: ""         # selection | reverse_causality | omitted_variables | measurement_error | simultaneity | spillovers | attrition | anticipation; design-specific values are in QSPEC-SS.md section 3.6
+      why_it_applies: ""
+      response: ""
+      check: null         # optional: one-based precommitted_checks index or exact check text
 
 handoff:
   first_check: ""
