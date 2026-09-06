@@ -65,6 +65,7 @@ const old = structuredClone(source);
 delete old.profile.design;
 delete old.profile.threats_to_identification;
 assert.deepEqual(threatFindings(old), []);
+assert.deepEqual(lintSpec(old).filter((finding) => finding.severity === "block"), []);
 assert.ok(resolveProfile(catalogs.domains.natural, "theoretical").optional.includes("threats_to_validity"));
 assert.ok(resolveProfile(catalogs.domains.engineering, "measurement").optional.includes("threats_to_validity"));
 const natural = yaml.load(fs.readFileSync("examples/ns-experimental-apical-oxygen.yaml", "utf8"), { schema: yaml.CORE_SCHEMA });
@@ -82,6 +83,10 @@ const { lintSpec } = require("./lib/lint.js");
 const { dossier, sheet } = require("./lib/render.js");
 const source = yaml.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml", "utf8"), { schema: yaml.CORE_SCHEMA });
 const materialFindings = (spec) => lintSpec(spec).filter((finding) => finding.rule.startsWith("material-") || finding.rule === "horizon-without-access");
+
+const withoutObtainable = structuredClone(source);
+delete withoutObtainable.materials.obtainable;
+assert.deepEqual(lintSpec(withoutObtainable).filter((finding) => finding.severity === "block"), []);
 
 assert.deepEqual(materialFindings(source).map((finding) => finding.rule), ["material-unlocated", "horizon-without-access"]);
 const located = structuredClone(source);
@@ -113,13 +118,22 @@ mixedBlocking.materials.blocking = [
 ];
 assert.equal(lintSpec(mixedBlocking).filter((finding) => finding.rule === "M9").length, 0);
 for (const rendered of [sheet(mixedBlocking).md, dossier(mixedBlocking).md]) {
-  assert.ok(rendered.includes("A legacy string material"));
+  const legacyLine = rendered.split("\n").find((line) => line.includes("A legacy string material"));
+  assert.ok(legacyLine);
+  assert.ok(!legacyLine.includes("Expected horizon: (not stated)."));
   assert.ok(rendered.includes("An archive series"));
   assert.ok(rendered.includes("Where: Archive series AS-1."));
   assert.ok(rendered.includes("How obtained: Open download."));
   assert.ok(rendered.includes("Coverage: 1990–2020."));
   assert.ok(rendered.includes("Evidence: Archive catalogue [@q101-work-2]."));
   assert.ok(!rendered.includes("[object Object]"));
+}
+const missingObtainableHorizon = structuredClone(mixedBlocking);
+missingObtainableHorizon.materials.obtainable[0].horizon = "";
+for (const rendered of [sheet(missingObtainableHorizon).md, dossier(missingObtainableHorizon).md]) {
+  const obtainableLine = rendered.split("\n").find((line) => line.includes(missingObtainableHorizon.materials.obtainable[0].item));
+  assert.ok(obtainableLine);
+  assert.ok(obtainableLine.includes("Expected horizon: (not stated)."));
 }
 const locatedSheet = sheet(located);
 assert.ok(locatedSheet.md.includes("Where: Illustrative procurement data-request portal."));

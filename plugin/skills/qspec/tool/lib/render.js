@@ -361,7 +361,7 @@ function materialLine({ material, kind }) {
   add("How obtained", material.access, humanValue);
   add("Coverage", material.coverage);
   add("Evidence", material.evidence);
-  parts.push(`Expected horizon: ${withoutTrailingPunctuation(material.horizon)}.`);
+  if (kind === "obtainable" || material.horizon != null) parts.push(`Expected horizon: ${withoutTrailingPunctuation(material.horizon)}.`);
   if (kind === "obtainable" || material.probability != null) add("Likelihood", material.probability, humanValue);
   return `- ${parts.join(" ")}`;
 }

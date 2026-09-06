@@ -17,7 +17,7 @@ Every material still needed can say where it is, how it is obtained, what it cov
 | `QSPEC-CORE.md` | The shared core: object model, life cycle, roles, fields, invariants, Decision Record, Selection Sheet, Index, downstream contact points, tooling. Read this first. |
 | `QSPEC-SS.md`, `QSPEC-NS.md`, `QSPEC-ENG.md` | Domain overlays for social sciences, natural sciences, and engineering: claim fields, catalogs, method profiles. Software is in scope for engineering. |
 | `schema/catalogs.json` | Machine-readable catalogs, profile field lists, and the English display and sentence-form labels used in committee documents. The single source of truth for the tool. |
-| `bin/qspec` | The extensionless tool entry point. `qspec help` lists commands; `bin/qspec.js` remains available for Windows and explicit Node invocation. No dependencies; js-yaml is vendored under `lib/vendor/`. |
+| `bin/qspec` | The extensionless tool entry point. `qspec help` lists commands; `bin/qspec.js` remains available for Windows and explicit Node invocation. The two entry files stay byte-identical, guarded by `scripts/test.sh`. No dependencies; js-yaml is vendored under `lib/vendor/`. |
 | `lib/` | `lint` (M invariants and project-scoped citation findings), `bib` (read-only BibTeX keys), `record` (fingerprint, transitions, acts), `render` (sheet, index, dossier, request), `paper` (gist check), `scaffold` (init, new, doctor), `runs` (run records and diffs), `friction` (report notes). |
 | `templates/` | Empty instances per domain, Decision Record and Index templates, and `documents.qspec.toml` for a Paperforge document corpus. |
 | `.qspec/scaffold.json` | In a project `init` prepared: what wrote it, and a fingerprint of the guidance so `doctor` can say when it has gone stale. |
