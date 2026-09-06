@@ -20,7 +20,7 @@ qspec render --out documents
 /path/to/paperforge/bin/paperforge all --draft --config documents/documents.toml
 ```
 
-The template declares `qspec-sheet` and `qspec-index` as unpublished brief layouts and `qspec-dossier` as a report-derived layout. The sheet and dossier types carry `bibliography = "references.bib"` and `citation_style = "apa"`; both request Typst PDF editions, and dossiers also request DOCX. Every document says `publish = false`. The dossier's head reads `# Process record (internal)`, so its rendered cover identifies its role even though Paperforge builds it. In one sentence: the Selection Sheet goes to a committee, while the dossier stays inside the process. `all --draft` runs lint, builds and verifies all declared documents, stops before publication, and cannot publish.
+The template declares `qspec-sheet` and `qspec-index` as unpublished brief layouts and `qspec-dossier` as a report-derived layout. The dossier type sets `narrow_layout = false`: Paperforge still checks 768 px and wider and reports `layout: wide only`, while sheets and the Index retain the complete phone-width probe. This preserves attached notes byte-for-byte even when they contain unbreakable fingerprints or command lines. The sheet and dossier types carry `bibliography = "references.bib"` and `citation_style = "apa"`; both request Typst PDF editions, and dossiers also request DOCX. Every document says `publish = false`. The dossier's head reads `# Process record (internal)`, so its rendered cover identifies its role even though Paperforge builds it. In one sentence: the Selection Sheet goes to a committee, while the dossier stays inside the process. `all --draft` runs lint, builds and verifies all declared documents, stops before publication, and cannot publish.
 
 `render` writes `dossiers/<id>.md` for every parseable spec, `sheets/<id>.md` for `selectable`, `deferred`, and `frozen` specs, `index/<round>.md` for every Index, and `requests/<id>.md` for frozen specs. `render --draft` instead writes a preview for every state under `drafts/`, with an unsigned warning and the empty fields listed by label; it never mixes those previews into `sheets/`. When the project has `references.bib`, it is copied to `documents/references.bib` and beside rendered dossiers and committee sheets, where Paperforge resolves the type-level bibliography. Existing unrelated files under `documents/` are untouched.
 
@@ -36,6 +36,7 @@ publish = false
 
 [types.qspec-dossier]
 extends = "report"
+narrow_layout = false
 bibliography = "references.bib"
 citation_style = "apa"
 pdf = "typst"
