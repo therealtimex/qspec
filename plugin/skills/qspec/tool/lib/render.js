@@ -27,6 +27,7 @@ const humanSentence = (v) => {
   const token = s(v == null ? null : String(v));
   return token ? valueSentence(token) ?? words(token) : hole;
 };
+const sentenceStart = (v) => humanSentence(v).replace(/^./u, (c) => c.toLocaleUpperCase());
 const profileValue = (v, field, definition) => {
   // Profile prose belongs to its author. Only enum values declared by this
   // exact field are catalog vocabulary that the committee renderer may label.
@@ -274,7 +275,7 @@ function draftHoles(spec, definition) {
   requireValue("Claim", c.one_sentence);
   requireValue("Why it matters", c.why_it_matters);
   if (typeof c.comparative !== "boolean") holes.push("Whether the claim is comparative");
-  requireValue("Design", qt.method_family);
+  requireValue("Method family", qt.method_family);
   requireValue("Knowledge goal", qt.knowledge_goal);
   if (qt.secondary_method != null) requireValue("Rescue rule", qt.rescue_rule);
   requireValue("What this study would add", inc.increment_if_this_works);
@@ -317,6 +318,9 @@ function draftHoles(spec, definition) {
     requireValue(`Expected horizon for material ${i + 1}`, obtainable?.horizon);
     requireValue(`Likelihood for material ${i + 1}`, obtainable?.probability);
   }
+  for (const entry of materialEntries(mat).filter(({ material }) => !s(material.locator) && !s(material.evidence))) {
+    holes.push(`Source for: ${show(entry.material.item)}`);
+  }
   const profileFields = new Set([
     ...(definition?.required ?? []),
     ...Object.keys(definition?.enums ?? {}),
@@ -338,6 +342,35 @@ function draftHoles(spec, definition) {
   return [...new Set(holes)];
 }
 
+function materialEntries(materials) {
+  const blocking = Array.isArray(materials?.blocking) ? materials.blocking : [];
+  const obtainable = Array.isArray(materials?.obtainable) ? materials.obtainable : [];
+  return [
+    ...blocking.map((entry) => ({ material: typeof entry === "string" ? { item: entry } : (entry ?? {}), kind: "blocking" })),
+    ...obtainable.map((entry) => ({ material: entry ?? {}, kind: "obtainable" })),
+  ];
+}
+
+function materialLine({ material, kind }) {
+  const parts = [`${withoutTrailingPunctuation(material.item)}.`];
+  const add = (label, raw, render = show) => {
+    if (s(raw == null ? null : String(raw))) parts.push(`${label}: ${withoutTrailingPunctuation(render(raw))}.`);
+  };
+  add("Source", material.source);
+  add("Where", material.locator);
+  add("How obtained", material.access, humanValue);
+  add("Coverage", material.coverage);
+  add("Evidence", material.evidence);
+  parts.push(`Expected horizon: ${withoutTrailingPunctuation(material.horizon)}.`);
+  if (kind === "obtainable" || material.probability != null) add("Likelihood", material.probability, humanValue);
+  return `- ${parts.join(" ")}`;
+}
+
+function materialSection(materials) {
+  const entries = materialEntries(materials);
+  return entries.length ? entries.map(materialLine) : ["- No material still needed is recorded."];
+}
+
 // The selection sheet: one page, fixed order, for a decision-maker.
 function sheet(spec, { record = null, index = null, draft = false } = {}) {
   const findings = [];
@@ -350,6 +383,10 @@ function sheet(spec, { record = null, index = null, draft = false } = {}) {
   if (index && !entry) f("warn", "sheet-index", `index has no entry for ${spec.id}`);
   const ask = spec.ask ?? {};
   if (!Object.values(ask).some(s)) f("manual", "sheet-ask", "the ask (time, people, access, hardware_or_compute) is empty", "fill `ask:` in the spec");
+  const unlocated = materialEntries(mat).filter(({ material }) => !s(material.locator) && !s(material.evidence));
+  if (draft && unlocated.length) {
+    f("manual", "sheet-materials", `materials still needed have no locator or evidence: ${unlocated.map(({ material }) => show(material.item)).join("; ")}`, "locate each source and record `locator` or `evidence` in the spec");
+  }
   const dissent = (record?.entries ?? []).flatMap((e) => (e.dissent ?? []).filter((d) => d.unresolved));
   const definition = profileDefinition(spec);
   const structuredProfileFields = new Set(["design", domain?.threat_field]);
@@ -361,15 +398,13 @@ function sheet(spec, { record = null, index = null, draft = false } = {}) {
       spec.profile?.[field],
       (item) => profileValue(item, field, definition),
     )) : [];
-  const obtainable = Array.isArray(mat.obtainable) ? mat.obtainable : [];
   const materialLines = [
     "**In hand:**", "", list(mat.in_hand), "", "**Still needed:**", "",
-    ...(Array.isArray(mat.blocking) && mat.blocking.length ? mat.blocking.map((item) => `- ${withoutTrailingPunctuation(item)}.`) : ["- No blocking material is recorded."]),
-    ...obtainable.map((item) => `- ${withoutTrailingPunctuation(item.item)}. Source: ${withoutTrailingPunctuation(item.source)}. Expected horizon: ${withoutTrailingPunctuation(item.horizon)}. Likelihood: ${withoutTrailingPunctuation(humanSentence(item.probability))}.`),
+    ...materialSection(mat),
     "", `**Access risk:** ${withoutTrailingPunctuation(humanValue(mat.access_risk))}.`, "",
   ];
   const safety = Array.isArray(con.safety_or_ethics) && con.safety_or_ethics.length
-    ? con.safety_or_ethics.map((token) => `${withoutTrailingPunctuation(humanSentence(token))}.`).join(" ")
+    ? con.safety_or_ethics.map((token) => `${withoutTrailingPunctuation(sentenceStart(token))}.`).join(" ")
     : "No safety or ethics constraint is recorded.";
   const headRows = [
     ["Question", `${spec.id}, version ${spec.instance_version}`],
@@ -520,8 +555,7 @@ function request(spec, { record = null } = {}) {
     "### Increment over closest work", "",
     ...(inc.closest_work ?? []).flatMap((w) => [`- **${w.cite}**`, `  - Settled: ${w.settled}`, `  - Still open: ${w.still_open}`]), "",
     `**Increment if this works:** ${show(inc.increment_if_this_works)}`, "", `**Vehicle is not the contribution:** ${show(inc.vehicle_is_not_the_contribution)}`, "",
-    "### Materials", "", "**In hand**", "", list(mat.in_hand), "", "**Blocking**", "", list(mat.blocking), "", "**Obtainable**", "",
-    (mat.obtainable ?? []).length ? mat.obtainable.map((o) => `- ${o.item} (${o.source}; ${o.horizon}; probability ${o.probability})`).join("\n") : "- none", "", `**Access risk:** ${show(mat.access_risk)}`, "",
+    "### Materials", "", "**In hand**", "", list(mat.in_hand), "", "**Still needed**", "", ...materialSection(mat), "", `**Access risk:** ${show(mat.access_risk)}`, "",
     "### Success and failure", "", `**Support would look like:** ${show(sf.support_would_look_like)}`, "", `**Failure would look like:** ${show(sf.failure_would_look_like)}`, "",
     `**Uninteresting even if true:** ${show(sf.uninteresting_even_if_true)}`, "", `**Kill condition:** ${show(sf.kill_condition)}`, "",
     "### Constraints", "", ...bodyField("Safety or ethics", con.safety_or_ethics ?? []), ...bodyField("Sensitivity", con.sensitivity), ...bodyField("Independence limits", con.independence_limits),
@@ -558,14 +592,25 @@ function dossier(spec, { record = null, history = [] } = {}) {
   const decisions = Array.isArray(record?.entries) ? record.entries : [];
   const runRows = history.map((run) => {
     const files = run.record?.files ?? [];
-    const blocks = files.flatMap((f) => f.findings ?? []).filter((f) => f.severity === "block").length;
     const verdict = files.some((f) => f.verdict === "block") ? "block" : "ok";
-    return `| ${tableCell(run.name)} | ${tableCell(run.record?.label ?? "-")} | ${tableCell(run.record?.command)} | ${verdict} | ${blocks} | ${(run.record?.notes ?? []).length} |`;
+    return `| ${tableCell(run.name)} | ${tableCell(run.record?.command)} | ${verdict} | ${(run.notes ?? []).length} |`;
   });
   const decisionRows = decisions.map((e) => {
-    const dissent = (e.dissent ?? []).map((d) => `${d.reviewer}: ${d.point}${d.unresolved ? " (unresolved)" : ""}`).join("; ") || "none";
-    return `| ${tableCell(e.date)} | ${tableCell(e.actor)} | ${tableCell(e.role)} | ${tableCell(e.from)} | ${tableCell(e.to)} | ${tableCell(e.reason)} | ${tableCell(e.run ?? "-")} | ${tableCell(dissent)} |`;
+    return `| ${tableCell(e.date)} | ${tableCell(`${e.actor} (${e.role})`)} | ${tableCell(`${e.from} → ${e.to}`)} | ${tableCell(e.run ?? "-")} |`;
   });
+  const decisionDetails = decisions.flatMap((e) => [
+    `**Reason — ${show(e.date)}, ${show(e.actor)}:** ${show(e.reason)}`,
+    "",
+    ...((e.dissent ?? []).flatMap((d) => [
+      `**Dissent — ${show(d.reviewer)}:** ${show(d.point)}${d.unresolved ? " (unresolved)" : ""}`,
+      "",
+    ])),
+  ]);
+  const profileRows = profileKeys.flatMap((key) => bodyField(
+    profileFieldLabel(key) ?? words(key),
+    profile[key],
+    (item) => key === "design" ? humanValue(item) : profileValue(item, key, def),
+  ));
   const mdParts = [
     head("Process record (internal)", spec, [
       ["Question", `${spec.id}@${spec.instance_version}`], ["Status", show(spec.status)],
@@ -579,24 +624,22 @@ function dossier(spec, { record = null, history = [] } = {}) {
     "| Closest work | Settled | Still open |", "|---|---|---|",
     ...(closest.length ? closest.map((w) => `| ${tableCell(cited(w))} | ${tableCell(w.settled)} | ${tableCell(w.still_open)} |`) : [`| ${hole} | ${hole} | ${hole} |`]), "",
     ...fields(inc, ["increment_if_this_works", "vehicle_is_not_the_contribution"]),
-    "### Materials", "", ...fields(mat, ["in_hand", "blocking"]),
-    "**Obtainable:**", "",
-    ...(Array.isArray(mat.obtainable) && mat.obtainable.length
-      ? ["| Item | Source | Horizon | Probability |", "|---|---|---|---|", ...mat.obtainable.map((o) => `| ${tableCell(o.item)} | ${tableCell(o.source)} | ${tableCell(o.horizon)} | ${tableCell(o.probability)} |`), ""]
-      : ["- none", ""]),
+    "### Materials", "", ...fields(mat, ["in_hand"]),
+    "**Still needed:**", "", ...materialSection(mat), "",
     ...fields(mat, ["access_risk"]),
     "### Success and failure", "", ...fields(sf, ["support_would_look_like", "failure_would_look_like", "uninteresting_even_if_true", "kill_condition"]),
     "### Constraints", "", ...fields(con, constraintKeys),
     "### Ask", "", ...fields(ask, ["time", "people", "access", "hardware_or_compute"]),
     "### Hints", "", ...fields(hints, hintKeys),
-    `### Method profile: ${show(profile.name)}`, "", ...fields(profile, profileKeys), ...threatSection(spec),
+    `### Method profile: ${show(profile.name)}`, "", ...profileRows, ...threatSection(spec),
     "### Handoff", "", ...fields(spec.handoff, ["first_check", "notes_for_next_stage"]),
     "### Decision Record", "",
-    "| Date | Actor | Role | From | To | Reason | Run | Dissent |", "|---|---|---|---|---|---|---|---|",
-    ...(decisionRows.length ? decisionRows : [`| ${hole} | ${hole} | ${hole} | ${hole} | ${hole} | ${hole} | ${hole} | none |`]), "",
+    "| Date | Actor | Act | Run |", "|---|---|---|---|",
+    ...(decisionRows.length ? decisionRows : [`| ${hole} | ${hole} | ${hole} | ${hole} |`]), "",
+    ...decisionDetails,
     "### Run timeline", "",
-    "| Name | Label | Command | Verdict | Blocks | Notes |", "|---|---|---|---|---|---|",
-    ...(runRows.length ? runRows : [`| ${hole} | ${hole} | ${hole} | ${hole} | 0 | 0 |`]), "",
+    "| Run | Command | Verdict | Notes |", "|---|---|---|---|",
+    ...(runRows.length ? runRows : [`| ${hole} | ${hole} | ${hole} | 0 |`]), "",
     "### Attached notes", "",
   ];
   let md = mdParts.join("\n");

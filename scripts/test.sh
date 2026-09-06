@@ -1,7 +1,8 @@
 #!/bin/sh
 # Every command, every example, every negative. Exit non-zero on the first surprise.
 set -e
-Q="node bin/qspec.js"
+Q="bin/qspec"
+test -x bin/qspec && cmp -s bin/qspec bin/qspec.js && bin/qspec help >/dev/null || { echo "UNEXPECTED: the extensionless qspec entry point is missing, stale, or not executable"; exit 1; }
 echo "== specs pass, records agree, signatures current"
 $Q lint examples/*.yaml
 if $Q lint examples/*.yaml | grep -q 'cite-'; then echo "UNEXPECTED: a spec outside a project produced a cite-* finding"; exit 1; fi
@@ -63,7 +64,7 @@ assert.match(danglingFinding.message, /check 9 points at no profile\.precommitte
 const old = structuredClone(source);
 delete old.profile.design;
 delete old.profile.threats_to_identification;
-assert.deepEqual(lintSpec(old), []);
+assert.deepEqual(threatFindings(old), []);
 assert.ok(resolveProfile(catalogs.domains.natural, "theoretical").optional.includes("threats_to_validity"));
 assert.ok(resolveProfile(catalogs.domains.engineering, "measurement").optional.includes("threats_to_validity"));
 const natural = yaml.load(fs.readFileSync("examples/ns-experimental-apical-oxygen.yaml", "utf8"), { schema: yaml.CORE_SCHEMA });
@@ -71,6 +72,64 @@ natural.profile.threats_to_validity = [{ threat: "confounding", why_it_applies: 
 assert.equal(threatFindings(natural).filter((finding) => finding.rule === "threat-without-check").length, 1);
 natural.profile.threats_to_validity[0].check = "Hall-number doping check per film";
 assert.deepEqual(threatFindings(natural), []);
+NODE
+echo "== material provenance is optional, warned on, checked, and rendered"
+node - <<'NODE'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const yaml = require("./lib/vendor/js-yaml/js-yaml.js");
+const { lintSpec } = require("./lib/lint.js");
+const { dossier, sheet } = require("./lib/render.js");
+const source = yaml.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml", "utf8"), { schema: yaml.CORE_SCHEMA });
+const materialFindings = (spec) => lintSpec(spec).filter((finding) => finding.rule.startsWith("material-") || finding.rule === "horizon-without-access");
+
+assert.deepEqual(materialFindings(source).map((finding) => finding.rule), ["material-unlocated", "horizon-without-access"]);
+const located = structuredClone(source);
+Object.assign(located.materials.obtainable[0], {
+  access: "on_request",
+  locator: "Illustrative procurement data-request portal",
+  coverage: "Bidder lists for contracts in the cutoff band over five fiscal years",
+  evidence: "The portal's illustrative data dictionary lists bidder records [@q101-work-1]",
+});
+assert.deepEqual(materialFindings(located), []);
+const unlocated = structuredClone(located);
+delete unlocated.materials.obtainable[0].locator;
+delete unlocated.materials.obtainable[0].evidence;
+assert.deepEqual(materialFindings(unlocated).map((finding) => finding.rule), ["material-unlocated"]);
+const unknown = structuredClone(located);
+unknown.materials.obtainable[0].access = "unknown";
+assert.deepEqual(materialFindings(unknown).map((finding) => finding.rule), ["horizon-without-access"]);
+const known = structuredClone(located);
+known.materials.obtainable[0].access = "open_download";
+assert.deepEqual(materialFindings(known), []);
+const bad = structuredClone(located);
+bad.materials.obtainable[0].access = "telepathy";
+assert.ok(lintSpec(bad).some((finding) => finding.rule === "M9" && finding.message.includes(".access must be one of")));
+
+const mixedBlocking = structuredClone(located);
+mixedBlocking.materials.blocking = [
+  "A legacy string material",
+  { item: "An archive series", access: "open_download", locator: "Archive series AS-1", coverage: "1990–2020", evidence: "Archive catalogue [@q101-work-2]" },
+];
+assert.equal(lintSpec(mixedBlocking).filter((finding) => finding.rule === "M9").length, 0);
+for (const rendered of [sheet(mixedBlocking).md, dossier(mixedBlocking).md]) {
+  assert.ok(rendered.includes("A legacy string material"));
+  assert.ok(rendered.includes("An archive series"));
+  assert.ok(rendered.includes("Where: Archive series AS-1."));
+  assert.ok(rendered.includes("How obtained: Open download."));
+  assert.ok(rendered.includes("Coverage: 1990–2020."));
+  assert.ok(rendered.includes("Evidence: Archive catalogue [@q101-work-2]."));
+  assert.ok(!rendered.includes("[object Object]"));
+}
+const locatedSheet = sheet(located);
+assert.ok(locatedSheet.md.includes("Where: Illustrative procurement data-request portal."));
+assert.ok(locatedSheet.md.includes("How obtained: Available on request."));
+assert.ok(locatedSheet.md.includes("Coverage: Bidder lists for contracts in the cutoff band over five fiscal years."));
+assert.ok(locatedSheet.md.includes("Evidence: The portal's illustrative data dictionary lists bidder records [@q101-work-1]."));
+assert.deepEqual(locatedSheet.findings, []);
+
+const legacy = yaml.load(fs.readFileSync("examples/ns-theoretical-mean-field-threshold.yaml", "utf8"), { schema: yaml.CORE_SCHEMA });
+assert.deepEqual(materialFindings(legacy), []);
 NODE
 echo "== index checks and renders"
 $Q index examples/index-round-2026-09.yaml --specs examples --out /tmp/qspec-index.md
@@ -81,11 +140,11 @@ node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/j
 echo "== sheet renders for a selectable spec"
 $Q sheet examples/ss-causal-procurement-cutoff.yaml --index examples/index-round-2026-09.yaml --out /tmp/qspec-sheet.md
 grep -q '\[@q101-work-1\]' /tmp/qspec-sheet.md || { echo "UNEXPECTED: a keyed closest work did not reach the sheet"; exit 1; }
-grep -q 'The design is regression discontinuity, with effect estimation as its knowledge goal' /tmp/qspec-sheet.md && grep -q 'handles sensitive data' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not use sentence-form catalog labels for its design and constraints"; exit 1; }
+grep -q 'The design is regression discontinuity, with effect estimation as its knowledge goal' /tmp/qspec-sheet.md && grep -q 'Handles sensitive data\.' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not use sentence-form catalog labels for its design and constraints"; exit 1; }
 grep -q '\*\*Intervention or exposure:\*\*' /tmp/qspec-sheet.md && grep -q '\*\*How units come to be treated:\*\*' /tmp/qspec-sheet.md && grep -q '\*\*Pre-committed checks:\*\*' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not use catalog labels for profile fields"; exit 1; }
 grep -q '^#### Threats to identification and how the design answers them$' /tmp/qspec-sheet.md && grep -q '^| Threat | Why it applies here | Response |$' /tmp/qspec-sheet.md && grep -q '| Manipulation of the running variable |' /tmp/qspec-sheet.md && grep -q '| Bandwidth sensitivity |' /tmp/qspec-sheet.md && grep -q '| Omitted variables |' /tmp/qspec-sheet.md || { echo "UNEXPECTED: the sheet did not render the labelled threats table"; exit 1; }
 node -e 'const a=require("node:assert/strict"),fs=require("node:fs"),r=require("./lib/render.js"); a.deepEqual(r.committeeClean(fs.readFileSync("/tmp/qspec-sheet.md","utf8")),[])'
-node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}),d=r.dossier(s).md; a.ok(d.includes("#### Threats to identification and how the design answers them")); a.ok(d.includes("| Manipulation of the running variable |")); a.ok(!d.includes("[object Object]"))'
+node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}),d=r.dossier(s).md; a.ok(d.includes("#### Threats to identification and how the design answers them")); a.ok(d.includes("| Manipulation of the running variable |")); a.ok(d.includes("**Identification design:** Regression discontinuity")); a.ok(d.includes("| Date | Actor | Act | Run |")); a.ok(d.includes("| Run | Command | Verdict | Notes |")); a.ok(!d.includes("| Date | Actor | Role | From | To |")); a.ok(!d.includes("| Name | Label | Command | Verdict | Blocks | Notes |")); a.ok(!d.includes("[object Object]"))'
 node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); s.claim.object += "."; s.claim.scope += "."; s.increment.closest_work[0].cite += "."; const md=r.sheet(s).md; a.ok(!md.includes(`${s.claim.object}.`)); a.ok(!md.includes(`${s.claim.scope}.`)); a.ok(md.includes(s.claim.object)); a.ok(md.includes(s.claim.scope)); a.ok(!md.includes(`${s.increment.closest_work[0].cite} [@${s.increment.closest_work[0].key}].`))'
 node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); delete s.increment.closest_work[0].key; const sheet=r.sheet(s).md,dossier=r.dossier(s).md; a.ok(sheet.includes(s.increment.closest_work[0].cite)); a.ok(dossier.includes(s.increment.closest_work[0].cite)); a.ok(!sheet.includes("[@q101-work-1]")); a.ok(!dossier.includes("[@q101-work-1]")); a.ok(sheet.includes("[@q101-work-2]")); a.ok(dossier.includes("[@q101-work-2]"))'
 echo "== profile labels apply only to declared enums; free prose stays visible to committee-clean"
@@ -104,6 +163,9 @@ cp templates/qspec-social.yaml /tmp/qspec-draft-source.yaml
 node -e 'const fs=require("node:fs"),p=process.argv[1]; let text=fs.readFileSync(p,"utf8"); text=text.replace("method_family: \"\"", "method_family: empirical_causal"); fs.writeFileSync(p,text)' /tmp/qspec-draft-source.yaml
 $Q sheet /tmp/qspec-draft-source.yaml --draft --out /tmp/qspec-draft-sheet.md >/dev/null
 grep -q '^\*\*Draft:\*\* unsigned, not for submission$' /tmp/qspec-draft-sheet.md && grep -q '^### Before submission$' /tmp/qspec-draft-sheet.md && grep -q '^- Intervention or exposure$' /tmp/qspec-draft-sheet.md || { echo "UNEXPECTED: draft sheet did not carry its warning and labelled hole list"; exit 1; }
+$Q sheet templates/qspec-social.yaml --draft --out /tmp/qspec-empty-method-sheet.md >/dev/null
+grep -q '^- Method family$' /tmp/qspec-empty-method-sheet.md || { echo "UNEXPECTED: a social draft did not ask for Method family"; exit 1; }
+node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); delete s.materials.obtainable[0].locator; delete s.materials.obtainable[0].evidence; const out=r.sheet(s,{draft:true}); a.ok(out.md.includes("- Source for: Bidder lists per contract, not only winners")); a.ok(out.findings.some((f)=>f.severity==="manual"&&f.rule==="sheet-materials"&&f.message.includes("Bidder lists per contract")))'
 node - <<'NODE'
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -142,6 +204,8 @@ echo "== the catalog and the overlays state the same J7 rules"
 node scripts/check-judged.mjs
 echo "== every committee value and profile field has a catalog label"
 node scripts/check-catalog-labels.mjs
+node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalogs.json","utf8")); delete c.labels.values.open_download; fs.writeFileSync("/tmp/qspec-catalogs-missing-label.json",JSON.stringify(c))'
+if node scripts/check-catalog-labels.mjs /tmp/qspec-catalogs-missing-label.json >/dev/null 2>&1; then echo "UNEXPECTED: an access value without a label passed"; exit 1; fi
 node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalogs.json","utf8")); delete c.labels.values.empirical_causal; fs.writeFileSync("/tmp/qspec-catalogs-missing-label.json",JSON.stringify(c))'
 if node scripts/check-catalog-labels.mjs /tmp/qspec-catalogs-missing-label.json >/dev/null 2>&1; then echo "UNEXPECTED: a fixture catalog with a missing emitted-value label passed"; exit 1; fi
 node -e 'const fs=require("node:fs"),c=JSON.parse(fs.readFileSync("schema/catalogs.json","utf8")); delete c.labels.values.regression_discontinuity; fs.writeFileSync("/tmp/qspec-catalogs-missing-label.json",JSON.stringify(c))'
@@ -188,13 +252,19 @@ $Q index /tmp/qspec-acts/index-round-2026-09.yaml --specs /tmp/qspec-acts >/dev/
 echo "== init prepares a project that passes its own checks"
 ROOT="$PWD"
 rm -rf /tmp/qspec-init
-$Q init --into /tmp/qspec-init --title "Init Probe" --round 2026-09 --decision-maker "Group lead" --domain social --no-git >/dev/null
+INIT_OUT=$($Q init --into /tmp/qspec-init --title "Init Probe" --round 2026-09 --decision-maker "Group lead" --domain social --no-git)
+printf '%s\n' "$INIT_OUT" | grep -q 'next: .*/bin/qspec new' && ! printf '%s\n' "$INIT_OUT" | grep -q 'qspec\.js' || { echo "UNEXPECTED: init did not hint the extensionless entry point"; exit 1; }
 test -f /tmp/qspec-init/AGENTS.md && test -L /tmp/qspec-init/CLAUDE.md && test -f /tmp/qspec-init/.qspec/scaffold.json && test -f /tmp/qspec-init/specs/index-2026-09.yaml && test -f /tmp/qspec-init/references.bib || { echo "UNEXPECTED: init did not write the project"; exit 1; }
+node -e 'const a=require("node:assert/strict"),fs=require("node:fs"),p=JSON.parse(fs.readFileSync("/tmp/qspec-init/.qspec/scaffold.json","utf8")); a.match(p.invocation,/\/bin\/qspec$/); a.ok(!fs.readFileSync("/tmp/qspec-init/AGENTS.md","utf8").includes("qspec.js"))'
+rm -rf /tmp/qspec-init-explicit
+EXPLICIT_OUT=$(node "$ROOT/bin/qspec.js" init --into /tmp/qspec-init-explicit --title "Explicit Node Probe" --round 2026-09 --no-git)
+printf '%s\n' "$EXPLICIT_OUT" | grep -q 'next: .*/bin/qspec new' && ! printf '%s\n' "$EXPLICIT_OUT" | grep -q 'next: .*qspec\.js' || { echo "UNEXPECTED: explicit Node init did not recommend the extensionless entry point"; exit 1; }
+node -e 'const a=require("node:assert/strict"),fs=require("node:fs"),p=JSON.parse(fs.readFileSync("/tmp/qspec-init-explicit/.qspec/scaffold.json","utf8")); a.match(p.invocation,/\/bin\/qspec\.js$/); a.ok(!fs.readFileSync("/tmp/qspec-init-explicit/AGENTS.md","utf8").includes("qspec.js"))'
 test ! -e /tmp/qspec-init/.git || { echo "UNEXPECTED: --no-git initialised a repository"; exit 1; }
 $Q doctor --project /tmp/qspec-init >/dev/null
 $Q doctor --project /tmp/qspec-init | grep -q 'bibliography.*0 unresolved, 0 unkeyed' || { echo "UNEXPECTED: doctor did not report the empty bibliography"; exit 1; }
 $Q index /tmp/qspec-init/specs/index-2026-09.yaml --specs /tmp/qspec-init/specs --out /tmp/qspec-init-round.md >/dev/null
-(cd /tmp/qspec-init/specs && node "$ROOT/bin/qspec.js" doctor | grep -q "scaffold   ok") || { echo "UNEXPECTED: doctor did not find the project from inside it"; exit 1; }
+(cd /tmp/qspec-init/specs && "$ROOT/bin/qspec" doctor | grep -q "scaffold   ok") || { echo "UNEXPECTED: doctor did not find the project from inside it"; exit 1; }
 echo "== init refuses to run twice, refuses guidance it did not write, and appends below a shim on --append"
 if $Q init --into /tmp/qspec-init --no-git >/dev/null 2>&1; then echo "UNEXPECTED: init ran twice on one directory"; exit 1; fi
 rm -rf /tmp/qspec-shim && mkdir -p /tmp/qspec-shim && printf '# Workspace Agent Guide\n\nThis workspace delegates to LOOP_ROLE.md.\n' > /tmp/qspec-shim/AGENTS.md
@@ -203,10 +273,11 @@ $Q init --into /tmp/qspec-shim --append --no-git >/dev/null
 head -1 /tmp/qspec-shim/AGENTS.md | grep -q "Workspace Agent Guide" || { echo "UNEXPECTED: --append did not keep the shim above the block"; exit 1; }
 grep -q "qspec:project-guidance" /tmp/qspec-shim/AGENTS.md || { echo "UNEXPECTED: --append did not add the QSPEC block"; exit 1; }
 echo "== new copies the domain template with the id set, takes the project's domain, and never overwrites"
-(cd /tmp/qspec-init && node "$ROOT/bin/qspec.js" new Q-001 --slug probe --title "Probe" --owner "A. Owner" >/dev/null)
+NEW_OUT=$(cd /tmp/qspec-init && "$ROOT/bin/qspec" new Q-001 --slug probe --title "Probe" --owner "A. Owner")
+printf '%s\n' "$NEW_OUT" | grep -q 'next: .*/bin/qspec lint' && ! printf '%s\n' "$NEW_OUT" | grep -q 'qspec\.js' || { echo "UNEXPECTED: new did not hint the extensionless entry point"; exit 1; }
 grep -q "^id: Q-001$" /tmp/qspec-init/specs/Q-001_probe.yaml && grep -q "^domain: social$" /tmp/qspec-init/specs/Q-001_probe.yaml && ! grep -q "YYYY-MM-DD" /tmp/qspec-init/specs/Q-001_probe.yaml || { echo "UNEXPECTED: new left a placeholder in the spec"; exit 1; }
 $Q lint --expect-fail /tmp/qspec-init/specs/Q-001_probe.yaml >/dev/null
-if (cd /tmp/qspec-init && node "$ROOT/bin/qspec.js" new Q-001 --slug probe >/dev/null 2>&1); then echo "UNEXPECTED: new overwrote a spec"; exit 1; fi
+if (cd /tmp/qspec-init && "$ROOT/bin/qspec" new Q-001 --slug probe >/dev/null 2>&1); then echo "UNEXPECTED: new overwrote a spec"; exit 1; fi
 if $Q new Q-002 --specs /tmp/qspec-init/specs >/dev/null 2>&1; then echo "UNEXPECTED: new ran with no domain and no project to take one from"; exit 1; fi
 $Q doctor --project /tmp/qspec-init | grep -q "1 draft" || { echo "UNEXPECTED: doctor did not count the new spec"; exit 1; }
 echo "== doctor reports guidance that no longer matches what init writes"
@@ -267,7 +338,7 @@ $Q doctor --project /tmp/qspec-no-bib | grep -q 'bibliography.*none.*references.
 echo "== lint and index record a run inside a project, and nothing outside one"
 test ! -e .qspec || { echo "UNEXPECTED: a run was recorded in this repository, which is not a project"; exit 1; }
 rm -rf /tmp/qspec-runs && $Q init --into /tmp/qspec-runs --title "Runs Probe" --round 2026-09 --domain social --no-git >/dev/null
-(cd /tmp/qspec-runs && node "$ROOT/bin/qspec.js" new Q-001 --slug probe >/dev/null)
+(cd /tmp/qspec-runs && "$ROOT/bin/qspec" new Q-001 --slug probe >/dev/null)
 $Q lint /tmp/qspec-runs/specs/Q-001_probe.yaml --label "first look" >/dev/null 2>&1 || true
 test -d /tmp/qspec-runs/.qspec/runs && test "$(ls /tmp/qspec-runs/.qspec/runs | wc -l | tr -d ' ')" = "1" || { echo "UNEXPECTED: lint in a project did not record exactly one run"; exit 1; }
 test -f /tmp/qspec-runs/.qspec/runs/*first-look/sources/specs/Q-001_probe.yaml || { echo "UNEXPECTED: the run did not keep the spec as it stood"; exit 1; }
@@ -284,7 +355,7 @@ grep -q -- "- block  M2" /tmp/qspec-runs-diff.txt || { echo "UNEXPECTED: the cle
 grep -q '^+owner: "A. Owner"' /tmp/qspec-runs-diff.txt || { echo "UNEXPECTED: --sources did not show the changed line"; exit 1; }
 if $Q runs --project /tmp/qspec-runs --diff first-look,nonesuch >/dev/null 2>&1; then echo "UNEXPECTED: --diff accepted a run that does not exist"; exit 1; fi
 echo "== report writes a note carrying the facts, and --issue prints without filing"
-(cd /tmp/qspec-runs && node "$ROOT/bin/qspec.js" report "lint kept blocking on M3 while a reviewer was assigned" >/dev/null)
+(cd /tmp/qspec-runs && "$ROOT/bin/qspec" report "lint kept blocking on M3 while a reviewer was assigned" >/dev/null)
 test "$(ls /tmp/qspec-runs/.qspec/friction | wc -l | tr -d ' ')" = "1" || { echo "UNEXPECTED: report did not write one note"; exit 1; }
 $Q report --issue --project /tmp/qspec-runs | grep -q "last_run: .*index" || { echo "UNEXPECTED: the note does not carry the last run"; exit 1; }
 if $Q report --project /tmp/qspec-runs >/dev/null 2>&1; then echo "UNEXPECTED: report ran with nothing to say"; exit 1; fi

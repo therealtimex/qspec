@@ -1,11 +1,12 @@
 {
-  "version": "1.11.0",
+  "version": "1.12.0",
   "schema": "QSPEC/1.0",
   "core": {
     "states": ["draft", "specified", "selectable", "deferred", "frozen", "superseded", "killed"],
     "levels": ["low", "medium", "high"],
     "ceiling": ["specialist", "broad", "unclear"],
-    "actions": ["freeze", "backup", "not_now", "kill"]
+    "actions": ["freeze", "backup", "not_now", "kill"],
+    "access": ["open_download", "on_request", "purchase", "scrape", "partner", "unknown"]
   },
   "labels": {
     "values": {
@@ -29,6 +30,12 @@
       "backup": { "en": "Keep as a backup", "sentence": "keep as a backup" },
       "not_now": { "en": "Do not select this round", "sentence": "do not select this round" },
       "kill": { "en": "Close the question", "sentence": "close the question" },
+      "open_download": { "en": "Open download", "sentence": "open download" },
+      "on_request": { "en": "Available on request", "sentence": "available on request" },
+      "purchase": { "en": "Purchase", "sentence": "purchase" },
+      "scrape": { "en": "Web collection", "sentence": "web collection" },
+      "partner": { "en": "Partner access", "sentence": "partner access" },
+      "unknown": { "en": "Access not yet known", "sentence": "access not yet known" },
       "empirical_causal": { "en": "Causal empirical study", "sentence": "causal empirical study" },
       "empirical_descriptive": { "en": "Descriptive empirical study", "sentence": "descriptive empirical study" },
       "measurement": { "en": "Measurement study", "sentence": "measurement study" },

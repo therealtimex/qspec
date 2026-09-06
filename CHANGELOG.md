@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.12.0 (2026-09-06)
+
+Materials still needed can now carry the provenance a selection committee needs:
+where the material is, how it can be obtained, what it covers, and what evidence
+shows that it exists. All new fields and findings are additive; 1.11.0 specs,
+records, and Indexes remain valid.
+
+### Material provenance and renderings
+
+- Obtainable materials gain optional `access`, `locator`, `coverage`, and
+  `evidence`; blocking materials may remain strings or use an object with `item`
+  and the same provenance. The access catalog labels open downloads, requests,
+  purchases, web collection, partner access, and unknown access.
+- `material-unlocated` warns when neither a locator nor evidence is present.
+  `horizon-without-access` warns when a horizon is stated without a known access
+  mode. Draft sheets name each missing source and report `sheet-materials` for a
+  person to settle.
+- Sheets, requests, and dossiers render one reader-facing line per material,
+  preserving evidence citation markers. Sentence-form constraint labels are
+  capitalised at sentence starts, and dossiers label the selected design.
+- Dossier Decision Record and run-timeline tables now use four columns; reasons
+  and dissent render as lines below the Decision Record table so reading-edition
+  layout checks do not inherit the former eight-column width.
+- `bin/qspec` is the documented executable entry point. `bin/qspec.js` remains
+  for Windows and explicit Node use; generated guidance and `next:` hints point
+  to the extensionless command while scaffold metadata keeps the invocation that
+  actually ran.
+
 ## 1.11.0 (2026-09-06)
 
 Causal questions can now name their identification design and put each threat,

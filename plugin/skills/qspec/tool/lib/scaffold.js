@@ -26,6 +26,7 @@ const REFERENCES = `% Bibliography for the closest-work citations in this QSPEC 
 `;
 
 const today = () => new Date().toISOString().slice(0, 10);
+const documentedInvocation = (invocation) => String(invocation).replace(/qspec\.js$/, "qspec");
 
 // What `init` writes into AGENTS.md. Only what init knows: the path it was run
 // from, the layout it just made, the round it named, and the rules the core
@@ -67,6 +68,9 @@ The tool lives outside this project and is not on PATH. Invoke it by path:
   entry from publisher or DOI metadata; qspec never writes or fetches one.
   Use three to five nearest works in \`closest_work\`, not a literature review;
   cite wider literature from any prose field with \`[@key]\`.
+- For every material still needed, locate the actual source with the same search
+  tools used for citations and record its locator, access mode, coverage, and
+  evidence. A reviewer follows each locator just as they follow each DOI.
 - {brief}
 - \`specs/\` holds one \`<Q-id>_<slug>.yaml\` per question and, beside it, the
   tool-written \`<Q-id>_<slug>.record.yaml\`. Never edit a record by hand; append
@@ -183,7 +187,7 @@ function refresh(directory, { invocation = "qspec" } = {}) {
   try { facts = JSON.parse(readFileSync(stampPath, "utf8")); } catch { throw new Error(`${STAMP} does not hold a scaffold record; refresh cannot tell what init was given`); }
   const agentsPath = join(root, "AGENTS.md");
   const block = render(GUIDANCE, {
-    title: facts.title ?? titleFrom(root), invocation, round: facts.round ?? "",
+    title: facts.title ?? titleFrom(root), invocation: documentedInvocation(invocation), round: facts.round ?? "",
     brief: facts.brief
       ? `The research request is at \`${facts.brief}\`. Specs are written from it and cite it; they do not restate it.`
       : "No research request is recorded here. Say in each spec where its question came from.",
@@ -235,7 +239,7 @@ function create(directory, { title, round, decisionMaker, brief, domain, append 
   for (const d of ["sheets", "requests"]) { writeFileSync(join(root, d, ".gitkeep"), ""); written.push(`${d}/.gitkeep`); }
 
   const block = render(GUIDANCE, {
-    title, invocation, round,
+    title, invocation: documentedInvocation(invocation), round,
     brief: briefRel
       ? `The research request is at \`${briefRel}\`. Specs are written from it and cite it; they do not restate it.`
       : "No research request is recorded here. Say in each spec where its question came from.",
@@ -392,4 +396,4 @@ function doctor({ project, invocation = "qspec", cwd = process.cwd() } = {}) {
   return { lines, problems };
 }
 
-module.exports = { COMMANDS, STAMP, MARK_OPEN, MARK_CLOSE, fingerprint, drift, findRoot, create, refresh, newSpec, doctor, titleFrom };
+module.exports = { COMMANDS, STAMP, MARK_OPEN, MARK_CLOSE, fingerprint, drift, findRoot, create, refresh, newSpec, doctor, titleFrom, documentedInvocation };

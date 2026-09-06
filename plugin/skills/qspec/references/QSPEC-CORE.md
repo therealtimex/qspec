@@ -1,8 +1,8 @@
-# QSPEC-CORE 1.11.0
+# QSPEC-CORE 1.12.0
 # Question Spec: shared core for all research domains
 
 **Spec-ID:** QSPEC-CORE
-**Schema-Version:** 1.11.0
+**Schema-Version:** 1.12.0
 **Date:** 2026-09-06
 **Status:** released
 **Instance format:** `spec_schema: QSPEC/1.0` plus a `domain` key
@@ -191,10 +191,14 @@ increment:
 
 materials:
   in_hand: []
-  blocking: []
+  blocking: []              # string, or object with item and the provenance fields below
   obtainable:
     - item: ""
       source: ""
+      access: open_download | on_request | purchase | scrape | partner | unknown
+      locator: ""           # URL, portal, dataset id, or archive reference
+      coverage: ""          # years, units, or scope seen
+      evidence: ""          # page, dictionary, or cited paper showing it exists
       horizon: ""
       probability: low | medium | high
   access_risk: low | medium | high
@@ -248,8 +252,10 @@ handoff:                  # not fingerprinted: first_check is filled between sig
 | `increment_if_this_works` | What becomes known that the closest work does not already establish. |
 | `vehicle_is_not_the_contribution` | Why the setting, dataset, organism, instrument, prototype, or code is a means, not the novelty. |
 | `in_hand` | Materials already usable. |
-| `blocking` | Materials without which the question cannot be done. A blocking item with no `obtainable` plan is reported as a warning. |
-| `obtainable` | Named source, time horizon, and an honest probability for each missing item. |
+| `blocking` | Materials without which the question cannot be done. An entry may remain a string or become an object with `item` and the optional provenance fields. A blocking item with no `obtainable` plan is reported as a warning. |
+| `obtainable` | Named source, time horizon, and an honest probability for each missing item. Optional provenance fields say where it is, how it is obtained, what it covers, and how the writer knows it exists. |
+| `access` | Optional access mode: `open_download`, `on_request`, `purchase`, `scrape`, `partner`, or `unknown`. A horizon may be stated when the access mode is known; the tool never writes or estimates one. |
+| `locator`, `coverage`, `evidence` | Optional source provenance: a URL, portal, dataset identifier, or archive reference; the years, units, or scope seen; and the page, data dictionary, or cited paper (`[@key]`) that establishes the material exists. |
 | `access_risk` | Owner's summary of the blocking and obtainable lists. |
 | `support_would_look_like` | Evidence pattern that would support the claim. |
 | `failure_would_look_like` | Evidence pattern that would refute or fail to support it. This is a scientific outcome, not a stop rule. |
@@ -296,7 +302,7 @@ Only `block` sets an exit code, in every command. What stops a spec leaving `dra
 | M6 | `closest_work` has at least two entries, each with non-empty `cite`, `settled`, and `still_open`. |
 | M7 | `increment_if_this_works` and `vehicle_is_not_the_contribution` are non-empty. |
 | M8 | `support_would_look_like`, `failure_would_look_like`, `uninteresting_even_if_true`, and `kill_condition` are non-empty. |
-| M9 | Every `obtainable` entry has `item`, `source`, `horizon`, and a listed `probability`; `access_risk` is a listed value. |
+| M9 | Every `obtainable` entry has `item`, `source`, `horizon`, and a listed `probability`; a blocking entry is a non-empty string or an object with `item`; any supplied material `access` is listed and the other supplied provenance fields are non-empty strings; `access_risk` is listed. |
 | M10 | `safety_or_ethics` is a list whose values are all from the domain's catalog; any `hints` values are listed values. |
 | M11 | `profile.name` equals `method_family`, every required field of that profile in the overlay is present and non-empty, and any supplied catalog-backed profile value exists in its catalog. |
 | M12 | If `claim.comparative` is true, the profile's designated comparator field is non-empty. |
@@ -336,6 +342,8 @@ These come from the record, the Index, or a rendering rather than from the insta
 | `overlay-drift` | warn | the overlay's J7 rule changed since the signature recorded it |
 | `J7-unrecorded` | skip | signed before the rule was recorded, so drift cannot be checked |
 | `blocking-without-plan` | warn | blocking materials with no `obtainable` entry |
+| `material-unlocated` | warn | an obtainable or blocking material has neither a `locator` nor `evidence` |
+| `horizon-without-access` | warn | a material states a horizon while `access` is missing or `unknown` |
 | `threats-unaddressed` | warn | a causal profile names a design but omits one or more standard threats catalogued for that design; the finding names them |
 | `threat-without-check` | warn | a threat response points to no pre-committed check and repeats no four-word clause from a check or the kill condition |
 | `cite-unkeyed` | warn | a closest-work entry has no BibTeX key in a project that carries `references.bib` |
@@ -417,14 +425,14 @@ The named identification design when present, otherwise the labelled method fami
 A labelled table of threats, why each applies here, and the runnable response, when the profile carries one
 What is known and open, one prose entry per closest work, with `[@key]` when keyed
 What would count as support, what would count as failure, and when the study stops
-Materials in hand and to obtain, with source, horizon, likelihood, and labelled access risk
+Materials in hand and still needed, with source, locator, labelled access mode, coverage, evidence, horizon, likelihood, and labelled access risk
 Constraints as reader-facing sentences
 Ask: time, people, access, hardware or compute
 The labelled recommended action and rank, when the Index has an entry
 Unresolved dissent as “A reviewer dissents:”, with the point verbatim
 ```
 
-The sheet carries no status, schema version, fingerprint, run, note, invariant code, or next-stage first check. Human labels are read from `schema/catalogs.json`; every catalog value, threat, design, and profile field the renderer can emit has both a display label and a sentence form. `committee-clean` checks the completed markdown, including prose a person supplied, and blocks on a raw catalog identifier or internal tool vocabulary while naming the token and line; Paperforge citation markers such as `[@key; @key2]` are permitted text. When the renderer adds punctuation after a field, one trailing period, exclamation mark, or question mark in that field is removed first. An empty field renders as `(not stated)` and the tool reports it. An empty `ask` is a `manual` finding. When a causal profile names a design but has an empty threats list, a draft sheet names “Threats to identification” under “Before submission.” The spec and its Decision Record sit behind the sheet; a decision-maker who needs detail opens them.
+The sheet carries no status, schema version, fingerprint, run, note, invariant code, or next-stage first check. Human labels are read from `schema/catalogs.json`; every catalog value, threat, design, and profile field the renderer can emit has both a display label and a sentence form. `committee-clean` checks the completed markdown, including prose a person supplied, and blocks on a raw catalog identifier or internal tool vocabulary while naming the token and line; Paperforge citation markers such as `[@key; @key2]` are permitted text. When the renderer adds punctuation after a field, one trailing period, exclamation mark, or question mark in that field is removed first. An empty field renders as `(not stated)` and the tool reports it. An empty `ask` is a `manual` finding. A draft sheet names `Source for: <item>` for every unlocated material and reports the manual `sheet-materials` finding. It names “Method family” when that field is empty and, when a causal profile names a design but has an empty threats list, “Threats to identification.” The spec and its Decision Record sit behind the sheet; a decision-maker who needs detail opens them.
 
 ---
 
@@ -493,6 +501,7 @@ Question development is finished when:
 - Overlays version with the core and declare the core version they target.
 - A change that removes a field, renames a field, or tightens an M invariant for values accepted by an earlier release is a major release and a new `spec_schema` string. Additive optional fields may be checked for structural validity when supplied.
 - Requiring an identification design or threats list is deferred to 2.0. In 1.11.0 both are optional, and the two new findings are warnings only.
+- 1.12.0 adds optional material provenance, access labels, warning-only location and horizon checks, a draft-sheet material finding, source-aware material lines, narrower dossier tables, and the extensionless `bin/qspec` entry point. No field is required, and no previously accepted instance, Decision Record, or Index changes.
 - 1.1.0 added M16, which tightens what leaving `draft` requires. That was taken as a minor release because no 1.0.0 instance existed outside this repository. It is the last time that exception applies.
 - 1.11.0 adds catalogued identification designs and threats, M11 structural validation for supplied catalog tokens, warning-only checks that standard threats are named and responses point to runnable checks, and the threats table in sheets and dossiers. Natural-science and engineering profiles gain the optional parallel `threats_to_validity` structure. No field is required, and no previously accepted instance, Decision Record, or Index changes.
 - 1.10.2 renders bare dossier-note placeholders with single angle quotation marks inside code spans too, renders empty head values explicitly, and reports an unnamed Index decision-maker for manual resolution. No instance field, M invariant, Decision Record shape, or Index shape changes.
@@ -511,9 +520,9 @@ Question development is finished when:
 
 ## 15. Tooling
 
-`qspec` ships in this repository as a Node package with no npm dependencies; its YAML reader is vendored in the bundle. Every command is a resolution procedure over files, an act recorded to a file, a file laid down for a person to fill, or a record of what a check saw. None writes a field of a spec other than `status`, and that only as the consequence of a recorded act; `new` sets `id` and `date`, which are the spec's name and its birthday, not its content.
+`qspec` ships in this repository as the executable `bin/qspec`, with `bin/qspec.js` retained for Windows and explicit Node invocation, and has no npm dependencies; its YAML reader is vendored in the bundle. Every command is a resolution procedure over files, an act recorded to a file, a file laid down for a person to fill, or a record of what a check saw. None writes a field of a spec other than `status`, and that only as the consequence of a recorded act; `new` sets `id` and `date`, which are the spec's name and its birthday, not its content.
 
-Inside a project, every command that reads a spec records a run under `.qspec/runs/` with the files as they stood, passing or failing: `lint`, `index`, `sign`, `transition`, `sheet`, `dossier`, `request`, `render`, and `paper`. A rendering keeps the markdown it produced; aggregate `render` records one entry naming each output. `lint` reports catalogued design threats that are absent and threat responses that name no runnable check, but does not judge whether a response is credible. A document checked from outside the project is kept under `external/`. The Decision Record is the audit trail for acts; a run is the audit trail for looking; a note attached to a run with `attach` is what a role concluded about it, copied whole and never summarised. Before attaching, each role lints under its own `<spec>-<role>-round-<n>` label and attaches to that run; `attach` warns but still proceeds when the named run's label declares another role. None of the three is an act of discipline on the tool's side: the run is written because the check ran, and the note is written because somebody handed off.
+Inside a project, every command that reads a spec records a run under `.qspec/runs/` with the files as they stood, passing or failing: `lint`, `index`, `sign`, `transition`, `sheet`, `dossier`, `request`, `render`, and `paper`. A rendering keeps the markdown it produced; aggregate `render` records one entry naming each output. `lint` reports unlocated materials, horizons stated before access is known, catalogued design threats that are absent, and threat responses that name no runnable check, but does not judge whether a source or response is credible. A document checked from outside the project is kept under `external/`. The Decision Record is the audit trail for acts; a run is the audit trail for looking; a note attached to a run with `attach` is what a role concluded about it, copied whole and never summarised. Before attaching, each role lints under its own `<spec>-<role>-round-<n>` label and attaches to that run; `attach` warns but still proceeds when the named run's label declares another role. None of the three is an act of discipline on the tool's side: the run is written because the check ran, and the note is written because somebody handed off.
 
 ```text
 qspec init --into <dir>               a project: specs/ with the round's Index, AGENTS.md, a stamp

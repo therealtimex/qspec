@@ -9,7 +9,7 @@ const { format, hasBlock, lintFile, loadSpec } = require("../lib/lint.js");
 const { checkPaper } = require("../lib/paper.js");
 const { appendEntry, bindDecisionMaker, fingerprint, frozenInRound, loadRecord, newRecord, recordPath, saveRecord, setStatus, signingEntry } = require("../lib/record.js");
 const { SHEET_STATES, dossier: renderDossier, index: renderIndex, request: renderRequest, sheet: renderSheet } = require("../lib/render.js");
-const { STAMP, create, doctor, findRoot, newSpec, refresh, titleFrom } = require("../lib/scaffold.js");
+const { STAMP, create, doctor, documentedInvocation, findRoot, newSpec, refresh, titleFrom } = require("../lib/scaffold.js");
 const runs = require("../lib/runs.js");
 const friction = require("../lib/friction.js");
 
@@ -313,7 +313,7 @@ switch (cmd) {
     } catch (e) { die(e.message); }
     console.log(`prepared ${made.root}`);
     for (const w of made.written) console.log(`  ${w}`);
-    console.log(`\nnext: ${invocation} new Q-001 --domain ${flags.domain && flags.domain !== true ? flags.domain : "<social|natural|engineering>"} --slug <short-name> --specs ${made.root}/specs`);
+    console.log(`\nnext: ${documentedInvocation(invocation)} new Q-001 --domain ${flags.domain && flags.domain !== true ? flags.domain : "<social|natural|engineering>"} --slug <short-name> --specs ${made.root}/specs`);
     break;
   }
   case "new": {
@@ -328,7 +328,7 @@ switch (cmd) {
     let out;
     try { out = newSpec({ id, domain, slug: flags.slug && flags.slug !== true ? String(flags.slug) : null, title: flags.title && flags.title !== true ? String(flags.title) : null, owner: flags.owner && flags.owner !== true ? String(flags.owner) : null, specsDir }); }
     catch (e) { die(e.message); }
-    console.log(`wrote ${out}\nfill it in; profile field lists are in the ${domain} overlay's section 4\nnext: ${resolve(process.argv[1])} lint ${out}`);
+    console.log(`wrote ${out}\nfill it in; profile field lists are in the ${domain} overlay's section 4\nnext: ${documentedInvocation(resolve(process.argv[1]))} lint ${out}`);
     break;
   }
   case "doctor": {

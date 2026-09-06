@@ -2,11 +2,13 @@
 
 A Question Spec is a short contract that turns a research topic, technique, or platform into a claim that can be wrong, so that questions from different methods and domains can be compared, selected, frozen, or killed on the same terms.
 
-Version 1.11.0, released 2026-09-06. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
+Version 1.12.0, released 2026-09-06. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
 
 The tool renders and checks; it does not author. A field is written by a person, a judgment is signed by a person, and the tool notices when a signature no longer covers the text. It pairs with [Paperforge](docs/paperforge-integration.md) downstream, which applies the same rule to the documents that answer the question.
 
 A causal profile can name its identification design and list threats with why each applies here and what runnable check answers it. The linter warns when a design's standard threats are missing or a response names no pre-committed check or kill-condition clause; it does not judge credibility. Selection sheets and dossiers render the list as the table a committee reads. Natural-science and engineering profiles use the parallel optional `threats_to_validity` list.
+
+Every material still needed can say where it is, how it is obtained, what it covers, and what proves it exists. These provenance fields remain optional in 1.x; lint warns when neither a locator nor evidence is present, and when a horizon is stated before an access mode is known. Draft sheets turn unlocated material into an explicit owner prompt.
 
 ## Files
 
@@ -15,7 +17,7 @@ A causal profile can name its identification design and list threats with why ea
 | `QSPEC-CORE.md` | The shared core: object model, life cycle, roles, fields, invariants, Decision Record, Selection Sheet, Index, downstream contact points, tooling. Read this first. |
 | `QSPEC-SS.md`, `QSPEC-NS.md`, `QSPEC-ENG.md` | Domain overlays for social sciences, natural sciences, and engineering: claim fields, catalogs, method profiles. Software is in scope for engineering. |
 | `schema/catalogs.json` | Machine-readable catalogs, profile field lists, and the English display and sentence-form labels used in committee documents. The single source of truth for the tool. |
-| `bin/qspec.js` | The tool. `qspec help` lists commands. No dependencies; js-yaml is vendored under `lib/vendor/`. |
+| `bin/qspec` | The extensionless tool entry point. `qspec help` lists commands; `bin/qspec.js` remains available for Windows and explicit Node invocation. No dependencies; js-yaml is vendored under `lib/vendor/`. |
 | `lib/` | `lint` (M invariants and project-scoped citation findings), `bib` (read-only BibTeX keys), `record` (fingerprint, transitions, acts), `render` (sheet, index, dossier, request), `paper` (gist check), `scaffold` (init, new, doctor), `runs` (run records and diffs), `friction` (report notes). |
 | `templates/` | Empty instances per domain, Decision Record and Index templates, and `documents.qspec.toml` for a Paperforge document corpus. |
 | `.qspec/scaffold.json` | In a project `init` prepared: what wrote it, and a fingerprint of the guidance so `doctor` can say when it has gone stale. |
@@ -36,11 +38,11 @@ No install: the tool runs on Node 22 with no dependencies.
 Prepare a directory first. `init` writes `specs/` with the round's empty Index, an empty project-owned `references.bib`, `AGENTS.md` and `CLAUDE.md` telling any agent what the directory is and how to invoke the tool, and a stamp of what wrote them; `doctor` says whether that guidance is still what `init` would write.
 
 ```sh
-node bin/qspec.js init --into ~/research/procurement --title "Procurement questions" \
+bin/qspec init --into ~/research/procurement --title "Procurement questions" \
     --round 2026-09 --decision-maker "Group lead" --brief ~/research/procurement/brief.pdf
-node bin/qspec.js new Q-014 --domain natural --slug apical-oxygen --specs ~/research/procurement/specs
+bin/qspec new Q-014 --domain natural --slug apical-oxygen --specs ~/research/procurement/specs
 # fill it in; profile field lists are in the overlay's section 4
-node bin/qspec.js lint specs/Q-014_apical-oxygen.yaml
+bin/qspec lint specs/Q-014_apical-oxygen.yaml
 ```
 
 `init` refuses to overwrite an `AGENTS.md` it did not write; `--append` adds the QSPEC block below whatever is there, which is what a RealTimeX loops workspace needs. `new` copies the domain template with the id and date set and nothing else, and never overwrites.
@@ -48,8 +50,8 @@ node bin/qspec.js lint specs/Q-014_apical-oxygen.yaml
 When lint reports no `block`, a reviewer who is not the owner rereads the spec and signs:
 
 ```sh
-node bin/qspec.js sign specs/Q-014_apical-oxygen.yaml --by "G. Reviewer" --show   # read the seven
-node bin/qspec.js sign specs/Q-014_apical-oxygen.yaml --by "G. Reviewer"
+bin/qspec sign specs/Q-014_apical-oxygen.yaml --by "G. Reviewer" --show   # read the seven
+bin/qspec sign specs/Q-014_apical-oxygen.yaml --by "G. Reviewer"
 ```
 
 `--show` prints J1 to J7 with J7 resolved to this profile's rule from the overlay, and signs nothing. Signing appends a draft-to-specified entry to `specs/Q-014_apical-oxygen.record.yaml` carrying a fingerprint of the spec and the J7 rule verbatim, and sets `status: specified`. Edit the claim afterwards and `lint` reports `stale-signature` until the reviewer signs again; reword the overlay's J7 rule and `lint` reports `overlay-drift`.
@@ -57,10 +59,10 @@ node bin/qspec.js sign specs/Q-014_apical-oxygen.yaml --by "G. Reviewer"
 The owner offers it, the decision-maker chooses. A decision-maker act must declare `--index <round>` or `--unbound`: the Index is the only thing that can check a decision-maker against a committee and hold the one-freeze-per-round cap, and `--unbound` records that nothing did.
 
 ```sh
-node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to selectable --by "F. Owner" --role owner --index round.yaml
-node bin/qspec.js sheet specs/Q-014_apical-oxygen.yaml --index round.yaml --out sheets/Q-014.md
-node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to frozen --by "Group lead" --role decision_maker --index round.yaml --specs specs --reason "chosen in round 2026-09"
-node bin/qspec.js request specs/Q-014_apical-oxygen.yaml --out requests/Q-014.md
+bin/qspec transition specs/Q-014_apical-oxygen.yaml --to selectable --by "F. Owner" --role owner --index round.yaml
+bin/qspec sheet specs/Q-014_apical-oxygen.yaml --index round.yaml --out sheets/Q-014.md
+bin/qspec transition specs/Q-014_apical-oxygen.yaml --to frozen --by "Group lead" --role decision_maker --index round.yaml --specs specs --reason "chosen in round 2026-09"
+bin/qspec request specs/Q-014_apical-oxygen.yaml --out requests/Q-014.md
 ```
 
 The Selection Sheet is the committee document: catalog labels replace schema tokens, its question pointer reads `Q-014, version 1`, and `committee-clean` blocks any machine or workflow vocabulary that survives into the completed markdown. An owner can preview any state with `sheet --draft`; aggregate `render --draft` writes those previews under `drafts/`, never `sheets/`.
@@ -69,8 +71,8 @@ For the people inside the process, render a dossier at any state. For a
 committee, render the corpus and let Paperforge build the sheets and Index:
 
 ```sh
-node bin/qspec.js dossier specs/Q-014_apical-oxygen.yaml --out documents/dossiers/Q-014.md
-node bin/qspec.js render --out documents
+bin/qspec dossier specs/Q-014_apical-oxygen.yaml --out documents/dossiers/Q-014.md
+bin/qspec render --out documents
 /path/to/paperforge/bin/paperforge all --draft --config documents/documents.toml
 ```
 
@@ -98,7 +100,7 @@ sheets.
 To pull a spec out of a round without ending it, the owner withdraws it rather than killing it:
 
 ```sh
-node bin/qspec.js transition specs/Q-014_apical-oxygen.yaml --to specified --by "F. Owner" --role owner --reason "partner access lapsed"
+bin/qspec transition specs/Q-014_apical-oxygen.yaml --to specified --by "F. Owner" --role owner --reason "partner access lapsed"
 ```
 
 ## Commands
@@ -167,6 +169,7 @@ Tag `vX.Y.Z`. The release workflow refuses the tag unless it matches the version
 - Instances declare `spec_schema: QSPEC/1.0` and a `domain`. All 1.x core releases accept that string.
 - Schema documents carry their version in the header, not the filename.
 - A field removal, rename, or tightened M invariant on instance fields is a major release with a new `spec_schema` string.
+- Every 1.11.0 project, spec, record, and Index is valid under 1.12.0. The release adds optional material provenance, warning-only location and horizon checks, source-aware renderings, narrower dossier tables, and the extensionless `bin/qspec` entry point.
 - Every 1.9.0 project, spec, record, and Index is valid under 1.10.0. The release resolves citation markers in prose, recommends three to five nearest works, adds sentence-form labels and rendering fixes, and warns on cross-role attachments; no instance field, M invariant, record shape, or Index shape changed.
 - Every 1.8.0 project, spec, record, and Index is valid under 1.9.0. The release adds labels and gates on rendered committee text, `--draft` previews, and internal-only dossiers; no instance field, M invariant, record shape, or Index shape changed.
 - Every 1.7.0 project, spec, record, and Index is valid under 1.8.0. Citation keys are optional, and the three citation findings run only inside a project that has `references.bib`; without that file, lint findings are unchanged. 1.8.0 adds the read-only bibliography checks and Paperforge markers.

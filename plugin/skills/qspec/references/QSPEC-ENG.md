@@ -1,9 +1,9 @@
-# QSPEC-ENG 1.11.0
+# QSPEC-ENG 1.12.0
 # Question Spec overlay for engineering
 
 **Spec-ID:** QSPEC-ENG
-**Schema-Version:** 1.11.0
-**Targets core:** QSPEC-CORE 1.11.0
+**Schema-Version:** 1.12.0
+**Targets core:** QSPEC-CORE 1.12.0
 **Date:** 2026-09-06
 **Status:** released
 **Instance header:** `spec_schema: QSPEC/1.0` and `domain: engineering`

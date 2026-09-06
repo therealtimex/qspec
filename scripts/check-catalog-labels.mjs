@@ -16,6 +16,7 @@ const values = new Set([
   ...(catalogs.core?.levels ?? []),
   ...(catalogs.core?.ceiling ?? []),
   ...(catalogs.core?.actions ?? []),
+  ...(catalogs.core?.access ?? []),
 ]);
 const profileFields = new Set();
 

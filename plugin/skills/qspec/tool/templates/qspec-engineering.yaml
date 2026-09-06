@@ -48,8 +48,8 @@ increment:
 
 materials:
   in_hand: []
-  blocking: []
-  obtainable: []
+  blocking: []           # string, or object: {item, access, locator, coverage, evidence}
+  obtainable: []         # object also has source, horizon, probability; access: open_download | on_request | purchase | scrape | partner | unknown
   access_risk: low
 
 success_and_failure:
