@@ -260,8 +260,8 @@ handoff:                  # not fingerprinted: first_check is filled between sig
 | `ask` | Time, people, access, and hardware or compute that selecting this spec commits. The sheet shows it; the tool never estimates it. |
 | `hints` | Owner's guesses. Sheets may show them. Indexes must not sort on them. |
 | `profile.name` | Must equal `method_family`. The overlay lists the profile's required fields and its comparator field. |
-| `profile.design` | Optional identification design from the social-science catalog. Naming one makes its catalogued standard threats visible to `threats-unaddressed`; it is not required until a future 2.0 schema. |
-| `profile.threats_to_identification`, `profile.threats_to_validity` | Optional list of threats. Each entry names a catalog `threat`, says `why_it_applies` in this setting, and gives the design or check's `response`. |
+| `profile.design` | Optional identification design from the social-science catalog. When supplied, it must be a catalog value. Naming one makes its catalogued standard threats visible to `threats-unaddressed`; it is not required until a future 2.0 schema. |
+| `profile.threats_to_identification`, `profile.threats_to_validity` | Optional list of threats. Each filled entry names a catalog `threat`, says `why_it_applies` in this setting, and gives the design or check's `response`. A template's empty entry is an authoring prompt, not a rendered threat. |
 | `profile.threats_*.check` | Optional pointer to `precommitted_checks`, either its one-based index or its exact text. Without it, the response must repeat at least four consecutive words from a pre-committed check or the kill condition. |
 | `first_check` | The first thing the next stage must run: the kill condition test, the main access test, the baseline run, the calibration, the convergence study, or the counterexample search. |
 
@@ -298,7 +298,7 @@ Only `block` sets an exit code, in every command. What stops a spec leaving `dra
 | M8 | `support_would_look_like`, `failure_would_look_like`, `uninteresting_even_if_true`, and `kill_condition` are non-empty. |
 | M9 | Every `obtainable` entry has `item`, `source`, `horizon`, and a listed `probability`; `access_risk` is a listed value. |
 | M10 | `safety_or_ethics` is a list whose values are all from the domain's catalog; any `hints` values are listed values. |
-| M11 | `profile.name` equals `method_family`, and every required field of that profile in the overlay is present and non-empty. |
+| M11 | `profile.name` equals `method_family`, every required field of that profile in the overlay is present and non-empty, and any supplied catalog-backed profile value exists in its catalog. |
 | M12 | If `claim.comparative` is true, the profile's designated comparator field is non-empty. |
 | M13 | The overlay's required `claim` fields are non-empty. |
 | M14 | If `status` is `frozen` or `superseded`, `handoff.first_check` is non-empty. |
@@ -489,12 +489,12 @@ Question development is finished when:
 
 ## 14. Versioning of this schema
 
-- `spec_schema: QSPEC/1.0` covers all `1.x` releases of the core. Minor releases add optional fields, catalog values, findings, or checks that apply to records and renderings rather than to the instance fields.
+- `spec_schema: QSPEC/1.0` covers all `1.x` releases of the core. Minor releases may add optional fields, catalog values, findings, structural checks on newly introduced optional values, or checks that apply to records and renderings rather than to existing instance fields.
 - Overlays version with the core and declare the core version they target.
-- A change that removes a field, renames a field, or tightens an M invariant on the instance fields is a major release and a new `spec_schema` string.
+- A change that removes a field, renames a field, or tightens an M invariant for values accepted by an earlier release is a major release and a new `spec_schema` string. Additive optional fields may be checked for structural validity when supplied.
 - Requiring an identification design or threats list is deferred to 2.0. In 1.11.0 both are optional, and the two new findings are warnings only.
 - 1.1.0 added M16, which tightens what leaving `draft` requires. That was taken as a minor release because no 1.0.0 instance existed outside this repository. It is the last time that exception applies.
-- 1.11.0 adds catalogued identification designs and threats, warning-only checks that standard threats are named and responses point to runnable checks, and the threats table in sheets and dossiers. Natural-science and engineering profiles gain the optional parallel `threats_to_validity` structure. No field is required and no M invariant, Decision Record, or Index changes.
+- 1.11.0 adds catalogued identification designs and threats, M11 structural validation for supplied catalog tokens, warning-only checks that standard threats are named and responses point to runnable checks, and the threats table in sheets and dossiers. Natural-science and engineering profiles gain the optional parallel `threats_to_validity` structure. No field is required, and no previously accepted instance, Decision Record, or Index changes.
 - 1.10.2 renders bare dossier-note placeholders with single angle quotation marks inside code spans too, renders empty head values explicitly, and reports an unnamed Index decision-maker for manual resolution. No instance field, M invariant, Decision Record shape, or Index shape changes.
 - 1.10.1 renders each labelled body field as its own CommonMark paragraph and renders array-valued profile and constraint fields as lists. No instance field, M invariant, Decision Record shape, or Index shape changes.
 - 1.10.0 resolves Paperforge `[@key]` markers in every prose field when a project bibliography exists, recommends three to five nearest works without changing M6's floor, adds sentence-form labels and rendering fixes, renders bare dossier-note placeholders with single angle quotation marks, restores dossiers as unpublished buildable Paperforge documents, and warns on cross-role attachments and publishable dossier manifest blocks. No instance field, M invariant, Decision Record shape, or Index shape changes.

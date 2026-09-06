@@ -4,14 +4,17 @@
 
 Causal questions can now name their identification design and put each threat,
 its setting-specific reason, and its runnable response in one committee-readable
-table. The fields are optional in 1.x; no M invariant, Decision Record, or Index
-shape changed, and 1.10.2 specs retain their previous findings.
+table. The fields are optional in 1.x; supplied catalog tokens are checked by
+M11, while 1.10.2 specs retain their previous findings. Decision Record and
+Index shapes are unchanged.
 
 ### Designs, threats, and warnings
 
 - The social-science catalog names nine identification designs, generic threats,
   and the standard threats carried by each design. Natural-science and
   engineering catalogs add their own smaller validity-threat vocabularies.
+- M11 rejects a supplied design or threat token that is absent from its domain
+  catalog; neither optional field is required.
 - `threats-unaddressed` warns when a named design's standard threats are absent.
   `threat-without-check` warns when a response neither points at a pre-committed
   check nor repeats four consecutive words from a check or kill-condition
@@ -19,7 +22,8 @@ shape changed, and 1.10.2 specs retain their previous findings.
 - Selection sheets, requests, and dossiers render threat entries as a labelled
   table. A causal draft that names a design but no threats lists “Threats to
   identification” under “Before submission.”
-- Domain templates carry one empty threat entry, and the causal example names a
+- Domain templates carry one empty authoring prompt that is omitted from output
+  until its threat is named, and the causal example names a
   regression-discontinuity design with its manipulation, bandwidth, and omitted-
   variable threats answered by pre-committed checks.
 

@@ -38,12 +38,17 @@ const profileValue = (v, field, definition) => {
   return Array.isArray(v) ? v.map(item) : item(v);
 };
 
+function filledThreatEntries(spec, domain = catalogs.domains[spec.domain]) {
+  const entries = domain?.threat_field ? spec.profile?.[domain.threat_field] : null;
+  return Array.isArray(entries) ? entries.filter((entry) => s(entry?.threat)) : [];
+}
+
 function threatSection(spec) {
   const domain = catalogs.domains[spec.domain];
   const family = spec.question_type?.method_family;
   if (!domain?.threat_field || (domain.design_family && domain.design_family !== family)) return [];
-  const entries = spec.profile?.[domain.threat_field];
-  if (!Array.isArray(entries) || !entries.length) return [];
+  const entries = filledThreatEntries(spec, domain);
+  if (!entries.length) return [];
   return [
     `#### ${domain.threat_heading}`,
     "",
@@ -323,9 +328,12 @@ function draftHoles(spec, definition) {
     const complete = Array.isArray(v) ? v.length >= minimum && v.every(filled) : filled(v);
     if (!complete) holes.push(profileFieldLabel(field) ?? words(field));
   }
-  if (domain?.designs && domain.design_family === qt.method_family && filled(profile.design)) {
-    const threats = profile[domain.threat_field];
-    if (!Array.isArray(threats) || threats.length === 0) holes.push(profileFieldLabel(domain.threat_field) ?? words(domain.threat_field));
+  if (domain?.threat_field && (!domain.design_family || domain.design_family === qt.method_family)) {
+    const carriesThreatPrompt = Object.prototype.hasOwnProperty.call(profile, domain.threat_field);
+    const namesDesign = Boolean(domain.designs && filled(profile.design));
+    if ((carriesThreatPrompt || namesDesign) && filledThreatEntries(spec, domain).length === 0) {
+      holes.push(profileFieldLabel(domain.threat_field) ?? words(domain.threat_field));
+    }
   }
   return [...new Set(holes)];
 }

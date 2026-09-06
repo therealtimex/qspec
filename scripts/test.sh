@@ -24,6 +24,16 @@ const source = yaml.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.
 const threatFindings = (spec) => lintSpec(spec).filter((finding) => finding.rule.startsWith("threat"));
 
 assert.deepEqual(threatFindings(source), []);
+const typoDesign = structuredClone(source);
+typoDesign.profile.design = "regression_discontinuty";
+const designCatalog = lintSpec(typoDesign).filter((finding) => finding.rule === "M11" && finding.message.includes("domain.designs"));
+assert.equal(designCatalog.length, 1);
+assert.match(designCatalog[0].message, /regression_discontinuty/);
+const typoThreat = structuredClone(source);
+typoThreat.profile.threats_to_identification[0].threat = "manipulaton_of_running_variable";
+const threatCatalog = lintSpec(typoThreat).filter((finding) => finding.rule === "M11" && finding.message.includes("domain.threats"));
+assert.equal(threatCatalog.length, 1);
+assert.match(threatCatalog[0].message, /manipulaton_of_running_variable/);
 const missing = structuredClone(source);
 missing.profile.threats_to_identification = [];
 const unaddressed = threatFindings(missing);
@@ -45,11 +55,15 @@ assert.deepEqual(threatFindings(reassurance), []);
 reassurance.profile.threats_to_identification[0].response = "The contract-value density fails a manipulation test at the cutoff.";
 delete reassurance.profile.threats_to_identification[0].check;
 assert.deepEqual(threatFindings(reassurance), []);
+const dangling = structuredClone(source);
+dangling.profile.threats_to_identification[0].check = 9;
+const danglingFinding = threatFindings(dangling).find((finding) => finding.rule === "threat-without-check");
+assert.match(danglingFinding.message, /check 9 points at no profile\.precommitted_checks item/);
 
 const old = structuredClone(source);
 delete old.profile.design;
 delete old.profile.threats_to_identification;
-assert.deepEqual(threatFindings(old), []);
+assert.deepEqual(lintSpec(old), []);
 assert.ok(resolveProfile(catalogs.domains.natural, "theoretical").optional.includes("threats_to_validity"));
 assert.ok(resolveProfile(catalogs.domains.engineering, "measurement").optional.includes("threats_to_validity"));
 const natural = yaml.load(fs.readFileSync("examples/ns-experimental-apical-oxygen.yaml", "utf8"), { schema: yaml.CORE_SCHEMA });
@@ -90,7 +104,25 @@ cp templates/qspec-social.yaml /tmp/qspec-draft-source.yaml
 node -e 'const fs=require("node:fs"),p=process.argv[1]; let text=fs.readFileSync(p,"utf8"); text=text.replace("method_family: \"\"", "method_family: empirical_causal"); fs.writeFileSync(p,text)' /tmp/qspec-draft-source.yaml
 $Q sheet /tmp/qspec-draft-source.yaml --draft --out /tmp/qspec-draft-sheet.md >/dev/null
 grep -q '^\*\*Draft:\*\* unsigned, not for submission$' /tmp/qspec-draft-sheet.md && grep -q '^### Before submission$' /tmp/qspec-draft-sheet.md && grep -q '^- Intervention or exposure$' /tmp/qspec-draft-sheet.md || { echo "UNEXPECTED: draft sheet did not carry its warning and labelled hole list"; exit 1; }
-node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("examples/ss-causal-procurement-cutoff.yaml","utf8"),{schema:y.CORE_SCHEMA}); s.profile.threats_to_identification=[]; const md=r.sheet(s,{draft:true}).md; a.ok(md.includes("- Threats to identification")); a.ok(!md.includes("#### Threats to identification"))'
+node - <<'NODE'
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const yaml = require("./lib/vendor/js-yaml/js-yaml.js");
+const { sheet } = require("./lib/render.js");
+for (const [file, family, design, hole, heading] of [
+  ["templates/qspec-social.yaml", "empirical_causal", "regression_discontinuity", "Threats to identification", "#### Threats to identification"],
+  ["templates/qspec-natural.yaml", "experimental", null, "Threats to validity", "#### Threats to validity"],
+  ["templates/qspec-engineering.yaml", "experimental", null, "Threats to validity", "#### Threats to validity"],
+]) {
+  const spec = yaml.load(fs.readFileSync(file, "utf8"), { schema: yaml.CORE_SCHEMA });
+  spec.question_type.method_family = family;
+  spec.profile.name = family;
+  if (design) spec.profile.design = design;
+  const md = sheet(spec, { draft: true }).md;
+  assert.ok(md.includes(`- ${hole}`), `${file} did not list its unfilled threat prompt`);
+  assert.ok(!md.includes(heading), `${file} rendered an unfilled threat row`);
+}
+NODE
 node -e 'const a=require("node:assert/strict"),y=require("./lib/vendor/js-yaml/js-yaml.js"),fs=require("node:fs"),{lintSpec}=require("./lib/lint.js"),r=require("./lib/render.js"); const s=y.load(fs.readFileSync("templates/qspec-social.yaml","utf8"),{schema:y.CORE_SCHEMA}); s.question_type.method_family="empirical_causal"; s.question_type.secondary_method="theoretical"; s.status="frozen"; s.profile.name=""; const findings=lintSpec(s),md=r.sheet(s,{draft:true}).md; for(const [rule,text,label] of [["M5","rescue_rule","Rescue rule"],["M7","vehicle_is_not_the_contribution","Why the vehicle is not the contribution"],["M8","uninteresting_even_if_true","Why a true result could still be uninteresting"],["M11","profile.name","Design profile"],["M14","first_check","First check for the next stage"]]){a.ok(findings.some((f)=>f.rule===rule && f.message.includes(text)),`${rule} fixture did not block`); a.ok(md.includes(`- ${label}`),`${rule} hole was absent from the owner preview`)}'
 $Q sheet examples/ns-theoretical-mean-field-threshold.yaml --draft --out /tmp/qspec-draft-theory.md >/dev/null
 grep -q '\*\*Role of empirical evidence:\*\* Later test' /tmp/qspec-draft-theory.md && ! grep -q 'later_test' /tmp/qspec-draft-theory.md || { echo "UNEXPECTED: a profile enum reached a draft without its catalog label"; exit 1; }

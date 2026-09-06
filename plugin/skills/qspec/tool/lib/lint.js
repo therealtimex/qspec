@@ -34,6 +34,10 @@ function pointsAtCheck(reference, checks) {
   return checks.some((check) => check.trim().toLocaleLowerCase() === wanted);
 }
 
+function checkReferenceSupplied(reference) {
+  return reference != null && !(typeof reference === "string" && !nonEmpty(reference));
+}
+
 function loadSpec(file) {
   return yaml.load(readFileSync(file, "utf8"), { schema: yaml.CORE_SCHEMA });
 }
@@ -107,14 +111,23 @@ function lintSpec(spec, file = "<spec>") {
     }
   }
 
+  if (nonEmpty(prof.design) && domain.designs && !Object.prototype.hasOwnProperty.call(domain.designs, prof.design)) {
+    f("M11", `profile.design '${prof.design}' must be one of the ${spec.domain} design catalog (domain.designs): ${Object.keys(domain.designs).join(", ")}`);
+  }
+  const threatField = domain.threat_field;
+  const threats = Array.isArray(prof[threatField]) ? prof[threatField] : [];
+  threats.forEach((entry, i) => {
+    if (nonEmpty(entry?.threat) && !domain.threats.includes(entry.threat)) {
+      f("M11", `profile.${threatField}[${i}].threat '${entry.threat}' must be one of the ${spec.domain} threat catalog (domain.threats): ${domain.threats.join(", ")}`);
+    }
+  });
+
   // These are warning-only additions in 1.x. A named design brings its
   // catalogued standard threats with it; a response is runnable only when it
   // points at a pre-committed check or repeats at least four consecutive words
   // from one of those checks or from the kill condition.
-  const threatField = domain.threat_field;
   const threatProfile = threatField && (!domain.design_family || domain.design_family === qt.method_family);
   if (threatProfile) {
-    const threats = Array.isArray(prof[threatField]) ? prof[threatField] : [];
     const standard = domain.designs?.[prof.design] ?? [];
     if (standard.length) {
       const named = new Set(threats.map((entry) => entry?.threat).filter(nonEmpty));
@@ -125,10 +138,15 @@ function lintSpec(spec, file = "<spec>") {
     const kill = spec.success_and_failure?.kill_condition;
     threats.forEach((entry, i) => {
       const response = entry?.response;
-      const linked = pointsAtCheck(entry?.check, checks)
-        || checks.some((check) => namesFourConsecutiveWords(response, check))
+      const reference = entry?.check;
+      const direct = pointsAtCheck(reference, checks);
+      const quoted = checks.some((check) => namesFourConsecutiveWords(response, check))
         || namesFourConsecutiveWords(response, kill);
-      if (!linked) f("threat-without-check", `profile.${threatField}[${i}].response names no precommitted check or kill-condition clause`, "warn");
+      if (checkReferenceSupplied(reference) && !direct) {
+        f("threat-without-check", `profile.${threatField}[${i}].check ${JSON.stringify(reference)} points at no profile.precommitted_checks item`, "warn");
+      } else if (!direct && !quoted) {
+        f("threat-without-check", `profile.${threatField}[${i}].response names no precommitted check or kill-condition clause`, "warn");
+      }
     });
   }
 
