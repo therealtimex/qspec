@@ -2,7 +2,7 @@
 
 A Question Spec is a short contract that turns a research topic, technique, or platform into a claim that can be wrong, so that questions from different methods and domains can be compared, selected, frozen, or killed on the same terms.
 
-Version 1.10.0, released 2026-09-05. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
+Version 1.10.1, released 2026-09-05. Built by RealTimeX. Source available, all rights reserved; see [LICENSE](LICENSE).
 
 The tool renders and checks; it does not author. A field is written by a person, a judgment is signed by a person, and the tool notices when a signature no longer covers the text. It pairs with [Paperforge](docs/paperforge-integration.md) downstream, which applies the same rule to the documents that answer the question.
 
