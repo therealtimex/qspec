@@ -1,10 +1,10 @@
-# QSPEC-NS 1.10.1
+# QSPEC-NS 1.10.2
 # Question Spec overlay for the natural sciences
 
 **Spec-ID:** QSPEC-NS
-**Schema-Version:** 1.10.1
-**Targets core:** QSPEC-CORE 1.10.1
-**Date:** 2026-09-05
+**Schema-Version:** 1.10.2
+**Targets core:** QSPEC-CORE 1.10.2
+**Date:** 2026-09-06
 **Status:** released
 **Instance header:** `spec_schema: QSPEC/1.0` and `domain: natural`
 

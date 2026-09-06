@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.10.2 (2026-09-06)
+
+Dossiers and Indexes now pass Paperforge verification without changing the
+attached note or hiding an unnamed committee. No catalog, template, lint,
+record, manifest, instance field, invariant, Decision Record, or Index shape
+changed.
+
+### Verification-safe renderings
+
+- Bare angle-bracket placeholders in attached notes use single angle quotation
+  marks inside code spans as well as prose. Authored HTML remains unchanged,
+  and mapping `‹` and `›` back to ASCII angles restores the note exactly.
+- Empty rendering-head values say `(not stated)`. An Index with no
+  `decision_maker` also reports `index-decision-maker` as a `manual` finding,
+  since no freeze can be bound to an unnamed committee.
+- Attached-note code spans containing literal Markdown markers require
+  Paperforge 4.0.1, whose coverage check preserves code-span text while
+  removing emphasis syntax from surrounding prose.
+
 ## 1.10.1 (2026-09-05)
 
 Labelled body fields now survive CommonMark as distinct paragraphs in every
