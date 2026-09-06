@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.10.1 (2026-09-05)
+
+Labelled body fields now survive CommonMark as distinct paragraphs in every
+rendering, while the consecutive head rows used as Paperforge cover metadata
+are unchanged. Array-valued profile and constraint fields render as labelled
+lists instead of semicolon-joined prose. No catalog, template, lint, record,
+manifest, instance field, invariant, Decision Record, or Index shape changed.
+
+### Rendering
+
+- Selection Sheet design and ask fields, frozen-request context and profile
+  fields, and dossier fields carry a blank line after every labelled field.
+- Array-valued profile and constraint fields render under their labels as
+  Markdown list items. Existing material lists retain their list structure.
+- The render suite checks paragraph boundaries below the Paperforge head and
+  proves the Q-101 pre-committed checks remain list items in both sheet and
+  dossier Markdown.
+
 ## 1.10.0 (2026-09-05)
 
 Citation keys can now travel with literature named anywhere in a spec, while

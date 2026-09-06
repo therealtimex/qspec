@@ -4,7 +4,7 @@ description: Write, lint, sign, select, freeze, or kill a research question as a
 allowed-tools: Read, Write, Edit, Bash
 license: UNLICENSED
 metadata:
-  version: "1.10.0"
+  version: "1.10.1"
 ---
 
 # QSPEC Question Specs

@@ -1,8 +1,8 @@
-# QSPEC-CORE 1.10.0
+# QSPEC-CORE 1.10.1
 # Question Spec: shared core for all research domains
 
 **Spec-ID:** QSPEC-CORE
-**Schema-Version:** 1.10.0
+**Schema-Version:** 1.10.1
 **Date:** 2026-09-05
 **Status:** released
 **Instance format:** `spec_schema: QSPEC/1.0` plus a `domain` key
@@ -485,6 +485,7 @@ Question development is finished when:
 - Overlays version with the core and declare the core version they target.
 - A change that removes a field, renames a field, or tightens an M invariant on the instance fields is a major release and a new `spec_schema` string.
 - 1.1.0 added M16, which tightens what leaving `draft` requires. That was taken as a minor release because no 1.0.0 instance existed outside this repository. It is the last time that exception applies.
+- 1.10.1 renders each labelled body field as its own CommonMark paragraph and renders array-valued profile and constraint fields as lists. No instance field, M invariant, Decision Record shape, or Index shape changes.
 - 1.10.0 resolves Paperforge `[@key]` markers in every prose field when a project bibliography exists, recommends three to five nearest works without changing M6's floor, adds sentence-form labels and rendering fixes, renders bare dossier-note placeholders with single angle quotation marks, restores dossiers as unpublished buildable Paperforge documents, and warns on cross-role attachments and publishable dossier manifest blocks. No instance field, M invariant, Decision Record shape, or Index shape changes.
 - 1.9.0 adds catalog-backed reader labels, rewrites the Selection Sheet and Portfolio Index as committee documents, adds `committee-clean` to those renderings, adds `--draft` previews, and moves dossiers to Paperforge's internal list. No instance field, M invariant, Decision Record shape, or Index shape changes.
 - 1.8.0 adds optional `closest_work[].key`, a project-owned `references.bib`, warning-only resolution checks when that file exists, and citation markers for Paperforge. No M invariant is added or tightened. A 1.7.0 project without `references.bib` has byte-for-byte identical lint findings.
